@@ -1,0 +1,100 @@
+From 88a00438cc859eddebafcf71daff1589cf349852 Mon Sep 17 00:00:00 2001
+From: Yadu MG <quic_ymg@quicinc.com>
+Date: Thu, 27 Jan 2022 11:30:44 +0530
+Subject: [PATCH 2/3] [DO NO MERGE]: edk2: Fix the multislot boot issue on Nord
+ RUMI
+
+Lemans RUMI doesn't have the support for LUNs greater than 5.
+This make slot _b unavailable.
+
+For Lemans, slot _a is available and patitions are named accordingly.
+Currently ABL multislot logic is based on the slots and unavailability
+of _b slot breaks the logic.
+
+As a workaround, multislot parition enumeration logic is temporarily
+disabled.
+
+Change-Id: Ifb1bff38d43bb4737a446af4f17e53ec5edfbd8d
+Signed-off-by: Yadu MG <quic_ymg@quicinc.com>
+---
+ QcomModulePkg/Application/LinuxLoader/LinuxLoader.c |  3 +++
+ QcomModulePkg/Library/avb/VerifiedBoot.c            | 10 +++++++---
+ 2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/QcomModulePkg/Application/LinuxLoader/LinuxLoader.c b/QcomModulePkg/Application/LinuxLoader/LinuxLoader.c
+index f1c6d3fefd..68aac1be38 100755
+--- a/QcomModulePkg/Application/LinuxLoader/LinuxLoader.c
++++ b/QcomModulePkg/Application/LinuxLoader/LinuxLoader.c
+@@ -236,11 +236,14 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
+ 
+   UpdatePartitionEntries ();
+   /*Check for multislot boot support*/
++/*
+   MultiSlotBoot = PartitionHasMultiSlot ((CONST CHAR16 *)L"boot");
+   if (MultiSlotBoot) {
+     DEBUG ((EFI_D_VERBOSE, "Multi Slot boot is supported\n"));
+     FindPtnActiveSlot ();
+   }
++*/
++  MultiSlotBoot = TRUE;
+ 
+   Status = GetKeyPress (&KeyPressed);
+   if (Status == EFI_SUCCESS) {
+diff --git a/QcomModulePkg/Library/avb/VerifiedBoot.c b/QcomModulePkg/Library/avb/VerifiedBoot.c
+index 5b24d83436..de29e20400 100644
+--- a/QcomModulePkg/Library/avb/VerifiedBoot.c
++++ b/QcomModulePkg/Library/avb/VerifiedBoot.c
+@@ -202,7 +202,7 @@ NoAVBLoadReqImage (BootInfo *Info, VOID **DtboImage,
+         UINT32 *DtboSize, CHAR16 *Pname, CHAR16 *RequestedPartition)
+ {
+   EFI_STATUS Status = EFI_SUCCESS;
+-  Slot CurrentSlot = {{0}};
++//  Slot CurrentSlot = {{0}};
+   CHAR8 *AsciiPname = NULL;
+   UINT64 PartSize = 0;
+   AvbIOResult AvbStatus;
+@@ -214,6 +214,7 @@ NoAVBLoadReqImage (BootInfo *Info, VOID **DtboImage,
+               (CONST CHAR16 *)RequestedPartition,
+               StrLen (RequestedPartition)));
+ 
++/*
+   if (Info->MultiSlotBoot) {
+       CurrentSlot = GetCurrentSlotSuffix ();
+       GUARD ( StrnCatS (Pname, MAX_GPT_NAME_SIZE,
+@@ -223,6 +224,7 @@ NoAVBLoadReqImage (BootInfo *Info, VOID **DtboImage,
+     Status = EFI_NO_MEDIA;
+     goto out;
+   }
++*/
+ 
+   /* Get Partition size & compare with MAX supported size
+    * If Partition size > DTBO_MAX_SIZE_ALLOWED return
+@@ -660,7 +662,7 @@ LoadImageNoAuth (BootInfo *Info)
+   Status = NoAVBLoadReqImage (Info,
+                  (VOID **)&(Info->Images[*ImgIdx].ImageBuffer),
+                  (UINT32 *)&(Info->Images[*ImgIdx].ImageSize),
+-                 Pname, (CHAR16 *)L"dtbo");
++                 Pname, (CHAR16 *)L"dtbo_a");
+   if (Status == EFI_NO_MEDIA) {
+       DEBUG ((EFI_D_INFO, "No dtbo partition is found, Skip dtbo\n"));
+       if (Info->Images[*ImgIdx].ImageBuffer != NULL) {
+@@ -2126,13 +2128,15 @@ get_ptn_name:
+                 StrLen (L"boot"));
+     }
+   } else {
+-    Slot CurrentSlot = {{0}};
++    Slot CurrentSlot = {{L"_a"}};
+ 
++/*
+     GUARD (FindBootableSlot (&CurrentSlot));
+     if (IsSuffixEmpty (&CurrentSlot)) {
+       DEBUG ((EFI_D_ERROR, "No bootable slot\n"));
+       return EFI_LOAD_ERROR;
+     }
++*/
+ 
+     if (IsDynamicPartitionSupport () &&
+           Info->BootIntoRecovery &&
+-- 
+2.17.1
+

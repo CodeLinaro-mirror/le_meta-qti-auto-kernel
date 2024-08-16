@@ -1,0 +1,30 @@
+From 2831aeee77c08e032bfadc471096dead02c5effe Mon Sep 17 00:00:00 2001
+From: Yadu MG <quic_ymg@quicinc.com>
+Date: Thu, 18 Jul 2024 17:31:43 +0530
+Subject: [PATCH 1/3] [Do Not Merge] QcomModulePkg: Increase
+ MAX_GET_VAR_NAME_SIZE to 64
+
+Increase MAX_GET_VAR_NAME_SIZE to 64 to allow longer partition names.
+
+Change-Id: Ied5731d63b96f0528ec693f7d9e9365275320134
+Signed-off-by: Yadu MG <quic_ymg@quicinc.com>
+---
+ QcomModulePkg/Library/FastbootLib/FastbootCmds.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/QcomModulePkg/Library/FastbootLib/FastbootCmds.h b/QcomModulePkg/Library/FastbootLib/FastbootCmds.h
+index 839f778846..f6bde0e233 100755
+--- a/QcomModulePkg/Library/FastbootLib/FastbootCmds.h
++++ b/QcomModulePkg/Library/FastbootLib/FastbootCmds.h
+@@ -98,7 +98,7 @@
+ #define VERSION_STR_LEN 96
+ #define FASTBOOT_STRING_MAX_LENGTH 256
+ #define FASTBOOT_COMMAND_MAX_LENGTH 64
+-#define MAX_GET_VAR_NAME_SIZE 36
++#define MAX_GET_VAR_NAME_SIZE 64
+ #define SIGACTUAL 4096
+ #define SLOT_SUFFIX_ARRAY_SIZE 10
+ #define SLOT_ATTR_SIZE 32
+-- 
+2.17.1
+
