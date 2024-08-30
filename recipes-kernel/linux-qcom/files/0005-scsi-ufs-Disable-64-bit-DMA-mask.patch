@@ -1,0 +1,33 @@
+From 31417df817f8bbdfd42175b6244500f2c08a9043 Mon Sep 17 00:00:00 2001
+From: Ram Kumar Dwivedi <quic_rdwivedi@quicinc.com>
+Date: Thu, 29 Aug 2024 11:38:20 +0530
+Subject: [PATCH 6/6] scsi: ufs: Disable 64 bit DMA mask
+
+Disable 64 bit DMA mask.
+
+Change-Id: I0eae7ec6748126790846cbb83559f5ff96e9143f
+Signed-off-by: Ram Kumar Dwivedi <quic_rdwivedi@quicinc.com>
+---
+ drivers/ufs/core/ufshcd.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/ufs/core/ufshcd.c b/drivers/ufs/core/ufshcd.c
+index bd4df31b4cc3..166d47ba5cfd 100644
+--- a/drivers/ufs/core/ufshcd.c
++++ b/drivers/ufs/core/ufshcd.c
+@@ -10354,10 +10354,12 @@ EXPORT_SYMBOL_GPL(ufshcd_dealloc_host);
+  */
+ static int ufshcd_set_dma_mask(struct ufs_hba *hba)
+ {
++/*
+ 	if (hba->capabilities & MASK_64_ADDRESSING_SUPPORT) {
+ 		if (!dma_set_mask_and_coherent(hba->dev, DMA_BIT_MASK(64)))
+ 			return 0;
+ 	}
++*/
+ 	return dma_set_mask_and_coherent(hba->dev, DMA_BIT_MASK(32));
+ }
+ 
+-- 
+2.17.1
+
