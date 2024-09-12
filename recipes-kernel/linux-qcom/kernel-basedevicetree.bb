@@ -33,6 +33,16 @@ do_deploy() {
             fi
         done
     fi
+
+    if [ -n "${OOT_DTBS}" ]; then
+        install -d ${DEPLOYDIR}/build-artifacts/techpack-dtbs
+
+        for dtb in ${OOT_DTBS}; do
+            if [ -f ${B}/$dtb ]; then
+                install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/techpack-dtbs
+            fi
+        done
+    fi
 }
 
 addtask do_deploy after do_compile before do_packagedata
