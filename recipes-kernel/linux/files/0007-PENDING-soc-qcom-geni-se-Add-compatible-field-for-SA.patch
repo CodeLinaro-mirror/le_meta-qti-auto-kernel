@@ -1,0 +1,67 @@
+From 606e2a9a2d0694c09b852147077a4165d448e29f Mon Sep 17 00:00:00 2001
+From: Aniket Randive <quic_arandive@quicinc.com>
+Date: Tue, 24 Sep 2024 14:17:32 +0530
+Subject: [PATCH V1 1/1] PENDING: soc: qcom: geni-se: Add compatible field for
+ SA8797P
+
+Add compatible field for UART and common driver for SA8797P.
+
+Change-Id: I259ce64b9ce1b2d015c10c4cbd59974e489df27f
+Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
+---
+ drivers/soc/qcom/qcom-geni-se.c       |  1 +
+ drivers/tty/serial/qcom_geni_serial.c | 12 +++++++++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/soc/qcom/qcom-geni-se.c b/drivers/soc/qcom/qcom-geni-se.c
+index 76f130bc7894..e522e01ec7d3 100644
+--- a/drivers/soc/qcom/qcom-geni-se.c
++++ b/drivers/soc/qcom/qcom-geni-se.c
+@@ -1006,6 +1006,7 @@ static const struct of_device_id geni_se_dt_match[] = {
+ 	{ .compatible = "qcom,geni-se-qup", .data = &qup_desc },
+ 	{ .compatible = "qcom,geni-se-i2c-master-hub", .data = &i2c_master_hub_desc },
+ 	{ .compatible = "qcom,sa8255p-geni-se-qup", .data = &remotely_qup_desc },
++	{ .compatible = "qcom,sa8797p-geni-se-qup", .data = &remotely_qup_desc },
+ 	{}
+ };
+ MODULE_DEVICE_TABLE(of, geni_se_dt_match);
+diff --git a/drivers/tty/serial/qcom_geni_serial.c b/drivers/tty/serial/qcom_geni_serial.c
+index d1003f1e0f04..f75f4613ec65 100644
+--- a/drivers/tty/serial/qcom_geni_serial.c
++++ b/drivers/tty/serial/qcom_geni_serial.c
+@@ -1753,7 +1753,9 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
+ 	port->se.wrapper = dev_get_drvdata(pdev->dev.parent);
+
+ 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sa8255p-geni-debug-uart") ||
+-	    of_device_is_compatible(pdev->dev.of_node, "qcom,sa8255p-geni-uart")) {
++	    of_device_is_compatible(pdev->dev.of_node, "qcom,sa8255p-geni-uart") ||
++	    of_device_is_compatible(pdev->dev.of_node, "qcom,sa87975p-geni-debug-uart") ||
++	    of_device_is_compatible(pdev->dev.of_node, "qcom,sa8797p-geni-uart")) {
+ 		ret = dev_pm_domain_attach_list(&pdev->dev,
+ 						&port->dev_data->pd_data, &port->se.pd_list);
+ 		if (ret < 0)
+@@ -2002,6 +2004,10 @@ static const struct of_device_id qcom_geni_serial_match_table[] = {
+ 		.compatible = "qcom,sa8255p-geni-debug-uart",
+ 		.data = &remotely_qcom_geni_console_data,
+ 	},
++	{
++		.compatible = "qcom,sa8795p-geni-debug-uart",
++		.data = &remotely_qcom_geni_console_data,
++	},
+ 	{
+ 		.compatible = "qcom,geni-uart",
+ 		.data = &qcom_geni_uart_data,
+@@ -2010,6 +2016,10 @@ static const struct of_device_id qcom_geni_serial_match_table[] = {
+ 		.compatible = "qcom,sa8255p-geni-uart",
+ 		.data = &remotely_qcom_geni_uart_data,
+ 	},
++	{
++		.compatible = "qcom,sa8797p-geni-uart",
++		.data = &remotely_qcom_geni_uart_data,
++	},
+ 	{}
+ };
+ MODULE_DEVICE_TABLE(of, qcom_geni_serial_match_table);
+--
+2.17.1
+

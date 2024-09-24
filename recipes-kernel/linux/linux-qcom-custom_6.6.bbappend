@@ -8,4 +8,5 @@ SRC_URI:append = " \
     file://0004-ufs-Disable-power-mode-change-during-hba-probe.patch \
     file://0005-scsi-ufs-Disable-64-bit-DMA-mask.patch \
     file://0006-QCLINUX-Fix-serial-probe-error.patch \
+    file://0007-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
 "
