@@ -1,0 +1,45 @@
+From e6830a0eea0abfe73a1b6903a6d3f625f728f251 Mon Sep 17 00:00:00 2001
+From: Yadu MG <quic_ymg@quicinc.com>
+Date: Thu, 3 Oct 2024 10:58:33 +0530
+Subject: [PATCH 4/4] [DO NOT MERGE] QcomModulePkg: Fix partition and keymaster
+ issues
+
+Enable AB_FORCE_USE_SYSTEM_A and disable LOAD_KM_AND_SET_ROT forcefully.
+
+Change-Id: Ied6ba97a59a1e3cadbd4bee5934773ce9bee7119
+Signed-off-by: Yadu MG <quic_ymg@quicinc.com>
+---
+ QcomModulePkg/Library/BootLib/BootLinux.c | 2 +-
+ QcomModulePkg/Library/avb/VerifiedBoot.c  | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/QcomModulePkg/Library/BootLib/BootLinux.c b/QcomModulePkg/Library/BootLib/BootLinux.c
+index b41dff8587..e8e75e26e5 100644
+--- a/QcomModulePkg/Library/BootLib/BootLinux.c
++++ b/QcomModulePkg/Library/BootLib/BootLinux.c
+@@ -2193,7 +2193,7 @@ BOOLEAN IsABForceUseSystemA (VOID)
+ #else
+ BOOLEAN IsABForceUseSystemA (VOID)
+ {
+-  return FALSE;
++  return TRUE;
+ }
+ #endif
+ 
+diff --git a/QcomModulePkg/Library/avb/VerifiedBoot.c b/QcomModulePkg/Library/avb/VerifiedBoot.c
+index 9e558e55f8..27a53e472e 100644
+--- a/QcomModulePkg/Library/avb/VerifiedBoot.c
++++ b/QcomModulePkg/Library/avb/VerifiedBoot.c
+@@ -747,7 +747,8 @@ LoadImageNoAuthWrapper (BootInfo *Info)
+     GUARD (AppendVBCmdLine (Info, SystemPath));
+   }
+ 
+-#if LOAD_KM_AND_SET_ROT
++#if 0
++//#if LOAD_KM_AND_SET_ROT
+   DEBUG ((EFI_D_ERROR, "!!! Temporal: Loading KM TA + Set ROT %d\n"));
+   /* Load KeyMaster App */
+   GUARD (AppendVBCmdLine (Info, Space));
+-- 
+2.17.1
+
