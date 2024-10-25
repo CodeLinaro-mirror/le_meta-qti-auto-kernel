@@ -10,3 +10,5 @@ SRC_URI:append = " \
     file://0006-QCLINUX-Fix-serial-probe-error.patch \
     file://0007-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
 "
+
+KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/sa8797p-generic.cfg"
