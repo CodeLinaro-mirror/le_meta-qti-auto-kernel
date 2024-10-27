@@ -1,0 +1,95 @@
+From 94267c541ac7dc4aed56d7e05ee00ccb25962439 Mon Sep 17 00:00:00 2001
+From: Shreyas K K <quic_shrekk@quicinc.com>
+Date: Thu, 25 Jul 2024 16:59:56 +0530
+Subject: [PATCH] NOMERGE: drivers: iommu: Bypass context_irq error
+
+Change-Id: I6b34a0dffa840ac7be3d079bd97a6f73b3d5e633
+Signed-off-by: Shreyas K K <quic_shrekk@quicinc.com>
+---
+ drivers/iommu/arm/arm-smmu/arm-smmu.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/iommu/arm/arm-smmu/arm-smmu.c b/drivers/iommu/arm/arm-smmu/arm-smmu.c
+index 53aa27fca365..cd9bfc06b56f 100644
+--- a/drivers/iommu/arm/arm-smmu/arm-smmu.c
++++ b/drivers/iommu/arm/arm-smmu/arm-smmu.c
+@@ -789,7 +789,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
+ 	 * Request context fault interrupt. Do this last to avoid the
+ 	 * handler seeing a half-initialised domain state.
+ 	 */
+-	irq = smmu->irqs[cfg->irptndx];
++/*	irq = smmu->irqs[cfg->irptndx];
+ 
+ 	if (smmu->impl && smmu->impl->context_fault)
+ 		context_fault = smmu->impl->context_fault;
+@@ -811,7 +811,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
+ 			cfg->irptndx, irq);
+ 		cfg->irptndx = ARM_SMMU_INVALID_IRPTNDX;
+ 	}
+-
++*/
+ 	mutex_unlock(&smmu_domain->init_mutex);
+ 
+ 	/* Publish page table ops for map/unmap */
+@@ -847,11 +847,11 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
+ 	smmu->cbs[cfg->cbndx].cfg = NULL;
+ 	arm_smmu_write_context_bank(smmu, cfg->cbndx);
+ 
+-	if (cfg->irptndx != ARM_SMMU_INVALID_IRPTNDX) {
++/*	if (cfg->irptndx != ARM_SMMU_INVALID_IRPTNDX) {
+ 		irq = smmu->irqs[cfg->irptndx];
+ 		devm_free_irq(smmu->dev, irq, domain);
+ 	}
+-
++*/
+ 	free_io_pgtable_ops(smmu_domain->pgtbl_ops);
+ 	__arm_smmu_free_bitmap(smmu->context_map, cfg->cbndx);
+ 
+@@ -2098,7 +2098,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
+ 	num_irqs = platform_irq_count(pdev);
+ 
+ 	smmu->num_context_irqs = num_irqs - global_irqs - pmu_irqs;
+-	if (smmu->num_context_irqs <= 0)
++/*	if (smmu->num_context_irqs <= 0)
+ 		return dev_err_probe(dev, -ENODEV,
+ 				"found %d interrupts but expected at least %d\n",
+ 				num_irqs, global_irqs + pmu_irqs + 1);
+@@ -2116,7 +2116,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
+ 			return irq;
+ 		smmu->irqs[i] = irq;
+ 	}
+-
++*/
+ 	err = devm_clk_bulk_get_all(dev, &smmu->clks);
+ 	if (err < 0) {
+ 		dev_err(dev, "failed to get clocks %d\n", err);
+@@ -2137,14 +2137,14 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
+ 			dev_err(dev,
+ 			      "found only %d context irq(s) but %d required\n",
+ 			      smmu->num_context_irqs, smmu->num_context_banks);
+-			return -ENODEV;
++			//return -ENODEV;
+ 		}
+ 
+ 		/* Ignore superfluous interrupts */
+-		smmu->num_context_irqs = smmu->num_context_banks;
++		smmu->num_context_irqs = 1;//smmu->num_context_banks;
+ 	}
+ 
+-	if (smmu->impl && smmu->impl->global_fault)
++/*	if (smmu->impl && smmu->impl->global_fault)
+ 		global_fault = smmu->impl->global_fault;
+ 	else
+ 		global_fault = arm_smmu_global_fault;
+@@ -2162,7 +2162,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
+ 					"failed to request global IRQ %d (%u)\n",
+ 					i, irq);
+ 	}
+-
++*/
+ 	err = iommu_device_sysfs_add(&smmu->iommu, smmu->dev, NULL,
+ 				     "smmu.%pa", &smmu->ioaddr);
+ 	if (err) {
+-- 
+2.17.1
+

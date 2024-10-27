@@ -1,0 +1,145 @@
+From b4d8dc703e11ba73eec37863704c97b2321fb900 Mon Sep 17 00:00:00 2001
+From: Ram Kumar Dwivedi <quic_rdwivedi@quicinc.com>
+Date: Mon, 26 Aug 2024 07:57:40 -0700
+Subject: [PATCH 1/6] ufs: Configure UFS driver for NordAU RUMI
+
+Configure UFS driver for NordAU RUMI:
+1. Set max gear to Gear 1
+2. Disable auto-hibernate feature
+3. Disable all LPM features
+4. Set Mode to Rate A
+5. Disable MCQ feature
+6. Enable static compilation of ufs_qcom driver
+   instead of a loadable module.
+
+Change-Id: Ic13d27e55c97b0e16cfbc6ca9cfdbc8a906dcfea
+Signed-off-by: Ram Kumar Dwivedi <quic_rdwivedi@quicinc.com>
+---
+ drivers/ufs/core/ufshcd.c        |  6 +++---
+ drivers/ufs/host/ufs-qcom.c      | 10 +++++++++-
+ drivers/ufs/host/ufs-qcom.h      |  2 +-
+ drivers/ufs/host/ufshcd-pltfrm.c | 14 +++++++-------
+ 4 files changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/ufs/core/ufshcd.c b/drivers/ufs/core/ufshcd.c
+index 07ce2a69956a..60a1d6bfca9d 100644
+--- a/drivers/ufs/core/ufshcd.c
++++ b/drivers/ufs/core/ufshcd.c
+@@ -100,7 +100,7 @@
+ #define FDEVICEINIT_COMPL_TIMEOUT 1500 /* millisecs */
+ 
+ /* UFSHC 4.0 compliant HC support this mode. */
+-static bool use_mcq_mode = true;
++static bool use_mcq_mode = false;
+ 
+ static bool is_mcq_supported(struct ufs_hba *hba)
+ {
+@@ -657,7 +657,7 @@ static void ufshcd_print_pwr_info(struct ufs_hba *hba)
+ 	 * never-ending cycles of messages written back to storage by user space
+ 	 * causing runtime resume, causing more messages and so on.
+ 	 */
+-	dev_dbg(hba->dev, "%s:[RX, TX]: gear=[%d, %d], lane[%d, %d], pwr[%s, %s], rate = %d\n",
++	dev_err(hba->dev, "%s:[RX, TX]: gear=[%d, %d], lane[%d, %d], pwr[%s, %s], rate = %d\n",
+ 		 __func__,
+ 		 hba->pwr_info.gear_rx, hba->pwr_info.gear_tx,
+ 		 hba->pwr_info.lane_rx, hba->pwr_info.lane_tx,
+@@ -4528,7 +4528,7 @@ static int ufshcd_get_max_pwr_mode(struct ufs_hba *hba)
+ 		pwr_info->pwr_tx = FAST_MODE;
+ 		pwr_info->pwr_rx = FAST_MODE;
+ 	}
+-	pwr_info->hs_rate = PA_HS_MODE_B;
++	pwr_info->hs_rate = PA_HS_MODE_A;
+ 
+ 	/* Get the connected lane count */
+ 	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDRXDATALANES),
+diff --git a/drivers/ufs/host/ufs-qcom.c b/drivers/ufs/host/ufs-qcom.c
+index a5e34ae39587..e52c7947ad69 100644
+--- a/drivers/ufs/host/ufs-qcom.c
++++ b/drivers/ufs/host/ufs-qcom.c
+@@ -477,6 +477,8 @@ static int ufs_qcom_host_reset(struct ufs_hba *hba)
+ 
+ static u32 ufs_qcom_get_hs_gear(struct ufs_hba *hba)
+ {
++	return UFS_HS_G1;
++
+ 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+ 
+ 	if (host->hw_ver.major == 0x1) {
+@@ -1106,10 +1108,14 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
+ 
+ 	if (host->hw_ver.major > 0x3)
+ 		hba->quirks |= UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH;
++
++	hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
+ }
+ 
+ static void ufs_qcom_set_caps(struct ufs_hba *hba)
+ {
++	return;
++/*
+ 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+ 
+ 	hba->caps |= UFSHCD_CAP_CLK_GATING | UFSHCD_CAP_HIBERN8_WITH_CLK_GATING;
+@@ -1123,6 +1129,7 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
+ 		host->caps = UFS_QCOM_CAP_QUNIPRO |
+ 			     UFS_QCOM_CAP_RETAIN_SEC_CFG_AFTER_PWR_COLLAPSE;
+ 	}
++*/
+ }
+ 
+ /**
+@@ -1353,7 +1360,8 @@ static int ufs_qcom_init(struct ufs_hba *hba)
+ 	 * Power up the PHY using the minimum supported gear (UFS_HS_G2).
+ 	 * Switching to max gear will be performed during reinit if supported.
+ 	 */
+-	host->hs_gear = UFS_HS_G2;
++	host->hs_gear = UFS_HS_G1;
++	//host->hs_gear = UFS_HS_G2;
+ 
+ 	return 0;
+ 
+diff --git a/drivers/ufs/host/ufs-qcom.h b/drivers/ufs/host/ufs-qcom.h
+index d95eb26d0cf1..b52156c7be33 100644
+--- a/drivers/ufs/host/ufs-qcom.h
++++ b/drivers/ufs/host/ufs-qcom.h
+@@ -27,7 +27,7 @@
+ #define SLOW 1
+ #define FAST 2
+ 
+-#define UFS_QCOM_LIMIT_HS_RATE		PA_HS_MODE_B
++#define UFS_QCOM_LIMIT_HS_RATE		PA_HS_MODE_A
+ 
+ /* QCOM UFS host controller vendor specific registers */
+ enum {
+diff --git a/drivers/ufs/host/ufshcd-pltfrm.c b/drivers/ufs/host/ufshcd-pltfrm.c
+index 0963d0bc3867..358fb9046601 100644
+--- a/drivers/ufs/host/ufshcd-pltfrm.c
++++ b/drivers/ufs/host/ufshcd-pltfrm.c
+@@ -433,17 +433,17 @@ EXPORT_SYMBOL_GPL(ufshcd_get_pwr_dev_param);
+ void ufshcd_init_pwr_dev_param(struct ufs_dev_params *dev_param)
+ {
+ 	*dev_param = (struct ufs_dev_params){
+-		.tx_lanes = UFS_LANE_2,
+-		.rx_lanes = UFS_LANE_2,
+-		.hs_rx_gear = UFS_HS_G3,
+-		.hs_tx_gear = UFS_HS_G3,
+-		.pwm_rx_gear = UFS_PWM_G4,
+-		.pwm_tx_gear = UFS_PWM_G4,
++		.tx_lanes = UFS_LANE_1,
++		.rx_lanes = UFS_LANE_1,
++		.hs_rx_gear = UFS_HS_G1,
++		.hs_tx_gear = UFS_HS_G1,
++		.pwm_rx_gear = UFS_PWM_G1,
++		.pwm_tx_gear = UFS_PWM_G1,
+ 		.rx_pwr_pwm = SLOW_MODE,
+ 		.tx_pwr_pwm = SLOW_MODE,
+ 		.rx_pwr_hs = FAST_MODE,
+ 		.tx_pwr_hs = FAST_MODE,
+-		.hs_rate = PA_HS_MODE_B,
++		.hs_rate = PA_HS_MODE_A,
+ 		.desired_working_mode = UFS_HS_MODE,
+ 	};
+ }
+-- 
+2.17.1
+

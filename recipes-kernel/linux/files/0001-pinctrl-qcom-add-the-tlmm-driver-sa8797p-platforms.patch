@@ -1,23 +1,20 @@
-From 8d10df6716d4a397231f16f14c539016d8d468df Mon Sep 17 00:00:00 2001
-From: Shreyas K K <quic_shrekk@quicinc.com>
-Date: Wed, 24 Jul 2024 16:44:57 +0530
-Subject: [PATCH 4/9] pinctrl: qcom: add the tlmm driver sa8797p platforms
+From d28a5697cb98d65feed228d9a3579d33475bb7e1 Mon Sep 17 00:00:00 2001
+From: Deepti Jaggi <quic_djaggi@quicinc.com>
+Date: Wed, 13 Mar 2024 14:00:33 -0700
+Subject: [PATCH] pinctrl: qcom: add the tlmm driver for sa8797p SOC
 
-Change-Id: Ic140391904b170035773c0263b3a456824b026a0
+Add support for SA8797P TLMM configuration and control
+via the pinctrl framework.
+
 Signed-off-by: Deepti Jaggi <quic_djaggi@quicinc.com>
-Signed-off-by: Shreyas K K <quic_shrekk@quicinc.com>
+Change-Id: Ic140391904b170035773c0263b3a456824b026a0
 ---
- drivers/pinctrl/qcom/Kconfig.msm       |    7 +
- drivers/pinctrl/qcom/Makefile          |    1 +
- drivers/pinctrl/qcom/pinctrl-sa8797p.c | 2957 ++++++++++++++++++++++++
- 3 files changed, 2965 insertions(+)
- create mode 100644 drivers/pinctrl/qcom/pinctrl-sa8797p.c
 
 diff --git a/drivers/pinctrl/qcom/Kconfig.msm b/drivers/pinctrl/qcom/Kconfig.msm
-index 6b3c4f74e5fb..cadfc5631264 100644
+index 8fe459d..a19f9ba 100644
 --- a/drivers/pinctrl/qcom/Kconfig.msm
 +++ b/drivers/pinctrl/qcom/Kconfig.msm
-@@ -211,6 +211,13 @@ config PINCTRL_SA8775P
+@@ -204,6 +204,13 @@
  	  This is the pinctrl, pinmux and pinconf driver for the Qualcomm
  	  TLMM block found on the Qualcomm SA8775P platforms.
  
@@ -32,10 +29,10 @@ index 6b3c4f74e5fb..cadfc5631264 100644
  	tristate "Qualcomm Technologies Inc SC7180 pin controller driver"
  	depends on ARM64 || COMPILE_TEST
 diff --git a/drivers/pinctrl/qcom/Makefile b/drivers/pinctrl/qcom/Makefile
-index 758ff0593a0d..f62807548c6b 100644
+index e2e7607..5195c2d 100644
 --- a/drivers/pinctrl/qcom/Makefile
 +++ b/drivers/pinctrl/qcom/Makefile
-@@ -34,6 +34,7 @@ obj-$(CONFIG_PINCTRL_QCOM_SSBI_PMIC) += pinctrl-ssbi-mpp.o
+@@ -32,6 +32,7 @@
  obj-$(CONFIG_PINCTRL_QDU1000)	+= pinctrl-qdu1000.o
  obj-$(CONFIG_PINCTRL_SA8775P)	+= pinctrl-sa8775p.o
  obj-$(CONFIG_PINCTRL_SA8775P_LPASS_LPI) += pinctrl-sa8775p-lpass-lpi.o
@@ -45,7 +42,7 @@ index 758ff0593a0d..f62807548c6b 100644
  obj-$(CONFIG_PINCTRL_SC7280_LPASS_LPI) += pinctrl-sc7280-lpass-lpi.o
 diff --git a/drivers/pinctrl/qcom/pinctrl-sa8797p.c b/drivers/pinctrl/qcom/pinctrl-sa8797p.c
 new file mode 100644
-index 000000000000..9cde955dd9c1
+index 0000000..78d3e4f
 --- /dev/null
 +++ b/drivers/pinctrl/qcom/pinctrl-sa8797p.c
 @@ -0,0 +1,2957 @@
@@ -2983,7 +2980,7 @@ index 000000000000..9cde955dd9c1
 +
 +static struct platform_driver sa8797p_pinctrl_driver = {
 +	.driver = {
-+		.name = "sa8797p-pinctrl",
++		.name = "sa8797p-tlmm",
 +		.of_match_table = sa8797p_pinctrl_of_match,
 +	},
 +	.probe = sa8797p_pinctrl_probe,
@@ -3006,6 +3003,3 @@ index 000000000000..9cde955dd9c1
 +MODULE_LICENSE("GPL");
 +MODULE_DEVICE_TABLE(of, sa8797p_pinctrl_of_match);
 +
--- 
-2.17.1
-

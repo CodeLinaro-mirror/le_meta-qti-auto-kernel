@@ -1,6 +1,10 @@
 DESCRIPTION = "Build kernel base-devicetree"
-LICENSE = "GPL-2.0-only"
-LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/${LICENSE};md5=801f80980d171dd6425610833a22dbe6"
+LICENSE = "(GPL-2.0-only OR BSD-2-Clause) & BSD-3-Clause"
+LIC_FILES_CHKSUM = "\
+    file://${COREBASE}/meta/files/common-licenses/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6 \
+    file://${COREBASE}/meta/files/common-licenses/BSD-2-Clause;md5=cb641bc04cda31daea161b1bc15da69f \
+    file://${COREBASE}/meta/files/common-licenses/BSD-3-Clause;md5=550794465ba0ec5312d6919e203a55f9 \
+"
 
 SRC_URI = "${PATH_TO_REPO}/vendor/qcom/opensource/base-devicetree/.git;protocol=${PROTO};usehead=1"
 
@@ -30,6 +34,16 @@ do_deploy() {
         for dtb in ${KERNEL_BASE_DTB}; do
             if [ -f ${B}/$dtb ]; then
                 install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/kernel-dtb
+            fi
+        done
+    fi
+
+    if [ -n "${OOT_DTBS}" ]; then
+        install -d ${DEPLOYDIR}/build-artifacts/techpack-dtbs
+
+        for dtb in ${OOT_DTBS}; do
+            if [ -f ${B}/$dtb ]; then
+                install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/techpack-dtbs
             fi
         done
     fi
