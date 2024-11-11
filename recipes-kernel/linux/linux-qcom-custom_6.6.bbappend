@@ -12,6 +12,7 @@ SRC_URI:append = " \
     file://0008-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
     file://0009-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
+    file://0011-ufs-Configure-UFS-driver-for-NordAU-SoD-bringup.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/sa8797p-generic.cfg"
