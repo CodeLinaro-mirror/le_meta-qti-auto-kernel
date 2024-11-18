@@ -13,6 +13,8 @@ SRC_URI:append = " \
     file://0009-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
     file://0011-ufs-Configure-UFS-driver-for-NordAU-SoD-bringup.patch \
+    file://0010-phy-qcom-phy-qcom-snps-eusb2-Add-support-for-SA8797P.patch \
+    file://0011-usb-phy-qmp-combo-Add-scmi-related-changes-for-SA879.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/sa8797p-generic.cfg"
