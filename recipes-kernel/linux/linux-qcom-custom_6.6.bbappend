@@ -16,6 +16,8 @@ SRC_URI:append = " \
     file://0011-usb-phy-qmp-combo-Add-scmi-related-changes-for-SA879.patch \
     file://0010-usb-phy-Disable-DP-hardcode-lane-B.patch \
     file://0012-PENDING-cpufreq-scmi-Skip-SCMI-devices-that-aren-t-u.patch \
+    file://0012-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
+    file://0013-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/sa8797p-generic.cfg"
