@@ -7,6 +7,14 @@ SRC_URI:append = " \
     file://0003-ufs-Configure-UFS-driver-for-NordAU-RUMI.patch \
     file://0004-ufs-Disable-power-mode-change-during-hba-probe.patch \
     file://0005-scsi-ufs-Disable-64-bit-DMA-mask.patch \
-    file://0006-QCLINUX-Fix-serial-probe-error.patch \
     file://0007-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
+    file://0008-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
+    file://0009-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
+    file://0008-Window-Watchdog-support-for-Sa8797.patch \
+    file://0011-ufs-Configure-UFS-driver-for-NordAU-SoD-bringup.patch \
+    file://0010-phy-qcom-phy-qcom-snps-eusb2-Add-support-for-SA8797P.patch \
+    file://0011-usb-phy-qmp-combo-Add-scmi-related-changes-for-SA879.patch \
+    file://0010-usb-phy-Disable-DP-hardcode-lane-B.patch \
 "
+
+KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/sa8797p-generic.cfg"

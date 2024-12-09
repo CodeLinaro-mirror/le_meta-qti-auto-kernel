@@ -14,6 +14,10 @@ S = "${WORKDIR}/vendor/qcom/opensource/base-devicetree"
 
 inherit deploy kernel-arch module-base
 
+do_compile() {
+    make dtbos KDIR=${STAGING_KERNEL_DIR} O=${STAGING_KERNEL_BUILDDIR} CC="${KERNEL_CC}" LD="${KERNEL_LD}"
+}
+
 # lock to avoid parallel compiling with techpack
 do_compile[lockfiles] += "${TMPDIR}/qti-techpack.lock"
 

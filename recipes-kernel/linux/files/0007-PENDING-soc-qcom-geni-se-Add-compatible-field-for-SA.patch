@@ -34,7 +34,7 @@ index f8d28aea6839..aa0e00866869 100644
  		of_device_is_compatible(pdev->dev.of_node, "qcom,sa7255p-geni-debug-uart") ||
 -		of_device_is_compatible(pdev->dev.of_node, "qcom,sa7255p-geni-uart")) {
 +		of_device_is_compatible(pdev->dev.of_node, "qcom,sa7255p-geni-uart") ||
-+		of_device_is_compatible(pdev->dev.of_node, "qcom,sa87975p-geni-debug-uart") ||
++		of_device_is_compatible(pdev->dev.of_node, "qcom,sa8797p-geni-debug-uart") ||
 +		of_device_is_compatible(pdev->dev.of_node, "qcom,sa8797p-geni-uart")) {
  		ret = dev_pm_domain_attach_list(&pdev->dev,
  						&port->dev_data->pd_data, &port->se.pd_list);
@@ -44,7 +44,7 @@ index f8d28aea6839..aa0e00866869 100644
  		.data = &remotely_qcom_geni_console_data,
  	},
 +	{
-+		.compatible = "qcom,sa8795p-geni-debug-uart",
++		.compatible = "qcom,sa8797p-geni-debug-uart",
 +		.data = &remotely_qcom_geni_console_data,
 +	},
  	{
