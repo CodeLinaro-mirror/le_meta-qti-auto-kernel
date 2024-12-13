@@ -8,8 +8,8 @@ Signed-off-by: Deepti Jaggi <quic_djaggi@quicinc.com>
 ---
  drivers/watchdog/Kconfig              |  12 +
  drivers/watchdog/Makefile             |   1 +
- drivers/watchdog/qcom-win-wdt.c       | 329 ++++++++++++++++++++++++++
- 4 files changed, 344 insertions(+), 2 deletions(-)
+ drivers/watchdog/qcom-win-wdt.c | 345 ++++++++++++++++++++++++++++++++
+ 3 files changed, 358 insertions(+)
  create mode 100644 drivers/watchdog/qcom-win-wdt.c
 
 diff --git a/drivers/watchdog/Kconfig b/drivers/watchdog/Kconfig
@@ -52,7 +52,7 @@ new file mode 100644
 index 000000000000..4845eabd3113
 --- /dev/null
 +++ b/drivers/watchdog/qcom-win-wdt.c
-@@ -0,0 +1,329 @@
+@@ -0,0 +1,345 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
 + */
@@ -73,6 +73,11 @@ index 000000000000..4845eabd3113
 +	WDT_STS,
 +	WDT_BARK_TIME,
 +	WDT_BITE_TIME,
++	WDT_WINDOW_MIN_TIME,
++	WDT_WINDOW_MAX_TIME,
++	WDT_WINDOW_START_TIME,
++	WDT_FREEZE_CTL,
++	WDT_ERROR_SYNDROME,
 +};
 +
 +static const u32 reg_offset_data_wwdog[] = {
@@ -81,6 +86,11 @@ index 000000000000..4845eabd3113
 +	[WDT_STS] = 0x20,
 +	[WDT_BARK_TIME] = 0x0C,
 +	[WDT_BITE_TIME] = 0x10,
++	[WDT_WINDOW_START_TIME] = 0x08,
++	[WDT_WINDOW_MIN_TIME] = 0x14,
++	[WDT_WINDOW_MAX_TIME] = 0x18,
++	[WDT_FREEZE_CTL] = 0x28,
++	[WDT_ERROR_SYNDROME] = 0x24,
 +};
 +
 +#define WDOG_ENABLE	0x01
@@ -125,7 +135,13 @@ index 000000000000..4845eabd3113
 +	struct qcom_win_wdt *wdt = to_qcom_win_wdt(wdd);
 +	unsigned int bark = wdd->timeout - wdd->pretimeout;
 +
++	u32 status = readl(wdt_addr(wdt, WDT_ERROR_SYNDROME));
++
 +	writel(WDOG_FREEZE, wdt_addr(wdt, WDT_EN));
++	writel(0x0, wdt_addr(wdt, WDT_WINDOW_START_TIME));
++	writel(0x0, wdt_addr(wdt, WDT_WINDOW_MIN_TIME));
++	writel(0xffffffff, wdt_addr(wdt, WDT_WINDOW_MAX_TIME));
++	writel(0x3, wdt_addr(wdt, WDT_FREEZE_CTL));
 +	writel(bark * wdt->rate, wdt_addr(wdt, WDT_BARK_TIME));
 +	writel(wdd->timeout * wdt->rate, wdt_addr(wdt, WDT_BITE_TIME));
 +	writel(WDOG_ENABLE, wdt_addr(wdt, WDT_EN));
