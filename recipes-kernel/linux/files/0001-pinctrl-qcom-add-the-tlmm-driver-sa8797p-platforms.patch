@@ -45,7 +45,7 @@ new file mode 100644
 index 0000000..78d3e4f
 --- /dev/null
 +++ b/drivers/pinctrl/qcom/pinctrl-sa8797p.c
-@@ -0,0 +1,2957 @@
+@@ -0,0 +1,2958 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
@@ -89,7 +89,8 @@ index 0000000..78d3e4f
 +		.intr_enable_bit = 0,		\
 +		.intr_status_bit = 0,		\
 +		.intr_target_bit = 8,		\
-+		.intr_target_width = 4,	     \
++		.intr_wakeup_enable_bit = 7,	\
++		.intr_wakeup_present_bit = 6,	\
 +		.intr_target_kpss_val = 3,	\
 +		.intr_raw_status_bit = 4,	\
 +		.intr_polarity_bit = 1,		\
@@ -905,9 +906,9 @@ index 0000000..78d3e4f
 +	msm_mux_qup3_se0_l5,
 +	msm_mux_qup3_se0_l6,
 +	msm_mux_sailss_ospi,
-+	msm_mux_sdc4None,
 +	msm_mux_sdc4_clk,
 +	msm_mux_sdc4_cmd,
++	msm_mux_sdc4_data,
 +	msm_mux_smb_alert,
 +	msm_mux_smb_alert_n,
 +	msm_mux_smb_clk,
@@ -2074,14 +2075,14 @@ index 0000000..78d3e4f
 +static const char *const sailss_ospi_groups[] = {
 +	"gpio164", "gpio165",
 +};
-+static const char *const sdc4None_groups[] = {
-+	"gpio170", "gpio171", "gpio172", "gpio173",
-+};
 +static const char *const sdc4_clk_groups[] = {
 +	"gpio175",
 +};
 +static const char *const sdc4_cmd_groups[] = {
 +	"gpio174",
++};
++static const char *const sdc4_data_groups[] = {
++	"gpio170", "gpio171", "gpio172", "gpio173",
 +};
 +static const char *const smb_alert_groups[] = {
 +	"gpio110",
@@ -2554,9 +2555,9 @@ index 0000000..78d3e4f
 +	FUNCTION(qup3_se0_l5),
 +	FUNCTION(qup3_se0_l6),
 +	FUNCTION(sailss_ospi),
-+	FUNCTION(sdc4None),
 +	FUNCTION(sdc4_clk),
 +	FUNCTION(sdc4_cmd),
++	FUNCTION(sdc4_data),
 +	FUNCTION(smb_alert),
 +	FUNCTION(smb_alert_n),
 +	FUNCTION(smb_clk),
@@ -2921,10 +2922,10 @@ index 0000000..78d3e4f
 +	[168] = PINGROUP(168, bist_done, _, _, _, _, _, _, _, _, _, _, 0, -1),
 +	[169] = PINGROUP(169, tb_trig_sdc4, _, _, _, _, _, _, _, _, _, _, 0,
 +			 -1),
-+	[170] = PINGROUP(170, sdc4None, _, _, _, _, _, _, _, _, _, _, 0, -1),
-+	[171] = PINGROUP(171, sdc4None, _, _, _, _, _, _, _, _, _, _, 0, -1),
-+	[172] = PINGROUP(172, sdc4None, _, _, _, _, _, _, _, _, _, _, 0, -1),
-+	[173] = PINGROUP(173, sdc4None, _, _, _, _, _, _, _, _, _, _, 0, -1),
++	[170] = PINGROUP(170, sdc4_data, _, _, _, _, _, _, _, _, _, _, 0, -1),
++	[171] = PINGROUP(171, sdc4_data, _, _, _, _, _, _, _, _, _, _, 0, -1),
++	[172] = PINGROUP(172, sdc4_data, _, _, _, _, _, _, _, _, _, _, 0, -1),
++	[173] = PINGROUP(173, sdc4_data, _, _, _, _, _, _, _, _, _, _, 0, -1),
 +	[174] = PINGROUP(174, sdc4_cmd, _, _, _, _, _, _, _, _, _, _, 0, -1),
 +	[175] = PINGROUP(175, sdc4_clk, _, _, _, _, _, _, _, _, _, _, 0, -1),
 +	[176] = PINGROUP(176, ccu_async_in0, pll_bist_sync, atest_char_start, _,
@@ -2941,11 +2942,12 @@ index 0000000..78d3e4f
 +};
 +
 +static const struct msm_gpio_wakeirq_map sa8797p_pdc_map[] = {
-+	{ 0, 67 }, { 1, 68 }, { 3, 69 }, { 4, 70 }, { 6, 71 }, { 7, 72 },
-+	{ 9, 73 }, { 10, 119 }, { 45, 107 }, { 46, 98 }, { 102, 77 }, { 108, 78 },
-+	{ 110, 120 }, { 114, 80 }, { 116, 81 }, { 120, 117 }, { 124, 108 }, { 126, 99 },
-+	{ 128, 100 }, { 132, 101 }, { 138, 87 }, { 142, 88 }, { 144, 89 }, { 153, 90 },
-+	{ 157, 91 }, { 159, 118 }, { 160, 110 }, { 161, 79 }, { 166, 109 }, { 168, 111 },
++	{ 0, 67 }, { 1, 68 }, { 2, 82 }, { 3, 69 }, { 4, 70 }, { 5, 83 },
++	{ 6, 71 }, { 7, 72 }, { 8, 84 }, { 9, 73 }, { 10, 119 }, { 11, 85 },
++	{ 45, 107 }, { 46, 98 }, { 102, 77 }, { 108, 78 }, { 110, 120 }, { 114, 80 },
++	{ 116, 81 }, { 120, 117 }, { 124, 108 }, { 126, 99 }, { 128, 100 }, { 132, 101 },
++	{ 138, 87 }, { 142, 88 }, { 144, 89 }, { 153, 90 }, { 157, 91 }, { 159, 118 },
++	{ 160, 110 }, { 161, 79 }, { 166, 109 }, { 168, 111 },
 +};
 +
 +static const struct msm_pinctrl_soc_data sa8797p_pinctrl = {
