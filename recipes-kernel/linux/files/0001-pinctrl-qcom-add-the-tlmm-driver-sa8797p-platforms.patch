@@ -45,7 +45,7 @@ new file mode 100644
 index 0000000..78d3e4f
 --- /dev/null
 +++ b/drivers/pinctrl/qcom/pinctrl-sa8797p.c
-@@ -0,0 +1,2958 @@
+@@ -0,0 +1,2959 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
@@ -89,6 +89,7 @@ index 0000000..78d3e4f
 +		.intr_enable_bit = 0,		\
 +		.intr_status_bit = 0,		\
 +		.intr_target_bit = 8,		\
++		.intr_target_width = 4,	        \
 +		.intr_wakeup_enable_bit = 7,	\
 +		.intr_wakeup_present_bit = 6,	\
 +		.intr_target_kpss_val = 3,	\
