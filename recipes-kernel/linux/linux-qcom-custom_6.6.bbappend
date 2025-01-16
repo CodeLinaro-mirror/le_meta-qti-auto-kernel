@@ -1,6 +1,6 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-SRC_URI:append = " \
+SRC_URI:append:sa8797 = " \
     file://sa8797p-generic.cfg \
     file://0001-pinctrl-qcom-add-the-tlmm-driver-sa8797p-platforms.patch \
     file://0002-NOMERGE-drivers-iommu-Bypass-context_irq-error.patch \
@@ -20,4 +20,4 @@ SRC_URI:append = " \
     file://0013-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
 "
 
-KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/sa8797p-generic.cfg"
+KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"
