@@ -89,9 +89,9 @@ index 69014654a645..efd29722e9eb 100644
  	 * Power up the PHY using the minimum supported gear (UFS_HS_G2).
  	 * Switching to max gear will be performed during reinit if supported.
  	 */
--	host->hs_gear = UFS_HS_G1;
--	//host->hs_gear = UFS_HS_G2;
-+	host->hs_gear = UFS_HS_G2;
+-	host->phy_gear = UFS_HS_G1;
+-	//host->phy_gear = UFS_HS_G2;
++	host->phy_gear = UFS_HS_G2;
  
  
  	return 0;
