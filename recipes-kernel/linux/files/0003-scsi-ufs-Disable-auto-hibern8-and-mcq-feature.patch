@@ -1,0 +1,43 @@
+From 002d46ef3ea7d763b3db376179c2748595b61517 Mon Sep 17 00:00:00 2001
+From: Ram Kumar Dwivedi <quic_rdwivedi@quicinc.com>
+Date: Mon, 27 Jan 2025 13:55:58 +0530
+Subject: [PATCH 2/2] scsi: ufs: Disable auto-hibern8 and mcq feature
+
+Disable auto-hibern8 and mcq feature for UFS
+
+Change-Id: I29282d027086ca07d6b247658a400ce76c120eaf
+Signed-off-by: Ram Kumar Dwivedi <quic_rdwivedi@quicinc.com>
+---
+ drivers/ufs/core/ufshcd.c   | 2 +-
+ drivers/ufs/host/ufs-qcom.c | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/ufs/core/ufshcd.c b/drivers/ufs/core/ufshcd.c
+index 799810301a58..4e1f73a74dec 100644
+--- a/drivers/ufs/core/ufshcd.c
++++ b/drivers/ufs/core/ufshcd.c
+@@ -100,7 +100,7 @@
+ #define FDEVICEINIT_COMPL_TIMEOUT 1500 /* millisecs */
+ 
+ /* UFSHC 4.0 compliant HC support this mode. */
+-static bool use_mcq_mode = true;
++static bool use_mcq_mode = false;
+ 
+ static bool is_mcq_supported(struct ufs_hba *hba)
+ {
+diff --git a/drivers/ufs/host/ufs-qcom.c b/drivers/ufs/host/ufs-qcom.c
+index c5c1477e0db2..cb2f7338b6b9 100644
+--- a/drivers/ufs/host/ufs-qcom.c
++++ b/drivers/ufs/host/ufs-qcom.c
+@@ -1156,6 +1156,8 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
+ 
+ 	if (host->hw_ver.major > 0x3)
+ 		hba->quirks |= UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH;
++
++	hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
+ }
+ 
+ static void ufs_qcom_set_caps(struct ufs_hba *hba)
+-- 
+2.48.0
+
