@@ -74,6 +74,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0018-PENDING-i2c-i2c-qcom-geni-Add-async-write-support.patch \
     file://qup/0019-PENDING-soc-qcom-ccu-qup-Add-read-and-poll-API-suppo.patch \
     file://qup/0020-PENDING-i2c-i2c-qcom-geni-Update-counter-setting-for.patch \
+    file://qup/0021-meta-qti-auto-kernel-Fix-cyclic-depedancy-between-CC.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
