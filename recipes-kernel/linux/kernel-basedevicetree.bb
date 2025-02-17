@@ -1,5 +1,5 @@
 DESCRIPTION = "Build kernel base-devicetree"
-LICENSE = "(GPL-2.0-only OR BSD-2-Clause) & BSD-3-Clause"
+LICENSE = "(GPL-2.0-only | BSD-2-Clause) & BSD-3-Clause"
 LIC_FILES_CHKSUM = "\
     file://${COREBASE}/meta/files/common-licenses/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6 \
     file://${COREBASE}/meta/files/common-licenses/BSD-2-Clause;md5=cb641bc04cda31daea161b1bc15da69f \
