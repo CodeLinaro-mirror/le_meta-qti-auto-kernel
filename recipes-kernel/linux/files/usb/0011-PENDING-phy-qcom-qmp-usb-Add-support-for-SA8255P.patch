@@ -1,7 +1,7 @@
-From cad060b118065082840616dceacfc68fcdc490a8 Mon Sep 17 00:00:00 2001
+From 45df135df372870d49a8d19af3bfe8faf0a1f46b Mon Sep 17 00:00:00 2001
 From: Sriram Dash <quic_sriramd@quicinc.com>
 Date: Tue, 9 Jul 2024 13:47:09 +0530
-Subject: [PATCH] PENDING: phy: qcom: qmp-usb: Add support for SA8255P
+Subject: [PATCH 11/20] PENDING: phy: qcom: qmp-usb: Add support for SA8255P
 
 QCOM SoC sa8255p allow multiple resources to be managed
 by firmware. On this platform, tasks related to clocks, regulators,
@@ -30,7 +30,7 @@ Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
  1 file changed, 155 insertions(+), 20 deletions(-)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-qmp-usb.c b/drivers/phy/qualcomm/phy-qcom-qmp-usb.c
-index dbee22bca2e7..27943b8a291d 100644
+index dbee22bca2e77..27943b8a291d7 100644
 --- a/drivers/phy/qualcomm/phy-qcom-qmp-usb.c
 +++ b/drivers/phy/qualcomm/phy-qcom-qmp-usb.c
 @@ -15,6 +15,7 @@

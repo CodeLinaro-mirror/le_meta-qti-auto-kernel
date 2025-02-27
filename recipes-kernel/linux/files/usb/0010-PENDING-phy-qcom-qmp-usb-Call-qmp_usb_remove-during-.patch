@@ -1,7 +1,7 @@
-From ea9b8518050aad65e611c7b57c61c06fadf82b71 Mon Sep 17 00:00:00 2001
+From a24047675f2b47c7ebf67a6cb64eb20ef8b1b017 Mon Sep 17 00:00:00 2001
 From: Sriram Dash <quic_sriramd@quicinc.com>
 Date: Mon, 8 Jul 2024 11:42:24 +0530
-Subject: [PATCH 09/14] PENDING: phy: qcom: qmp-usb: Call qmp_usb_remove during
+Subject: [PATCH 10/20] PENDING: phy: qcom: qmp-usb: Call qmp_usb_remove during
  driver remove
 
 This driver users the component model and the clean up of resources
@@ -15,10 +15,10 @@ Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
  1 file changed, 12 insertions(+)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-qmp-usb.c b/drivers/phy/qualcomm/phy-qcom-qmp-usb.c
-index e9fa0ee33aac..dda44a70a165 100644
+index d06fe13d3e955..dbee22bca2e77 100644
 --- a/drivers/phy/qualcomm/phy-qcom-qmp-usb.c
 +++ b/drivers/phy/qualcomm/phy-qcom-qmp-usb.c
-@@ -2345,6 +2345,17 @@ static int qmp_usb_probe(struct platform_device *pdev)
+@@ -2027,6 +2027,17 @@ static int qmp_usb_probe(struct platform_device *pdev)
  	return ret;
  }
  
@@ -36,7 +36,7 @@ index e9fa0ee33aac..dda44a70a165 100644
  static const struct of_device_id qmp_usb_of_match_table[] = {
  	{
  		.compatible = "qcom,ipq6018-qmp-usb3-phy",
-@@ -2401,6 +2412,7 @@ MODULE_DEVICE_TABLE(of, qmp_usb_of_match_table);
+@@ -2077,6 +2088,7 @@ MODULE_DEVICE_TABLE(of, qmp_usb_of_match_table);
  
  static struct platform_driver qmp_usb_driver = {
  	.probe		= qmp_usb_probe,
@@ -45,5 +45,5 @@ index e9fa0ee33aac..dda44a70a165 100644
  		.name	= "qcom-qmp-usb-phy",
  		.pm	= &qmp_usb_pm_ops,
 -- 
-2.34.1
+2.17.1
 

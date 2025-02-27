@@ -1,7 +1,7 @@
-From f9a5f49d6d60a9a52bc9c986a09a4d2a98a0d8fe Mon Sep 17 00:00:00 2001
+From ed58fd0cee1448788ce35e928035e25047279804 Mon Sep 17 00:00:00 2001
 From: Sriram Dash <quic_sriramd@quicinc.com>
 Date: Mon, 8 Jul 2024 11:41:52 +0530
-Subject: [PATCH 13/14] PENDING: phy: qcom-snps-femto-v2: Add support for
+Subject: [PATCH 14/20] PENDING: phy: qcom-snps-femto-v2: Add support for
  SA8255P
 
 QCOM SoC sa8255p allow multiple resources to be managed
@@ -30,7 +30,7 @@ Signed-off-by: Sriram Dash <quic_sriramd@quicinc.com>
  1 file changed, 109 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-snps-femto-v2.c b/drivers/phy/qualcomm/phy-qcom-snps-femto-v2.c
-index 2affa2538e76..0937bd789f02 100644
+index 2affa2538e764..0937bd789f024 100644
 --- a/drivers/phy/qualcomm/phy-qcom-snps-femto-v2.c
 +++ b/drivers/phy/qualcomm/phy-qcom-snps-femto-v2.c
 @@ -12,6 +12,7 @@
@@ -294,5 +294,5 @@ index 2affa2538e76..0937bd789f02 100644
  	reset_control_assert(hsphy->phy_reset);
  	clk_bulk_disable_unprepare(hsphy->num_clks, hsphy->clks);
 -- 
-2.34.1
+2.17.1
 

@@ -13,11 +13,20 @@ SRC_URI:append = "\
     file://0005-PENDING-spi-geni-qcom-Enable-SPI-on-SA8255p-Qualcomm.patch \
     file://0006-PENDING-spi-geni-qcom-Enable-SPI-GSI-mode-for-SA8255.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
-    file://0008-PENDING-phy-qcom-qmp-usb-Call-qmp_usb_remove-during-.patch \
-    file://0009-PENDING-phy-qcom-qmp-usb-Add-support-for-SA8255P.patch \
-    file://0010-PENDING-usb-dwc3-qcom-Add-support-for-sa8255p-for-qc.patch \
-    file://0011-PENDING-phy-qcom-snps-femto-v2-Call-qcom_snps_hsphy_.patch \
-    file://0012-PENDING-phy-qcom-snps-femto-v2-Add-support-for-SA825.patch \
+    file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
+    file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
+    file://usb/0003-PENDING-usb-dwc3-drd-expose-role-switch-control-to-u.patch \
+    file://usb/0004-PENDING-usb-dwc3-qcom-Trivial-code-cleanup.patch \
+    file://usb/0005-PENDING-usb-dwc3-Enable-role-switch-control-from-use.patch \
+    file://usb/0006-PENDING-usb-host-xhci-plat-Trivial-code-cleanup.patch \
+    file://usb/0007-PENDING-usb-host-xhci-plat-Trivial-code-cleanup.patch \
+    file://usb/0008-PENDING-usb-host-xhci-plat-Add-support-for-XHCI_RESE.patch \
+    file://usb/0009-PENDING-usb-dwc3-host-Set-XHCI_RESET_ON_RESUME-for-x.patch \
+    file://usb/0010-PENDING-phy-qcom-qmp-usb-Call-qmp_usb_remove-during-.patch \
+    file://usb/0011-PENDING-phy-qcom-qmp-usb-Add-support-for-SA8255P.patch \
+    file://usb/0012-PENDING-usb-dwc3-qcom-Add-support-for-sa8255p-for-qc.patch \
+    file://usb/0013-PENDING-phy-qcom-snps-femto-v2-Call-qcom_snps_hsphy_.patch \
+    file://usb/0014-PENDING-phy-qcom-snps-femto-v2-Add-support-for-SA825.patch \
     file://0001-FROMLIST-of-of_reserved_mem-Increase-limit-for-reser.patch \
     file://0013-net-stmmac-dwmac-qcom-ethqos-Enable-SCMI-ETH.patch \
     file://0014-PENDING-qcom-Add-sa7255p-compatibles-for-core-driver.patch \
@@ -43,12 +52,12 @@ SRC_URI:append:sa8797 = " \
     file://0001-pinctrl-qcom-add-the-tlmm-driver-sa8797p-platforms.patch \
     file://0003-scsi-ufs-Disable-auto-hibern8-and-mcq-feature.patch \
     file://0007-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
-    file://0008-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
-    file://0009-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
+    file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
+    file://usb/0017-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
-    file://0010-phy-qcom-phy-qcom-snps-eusb2-Add-support-for-SA8797P.patch \
-    file://0011-usb-phy-qmp-combo-Add-scmi-related-changes-for-SA879.patch \
-    file://0010-usb-phy-Disable-DP-hardcode-lane-B.patch \
+    file://usb/0018-phy-qcom-phy-qcom-snps-eusb2-Add-support-for-SA8797P.patch \
+    file://usb/0019-usb-phy-qmp-combo-Add-scmi-related-changes-for-SA879.patch \
+    file://usb/0020-usb-phy-Disable-DP-hardcode-lane-B.patch \
     file://0012-PENDING-cpufreq-scmi-Skip-SCMI-devices-that-aren-t-u.patch \
     file://0012-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
     file://0013-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
