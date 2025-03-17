@@ -3,7 +3,6 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 SRC_URI:append:sa8797 = " \
     file://sa8797p-generic.cfg \
     file://0001-pinctrl-qcom-add-the-tlmm-driver-sa8797p-platforms.patch \
-    file://0002-NOMERGE-drivers-iommu-Bypass-context_irq-error.patch \
     file://0003-scsi-ufs-Disable-auto-hibern8-and-mcq-feature.patch \
     file://0007-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://0008-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
