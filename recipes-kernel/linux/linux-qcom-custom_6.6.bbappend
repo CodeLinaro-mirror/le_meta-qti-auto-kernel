@@ -12,6 +12,10 @@ SRC_URI:append = "\
     file://qup/0003-PENDING-i2c-qcom-geni-Enable-I2C-on-SA8255p-Qualcomm.patch \
     file://qup/0004-PENDING-spi-geni-qcom-Enable-SPI-on-SA8255p-Qualcomm.patch \
     file://qup/0005-PENDING-spi-geni-qcom-Enable-SPI-GSI-mode-for-SA8255.patch \
+    file://qup/0009-PENDING-i2c-qcom-geni-cleanup-in-probe-function.patch \
+    file://qup/0010-PENDING-i2c-qcom-geni-Add-support-for-S2R-feature.patch \
+    file://qup/0011-PENDING-serial-qcom-geni-Add-support-for-S2R-feature.patch \
+    file://qup/0012-PENDING-spi-spi-geni-qcom-Add-support-for-S2R-featur.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
     file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
