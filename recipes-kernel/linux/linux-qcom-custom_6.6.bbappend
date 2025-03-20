@@ -7,11 +7,11 @@ SRC_URI:append = "\
     ${@bb.utils.contains_any('VARIANT', 'perf user', '', 'file://devmem.cfg', d)} \
     ${@bb.utils.contains_any('VARIANT', 'perf user', 'file://perf.cfg', '', d)} \
     file://0001-QCLINUX-vfio-Disable-iommu_group_claim_dma_owner-tem.patch \
-    file://0002-PENDING-soc-qcom-geni-se-Enable-QUPs-on-SA8255p-Qual.patch \
-    file://0003-PENDING-serial-qcom-geni-Enable-Serial-on-SA8255p-pl.patch \
-    file://0004-PENDING-i2c-qcom-geni-Enable-I2C-on-SA8255p-Qualcomm.patch \
-    file://0005-PENDING-spi-geni-qcom-Enable-SPI-on-SA8255p-Qualcomm.patch \
-    file://0006-PENDING-spi-geni-qcom-Enable-SPI-GSI-mode-for-SA8255.patch \
+    file://qup/0001-PENDING-soc-qcom-geni-se-Enable-QUPs-on-SA8255p-Qual.patch \
+    file://qup/0002-PENDING-serial-qcom-geni-Enable-Serial-on-SA8255p-pl.patch \
+    file://qup/0003-PENDING-i2c-qcom-geni-Enable-I2C-on-SA8255p-Qualcomm.patch \
+    file://qup/0004-PENDING-spi-geni-qcom-Enable-SPI-on-SA8255p-Qualcomm.patch \
+    file://qup/0005-PENDING-spi-geni-qcom-Enable-SPI-GSI-mode-for-SA8255.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
     file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
@@ -51,7 +51,6 @@ SRC_URI:append:sa8797 = " \
     file://sa8797p-generic.cfg \
     file://0001-pinctrl-qcom-add-the-tlmm-driver-sa8797p-platforms.patch \
     file://0003-scsi-ufs-Disable-auto-hibern8-and-mcq-feature.patch \
-    file://0007-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
     file://usb/0017-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
@@ -59,10 +58,11 @@ SRC_URI:append:sa8797 = " \
     file://usb/0019-usb-phy-qmp-combo-Add-scmi-related-changes-for-SA879.patch \
     file://usb/0020-usb-phy-Disable-DP-hardcode-lane-B.patch \
     file://0012-PENDING-cpufreq-scmi-Skip-SCMI-devices-that-aren-t-u.patch \
-    file://0012-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
-    file://0013-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
+    file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
+    file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
+    file://qup/0008-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
