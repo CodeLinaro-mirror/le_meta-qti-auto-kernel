@@ -53,7 +53,6 @@ SRC_URI:append = "\
 
 SRC_URI:append:sa8797 = " \
     file://sa8797p-generic.cfg \
-    file://0001-pinctrl-qcom-add-the-tlmm-driver-sa8797p-platforms.patch \
     file://0003-scsi-ufs-Disable-auto-hibern8-and-mcq-feature.patch \
     file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
     file://usb/0017-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
