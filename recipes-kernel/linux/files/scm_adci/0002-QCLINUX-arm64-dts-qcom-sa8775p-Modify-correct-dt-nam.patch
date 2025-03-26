@@ -1,4 +1,4 @@
-From 47cbf77e71a33b20285c85f4af5efb95724c3102 Mon Sep 17 00:00:00 2001
+From 412e74731a4c3fafc826d524a5744b0817cb2a1c Mon Sep 17 00:00:00 2001
 From: Ninad Naik <quic_ninanaik@quicinc.com>
 Date: Tue, 3 Dec 2024 19:03:36 +0530
 Subject: [PATCH 2/9] QCLINUX: arm64: dts: qcom: sa8775p: Modify correct dt
@@ -14,10 +14,10 @@ Signed-off-by: Ninad Naik <quic_ninanaik@quicinc.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/arch/arm64/boot/dts/qcom/sa8775p.dtsi b/arch/arm64/boot/dts/qcom/sa8775p.dtsi
-index 9dc39a0eee89..37b61935de13 100644
+index 5007bee9f103..448b70bab75e 100644
 --- a/arch/arm64/boot/dts/qcom/sa8775p.dtsi
 +++ b/arch/arm64/boot/dts/qcom/sa8775p.dtsi
-@@ -473,7 +473,7 @@ eud_in: endpoint {
+@@ -531,7 +531,7 @@ eud_in: endpoint {
  	};
  
  	firmware {
@@ -27,5 +27,5 @@ index 9dc39a0eee89..37b61935de13 100644
  			qcom,dload-mode = <&tcsr 0x13000>;
  			memory-region = <&tz_ffi_mem>;
 -- 
-2.46.0
+2.48.1
 

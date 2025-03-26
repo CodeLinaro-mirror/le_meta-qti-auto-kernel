@@ -1,4 +1,4 @@
-From 57e49148e2e6329cf6935432fd89612ed319346d Mon Sep 17 00:00:00 2001
+From f77eb0b4f021c7c9ed5df3219fe26d6f1eee5bd8 Mon Sep 17 00:00:00 2001
 From: Ninad Naik <quic_ninanaik@quicinc.com>
 Date: Tue, 3 Dec 2024 18:18:21 +0530
 Subject: [PATCH 5/9] PENDING: firmware: qcom-scm: Add support for WAITQ_WAKE
@@ -178,10 +178,10 @@ index c26e82e490fc..bccf417b895c 100644
  	return 0;
  }
 diff --git a/drivers/firmware/qcom_scm.c b/drivers/firmware/qcom_scm.c
-index 42f99da6e137..251a31d1b6c2 100644
+index 7e2af5163149..68a4857e436e 100644
 --- a/drivers/firmware/qcom_scm.c
 +++ b/drivers/firmware/qcom_scm.c
-@@ -1739,7 +1739,7 @@ int qcom_scm_wait_for_wq_completion(struct qcom_scm *scm, u32 wq_ctx)
+@@ -1823,7 +1823,7 @@ int qcom_scm_wait_for_wq_completion(struct qcom_scm *scm, u32 wq_ctx)
  	return 0;
  }
  
@@ -191,7 +191,7 @@ index 42f99da6e137..251a31d1b6c2 100644
  	struct completion *wq;
  
 diff --git a/drivers/firmware/qcom_scm.h b/drivers/firmware/qcom_scm.h
-index 14735eeda963..addddf89aa04 100644
+index f544b3bb5f6d..a3138923e2a7 100644
 --- a/drivers/firmware/qcom_scm.h
 +++ b/drivers/firmware/qcom_scm.h
 @@ -65,6 +65,7 @@ struct qcom_scm_res {
@@ -202,7 +202,7 @@ index 14735eeda963..addddf89aa04 100644
  int scm_get_wq_ctx(u32 *wq_ctx, u32 *flags, u32 *more_pending);
  
  #define SCM_SMC_FNID(s, c)	((((s) & 0xFF) << 8) | ((c) & 0xFF))
-@@ -147,6 +148,7 @@ struct qcom_tzmem_pool *qcom_scm_get_tzmem_pool(void);
+@@ -148,6 +149,7 @@ struct qcom_tzmem_pool *qcom_scm_get_tzmem_pool(void);
  #define QCOM_SCM_SMMU_CONFIG_ERRATA1_CLIENT_ALL	0x02
  
  #define QCOM_SCM_SVC_WAITQ			0x24
@@ -210,7 +210,7 @@ index 14735eeda963..addddf89aa04 100644
  #define QCOM_SCM_WAITQ_RESUME			0x02
  #define QCOM_SCM_WAITQ_GET_WQ_CTX		0x03
  
-@@ -159,6 +161,7 @@ struct qcom_tzmem_pool *qcom_scm_get_tzmem_pool(void);
+@@ -160,6 +162,7 @@ struct qcom_tzmem_pool *qcom_scm_get_tzmem_pool(void);
  #define QCOM_SCM_ERROR		-1
  #define QCOM_SCM_INTERRUPTED	1
  #define QCOM_SCM_WAITQ_SLEEP	2
@@ -219,5 +219,5 @@ index 14735eeda963..addddf89aa04 100644
  static inline int qcom_scm_remap_error(int err)
  {
 -- 
-2.46.0
+2.48.1
 

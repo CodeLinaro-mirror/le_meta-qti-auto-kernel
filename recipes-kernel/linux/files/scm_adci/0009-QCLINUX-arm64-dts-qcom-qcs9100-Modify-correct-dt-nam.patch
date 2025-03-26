@@ -1,4 +1,4 @@
-From 5c1bb859d57367ddccf161f8354544d4f06e097c Mon Sep 17 00:00:00 2001
+From 3cffc92c3bc4c2a62b1dedde4fa350d89e874878 Mon Sep 17 00:00:00 2001
 From: Ninad Naik <quic_ninanaik@quicinc.com>
 Date: Fri, 7 Feb 2025 12:09:22 +0530
 Subject: [PATCH 9/9] QCLINUX: arm64: dts: qcom: qcs9100: Modify correct dt
@@ -27,5 +27,5 @@ index d7d6c5f4c5b2..da892cc3679c 100644
  		};
  	};
 -- 
-2.46.0
+2.48.1
 
