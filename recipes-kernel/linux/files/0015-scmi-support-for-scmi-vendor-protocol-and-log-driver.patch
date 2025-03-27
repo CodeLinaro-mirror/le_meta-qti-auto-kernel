@@ -261,21 +261,17 @@ index 672db9f265ca..4ff9b03372e8 100644
  source "drivers/soc/qcom/smcinvoke/Kconfig"
  
 diff --git a/drivers/soc/qcom/Makefile b/drivers/soc/qcom/Makefile
-index 4442730e6806..58da8469d210 100644
+index 8aa4935cee98..d1eebd9b3bf8 100644
 --- a/drivers/soc/qcom/Makefile
 +++ b/drivers/soc/qcom/Makefile
-@@ -39,9 +39,11 @@ obj-$(CONFIG_QCOM_KRYO_L2_ACCESSORS) +=	kryo-l2-accessors.o
- obj-$(CONFIG_QCOM_ICC_BWMON)	+= icc-bwmon.o
- qcom_ice-objs			+= ice.o
- obj-$(CONFIG_QCOM_INLINE_CRYPTO_ENGINE)	+= qcom_ice.o
-+obj-$(CONFIG_QTI_CPUCP_LOG) += cpucp_log.o
- obj-$(CONFIG_QCOM_MEM_BUF) += mem_buf/
- obj-$(CONFIG_QCOM_SMCINVOKE) += smcinvoke/
- obj-$(CONFIG_QCOM_SOC_DEBUG) += qcom_soc_debug.o
+@@ -45,5 +45,7 @@ obj-$(CONFIG_QCOM_SOC_DEBUG) += qcom_soc_debug.o
  obj-$(CONFIG_QCOM_SECURE_BUFFER) += secure_buffer.o
  usb_f_qdss-y			:= f_qdss.o
  obj-$(CONFIG_USB_F_QDSS)	+= usb_f_qdss.o
++obj-$(CONFIG_QTI_CPUCP_LOG) += cpucp_log.o
 +obj-$(CONFIG_QTI_QCOM_SCMI_CLIENT) += qcom_scmi_client.o
+ obj-$(CONFIG_QCOM_RPROC_MINIDUMP)	+= qcom_rproc_minidump.o
+ obj-$(CONFIG_QCOM_MINIDUMP)	  += qcom_minidump.o
 diff --git a/drivers/soc/qcom/cpucp_log.c b/drivers/soc/qcom/cpucp_log.c
 new file mode 100644
 index 000000000000..bb11abd688da
