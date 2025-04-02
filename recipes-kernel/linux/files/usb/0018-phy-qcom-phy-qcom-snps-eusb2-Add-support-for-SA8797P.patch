@@ -1,7 +1,7 @@
-From 93c32bbe8ea615bd30e8f060aad2cab76cf4fafb Mon Sep 17 00:00:00 2001
+From 3c48c255569cbb8c6ff9e7029700c9fb74d8252d Mon Sep 17 00:00:00 2001
 From: Faisal Hassan <quic_faisalh@quicinc.com>
 Date: Fri, 1 Nov 2024 20:24:53 +0530
-Subject: [PATCH] phy: qcom: phy-qcom-snps-eusb2: Add support for SA8797P
+Subject: [PATCH 18/20] phy: qcom: phy-qcom-snps-eusb2: Add support for SA8797P
 
 This patch adds support for the SA8797P SoC to the phy-qcom-snps-eusb2
 driver. The SA8797P platform allows multiple resources, such as clocks,
@@ -29,7 +29,7 @@ Signed-off-by: Faisal Hassan <quic_faisalh@quicinc.com>
  1 file changed, 170 insertions(+), 50 deletions(-)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c b/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
-index 1484691a41d5..a2568c339bd5 100644
+index 1484691a41d59..a2568c339bd58 100644
 --- a/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
 +++ b/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
 @@ -10,6 +10,7 @@
@@ -345,5 +345,5 @@ index 1484691a41d5..a2568c339bd5 100644
  		.name	= "qcom-snps-eusb2-hsphy",
  		.of_match_table = qcom_snps_eusb2_hsphy_of_match_table,
 -- 
-2.25.1
+2.17.1
 

@@ -1,0 +1,189 @@
+From 6debc596b1f971d2fb610c174cbddefca899e1dd Mon Sep 17 00:00:00 2001
+From: Praveen Talari <quic_ptalari@quicinc.com>
+Date: Mon, 10 Mar 2025 14:19:49 +0530
+Subject: [PATCH 1/4] PENDING: i2c: qcom-geni: cleanup in probe function
+
+Move serial engine configuration from probe to new
+function that is geni_i2c_init().
+
+Change-Id: I2720e92c4d17078e9916a95610a3cef6e21a8e2f
+Signed-off-by: Praveen Talari <quic_ptalari@quicinc.com>
+---
+ drivers/i2c/busses/i2c-qcom-geni.c | 133 ++++++++++++++++-------------
+ 1 file changed, 75 insertions(+), 58 deletions(-)
+
+diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
+index 74f1cc8648e0..c53e34a26d9f 100644
+--- a/drivers/i2c/busses/i2c-qcom-geni.c
++++ b/drivers/i2c/busses/i2c-qcom-geni.c
+@@ -893,10 +893,80 @@ static int geni_i2c_switch_resource_state(struct device *dev, bool state)
+ 	return ret;
+ }
+ 
++/*
++ * geni_i2c_init() - initialize the serial engine
++ * @gi2c: pointer to i2c dev structure
++ *
++ * return: 0 on success, negative number for error condition.
++ */
++static int geni_i2c_init(struct geni_i2c_dev *gi2c)
++{
++	const struct geni_i2c_desc *desc = NULL;
++	u32 tx_depth;
++	bool fifo_disable;
++	int ret = 0;
++
++	ret = pm_runtime_get_sync(gi2c->se.dev);
++	if (ret < 0) {
++		dev_err(gi2c->se.dev, "error turning on device :%d\n", ret);
++		return ret;
++	}
++
++	ret = geni_check_fw_validity(gi2c);
++	if (ret)
++		goto err;
++
++	desc = device_get_match_data(gi2c->se.dev);
++	if (desc && desc->no_dma_support)
++		fifo_disable = false;
++	else
++		fifo_disable = readl_relaxed(gi2c->se.base + GENI_IF_DISABLE_RO) & FIFO_IF_DISABLE;
++
++	if (fifo_disable) {
++		/* FIFO is disabled, so we can only use GPI DMA */
++		ret = setup_gpi_dma(gi2c);
++		if (ret) {
++			dev_err(gi2c->se.dev, "Failed to setup GPI DMA mode\n");
++			goto err;
++		}
++
++		gi2c->gpi_mode = true;
++		i2c_trace_log(gi2c->se.dev, "Using GPI DMA mode for I2C\n");
++	} else {
++		gi2c->gpi_mode = false;
++		tx_depth = geni_se_get_tx_fifo_depth(&gi2c->se);
++
++		/* I2C Master Hub Serial Elements doesn't have the HW_PARAM_0 register */
++		if (!tx_depth && desc)
++			tx_depth = desc->tx_fifo_depth;
++
++		if (!tx_depth) {
++			dev_err(gi2c->se.dev, "Invalid TX FIFO depth\n");
++			ret = -EINVAL;
++			goto err;
++		}
++
++		gi2c->tx_wm = tx_depth - 1;
++		geni_se_init(&gi2c->se, gi2c->tx_wm, tx_depth);
++		geni_se_config_packing(&gi2c->se, BITS_PER_BYTE,
++				       PACKING_BYTES_PW, true, true, true);
++
++		i2c_trace_log(gi2c->se.dev, "i2c fifo/se-dma mode. fifo depth:%d\n", tx_depth);
++	}
++
++err:
++	if (pm_runtime_put_sync(gi2c->se.dev) < 0) {
++		dev_err(gi2c->se.dev, "error turning off device :%d\n", ret);
++		if (gi2c->gpi_mode)
++			release_gpi_dma(gi2c);
++	}
++
++	return ret;
++}
++
+ static int geni_i2c_probe(struct platform_device *pdev)
+ {
+ 	struct geni_i2c_dev *gi2c;
+-	u32 tx_depth, fifo_disable;
+ 	int ret;
+ 	struct device *dev = &pdev->dev;
+ 	const struct geni_i2c_desc *desc = NULL;
+@@ -991,81 +1061,28 @@ static int geni_i2c_probe(struct platform_device *pdev)
+ 	pm_runtime_use_autosuspend(gi2c->se.dev);
+ 	pm_runtime_enable(gi2c->se.dev);
+ 
+-	ret = pm_runtime_get_sync(gi2c->se.dev);
+-	if (ret < 0) {
+-		dev_err(gi2c->se.dev, "error turning on device :%d\n", ret);
+-		goto err;
+-	}
+-
+-	ret = geni_check_fw_validity(gi2c);
+-	if (ret)
+-		goto err;
+-
+-	if (desc && desc->no_dma_support)
+-		fifo_disable = false;
+-	else
+-		fifo_disable = readl_relaxed(gi2c->se.base + GENI_IF_DISABLE_RO) & FIFO_IF_DISABLE;
+-
+-	if (fifo_disable) {
+-		/* FIFO is disabled, so we can only use GPI DMA */
+-		gi2c->gpi_mode = true;
+-		ret = setup_gpi_dma(gi2c);
+-		if (ret) {
+-			dev_err_probe(dev, ret, "Failed to setup GPI DMA mode\n");
+-			goto err;
+-		}
+-
+-		i2c_trace_log(dev, "Using GPI DMA mode for I2C\n");
+-	} else {
+-		gi2c->gpi_mode = false;
+-		tx_depth = geni_se_get_tx_fifo_depth(&gi2c->se);
+-
+-		/* I2C Master Hub Serial Elements doesn't have the HW_PARAM_0 register */
+-		if (!tx_depth && desc)
+-			tx_depth = desc->tx_fifo_depth;
+-
+-		if (!tx_depth) {
+-			dev_err(dev, "Invalid TX FIFO depth\n");
+-			ret = -ENXIO;
+-			goto err;
+-		}
+-
+-		gi2c->tx_wm = tx_depth - 1;
+-		geni_se_init(&gi2c->se, gi2c->tx_wm, tx_depth);
+-		geni_se_config_packing(&gi2c->se, BITS_PER_BYTE,
+-				       PACKING_BYTES_PW, true, true, true);
+-
+-		i2c_trace_log(dev, "i2c fifo/se-dma mode. fifo depth:%d\n", tx_depth);
+-	}
+-
+ 	if (of_property_read_bool(pdev->dev.of_node, "qcom,shared-se")) {
+ 		gi2c->is_shared = true;
+ 		i2c_trace_log(&pdev->dev, "Multi-EE usecase with shared SE\n");
+ 	}
+ 
+-	ret = pm_runtime_put_sync(gi2c->se.dev);
++	ret =  geni_i2c_init(gi2c);
+ 	if (ret < 0) {
+-		dev_err(gi2c->se.dev, "error turning off device :%d\n", ret);
+-
+-		goto err_dma;
++		dev_err(gi2c->se.dev, "geni_i2c_prepare is failed :%d\n", ret);
++		goto err;
+ 	}
+ 
+ 	ret = i2c_add_adapter(&gi2c->adap);
+ 	if (ret) {
+ 		dev_err(dev, "Error adding i2c adapter %d\n", ret);
+ 		pm_runtime_disable(gi2c->se.dev);
+-		goto err_dma;
++		goto err;
+ 	}
+ 
+ 	i2c_trace_log(dev, "Geni-I2C adaptor successfully added\n");
+ 
+ 	return 0;
+-
+-err_dma:
+-	release_gpi_dma(gi2c);
+-	return ret;
+ err:
+-	pm_runtime_put_sync(gi2c->se.dev);
+ 	return ret;
+ }
+ 
+-- 
+2.17.1
+

@@ -1,7 +1,7 @@
-From 5e9dc1e0286e9e93590ccbe46651795de7af8411 Mon Sep 17 00:00:00 2001
+From 8ce40500eb06ab68167fdece00ec08538589a1f2 Mon Sep 17 00:00:00 2001
 From: Faisal Hassan <quic_faisalh@quicinc.com>
-Date: Tue, 5 Nov 2024 17:51:06 +0530
-Subject: [PATCH 1/1] usb: dwc3: qcom: Add support for sa8775p for qcom usb
+Date: Mon, 17 Mar 2025 16:57:05 +0530
+Subject: [PATCH 16/20] usb: dwc3: qcom: Add support for sa8775p for qcom usb
 
 QCOM SoC sa8775p allow multiple resources to be managed
 by firmware. On this platform, tasks related to clocks, regulators,
@@ -27,14 +27,14 @@ Signed-off-by: Sriram Dash <quic_sriramd@quicinc.com>
 Signed-off-by: Hiren Gohel <quic_vhiren@quicinc.com>
 Signed-off-by: Faisal Hassan <quic_faisalh@quicinc.com>
 ---
- drivers/usb/dwc3/dwc3-qcom.c | 45 ++++++++++++++++++++----------------
- 1 file changed, 25 insertions(+), 20 deletions(-)
+ drivers/usb/dwc3/dwc3-qcom.c | 44 ++++++++++++++++++++----------------
+ 1 file changed, 25 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/usb/dwc3/dwc3-qcom.c b/drivers/usb/dwc3/dwc3-qcom.c
-index cd4a213317f1..b9cbecf41221 100644
+index 72d5192e89280..6b62bc5148fbf 100644
 --- a/drivers/usb/dwc3/dwc3-qcom.c
 +++ b/drivers/usb/dwc3/dwc3-qcom.c
-@@ -103,10 +103,6 @@ struct dwc3_qcom {
+@@ -108,10 +108,6 @@ struct dwc3_qcom {
  	struct dev_pm_domain_list	*pd_list;
  };
  
@@ -45,7 +45,7 @@ index cd4a213317f1..b9cbecf41221 100644
  static void dwc3_qcom_domain_detach(struct dwc3_qcom *qcom)
  {
  	dev_pm_domain_detach_list(qcom->pd_list);
-@@ -116,11 +112,11 @@ static int dwc3_qcom_domain_attach(struct dwc3_qcom *qcom)
+@@ -121,11 +117,11 @@ static int dwc3_qcom_domain_attach(struct dwc3_qcom *qcom)
  {
  	struct dev_pm_domain_attach_data pd_data = {
  		.pd_flags	= PD_FLAG_NO_DEV_LINK,
@@ -59,7 +59,7 @@ index cd4a213317f1..b9cbecf41221 100644
  
  	ret = dev_pm_domain_attach_list(dev, &pd_data, &qcom->pd_list);
  	if (ret < 0) {
-@@ -134,16 +130,16 @@ static int dwc3_qcom_domain_attach(struct dwc3_qcom *qcom)
+@@ -139,16 +135,16 @@ static int dwc3_qcom_domain_attach(struct dwc3_qcom *qcom)
  /* d3_to_d0 transition by turning on all the suppliers */
  static int dwc3_qcom_d3_to_d0(struct dwc3_qcom *qcom)
  {
@@ -79,7 +79,7 @@ index cd4a213317f1..b9cbecf41221 100644
  
  	return ret;
  }
-@@ -167,7 +163,7 @@ static int dwc3_qcom_d1_to_d0(struct dwc3_qcom *qcom)
+@@ -172,7 +168,7 @@ static int dwc3_qcom_d1_to_d0(struct dwc3_qcom *qcom)
  	return pm_runtime_resume_and_get(qcom->pd_list->pd_devs[0]);
  }
  
@@ -88,7 +88,7 @@ index cd4a213317f1..b9cbecf41221 100644
  static void dwc3_qcom_d0_to_d1(struct dwc3_qcom *qcom)
  {
  	if (!qcom->pd_list)
-@@ -543,6 +539,11 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom, bool wakeup)
+@@ -579,6 +575,11 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom, bool wakeup)
  	else
  		dwc3_qcom_d0_to_d3(qcom);
  
@@ -100,19 +100,15 @@ index cd4a213317f1..b9cbecf41221 100644
  	for (i = qcom->num_clocks - 1; i >= 0; i--)
  		clk_disable_unprepare(qcom->clks[i]);
  
-@@ -1054,10 +1055,10 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
- 	struct device_node	*np = pdev->dev.of_node;
- 	struct device		*dev = &pdev->dev;
- 	struct dwc3_qcom	*qcom;
--	const struct dwc3_qcom_priv_data	*priv_data;
+@@ -1142,6 +1143,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	struct resource		*res, *parent_res = NULL;
  	struct resource		local_res;
  	int			ret, i;
 +	bool			fw_managed;
- 	bool			ignore_pipe_clk;
  	bool			wakeup_source;
  	bool			legacy_binding;
-@@ -1066,8 +1067,6 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+ 
+@@ -1149,8 +1151,6 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	if (!qcom)
  		return -ENOMEM;
  
@@ -121,9 +117,9 @@ index cd4a213317f1..b9cbecf41221 100644
  	legacy_binding = dwc3_qcom_has_separate_dwc3_of_node(dev);
  
  	if (!legacy_binding)
-@@ -1078,7 +1077,10 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
- 	qcom->dev = &pdev->dev;
- 	qcom->dwc.dev = qcom->dev;
+@@ -1165,7 +1165,10 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+ 	if (ret)
+ 		return ret;
  
 -	if (priv_data && priv_data->fw_managed) {
 +	fw_managed = device_get_match_data(dev);
@@ -133,7 +129,7 @@ index cd4a213317f1..b9cbecf41221 100644
  		ret = dwc3_qcom_domain_attach(qcom);
  		if (ret) {
  			dev_err(dev, "Failed to attach domains. Bail out\n");
-@@ -1115,14 +1117,14 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1188,14 +1191,14 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	if (legacy_binding) {
  		qcom->resets = devm_reset_control_array_get_optional_exclusive(dev);
  		if (IS_ERR(qcom->resets)) {
@@ -151,7 +147,7 @@ index cd4a213317f1..b9cbecf41221 100644
  
  		usleep_range(10, 1000);
  
-@@ -1245,12 +1247,12 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1325,12 +1328,12 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	}
  reset_assert:
  	reset_control_assert(qcom->resets);
@@ -165,7 +161,7 @@ index cd4a213317f1..b9cbecf41221 100644
  	return ret;
  }
  
-@@ -1405,13 +1407,16 @@ static const struct dev_pm_ops dwc3_qcom_dev_pm_ops = {
+@@ -1518,13 +1521,16 @@ static const struct dev_pm_ops dwc3_qcom_dev_pm_ops = {
  };
  
  static const struct of_device_id dwc3_qcom_of_match[] = {

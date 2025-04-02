@@ -1,7 +1,7 @@
-From 2115e9675dfb69484b94d50ac65c2dfe3e41f402 Mon Sep 17 00:00:00 2001
+From 7d7567144c06ac9a5ed486216a697ee97a723bd6 Mon Sep 17 00:00:00 2001
 From: Hiren Gohel <quic_vhiren@quicinc.com>
 Date: Tue, 3 Dec 2024 09:52:27 +0530
-Subject: [PATCH] usb: phy: Disable DP & hardcode lane B
+Subject: [PATCH 20/20] usb: phy: Disable DP & hardcode lane B
 
 Change-Id: I11c7a37f39f553089cb6893a8bfa135cff9db42a
 Signed-off-by: Hiren Gohel <quic_vhiren@quicinc.com>
@@ -10,10 +10,10 @@ Signed-off-by: Hiren Gohel <quic_vhiren@quicinc.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-qmp-combo.c b/drivers/phy/qualcomm/phy-qcom-qmp-combo.c
-index 8598f2dc4092..36b5c3d6fd7e 100644
+index 2cec5efab29d0..adca33f7ee666 100644
 --- a/drivers/phy/qualcomm/phy-qcom-qmp-combo.c
 +++ b/drivers/phy/qualcomm/phy-qcom-qmp-combo.c
-@@ -2440,8 +2440,8 @@ static int qmp_combo_com_init(struct qmp_combo *qmp, bool force)
+@@ -2502,8 +2502,8 @@ static int qmp_combo_com_init(struct qmp_combo *qmp, bool force)
  	val = SW_PORTSELECT_MUX;
  	if (qmp->orientation == TYPEC_ORIENTATION_REVERSE)
  		val |= SW_PORTSELECT_VAL;
@@ -25,5 +25,5 @@ index 8598f2dc4092..36b5c3d6fd7e 100644
  	/* bring both QMP USB and QMP DP PHYs PCS block out of reset */
  	qphy_clrbits(com, QPHY_V3_DP_COM_RESET_OVRD_CTRL,
 -- 
-2.25.1
+2.17.1
 

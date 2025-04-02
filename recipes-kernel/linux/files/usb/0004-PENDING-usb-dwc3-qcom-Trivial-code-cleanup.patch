@@ -1,0 +1,82 @@
+From 10d47d0ad72797eeebce85e1a77441805f1282ac Mon Sep 17 00:00:00 2001
+From: Sriram Dash <quic_sriramd@quicinc.com>
+Date: Fri, 28 Feb 2025 11:13:01 +0530
+Subject: [PATCH 04/20] PENDING: usb: dwc3: qcom: Trivial code cleanup
+
+Trivial code cleanup for supporting cyclomatic complexity.
+
+Change-Id: I4238b893efbadb16772be6a25111fdc892b9672c
+Signed-off-by: Sriram Dash <quic_sriramd@quicinc.com>
+---
+ drivers/usb/dwc3/dwc3-qcom.c | 48 +++++++++++++++++++++++-------------
+ 1 file changed, 31 insertions(+), 17 deletions(-)
+
+diff --git a/drivers/usb/dwc3/dwc3-qcom.c b/drivers/usb/dwc3/dwc3-qcom.c
+index 2b5d516e116cb..2ea09ada65560 100644
+--- a/drivers/usb/dwc3/dwc3-qcom.c
++++ b/drivers/usb/dwc3/dwc3-qcom.c
+@@ -1001,6 +1001,34 @@ static void dwc3_qcom_vbus_regulator_get(struct dwc3_qcom *qcom)
+ 	}
+ }
+ 
++static int dwc3_qcom_acpi_register_core(struct platform_device *pdev,
++					struct dwc3_qcom *qcom)
++{
++	struct device	*dev = &pdev->dev;
++	int		ret;
++
++	qcom->acpi_pdata = acpi_device_get_match_data(dev);
++	if (!qcom->acpi_pdata) {
++		dev_err(&pdev->dev, "no supporting ACPI device data\n");
++		return -EINVAL;
++	}
++
++	ret = device_add_software_node(&pdev->dev, &dwc3_qcom_swnode);
++	if (ret < 0) {
++		dev_err(&pdev->dev, "failed to add properties\n");
++		return ret;
++	}
++
++	if (qcom->acpi_pdata->is_urs) {
++		ret = dwc3_qcom_acpi_merge_urs_resources(pdev);
++		if (ret < 0)
++			return ret;
++	}
++
++	return ret;
++}
++
++
+ static int dwc3_qcom_probe(struct platform_device *pdev)
+ {
+ 	struct device_node	*np = pdev->dev.of_node;
+@@ -1027,23 +1055,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+ 	qcom->dwc.dev = qcom->dev;
+ 
+ 	if (has_acpi_companion(dev)) {
+-		qcom->acpi_pdata = acpi_device_get_match_data(dev);
+-		if (!qcom->acpi_pdata) {
+-			dev_err(&pdev->dev, "no supporting ACPI device data\n");
+-			return -EINVAL;
+-		}
+-
+-		ret = device_add_software_node(&pdev->dev, &dwc3_qcom_swnode);
+-		if (ret < 0) {
+-			dev_err(&pdev->dev, "failed to add properties\n");
+-			return ret;
+-		}
+-
+-		if (qcom->acpi_pdata->is_urs) {
+-			ret = dwc3_qcom_acpi_merge_urs_resources(pdev);
+-			if (ret < 0)
+-				goto clk_disable;
+-		}
++		ret = dwc3_qcom_acpi_register_core(pdev, qcom);
++		if (ret < 0)
++			goto clk_disable;
+ 	}
+ 
+ 	if (legacy_binding) {
+-- 
+2.17.1
+
