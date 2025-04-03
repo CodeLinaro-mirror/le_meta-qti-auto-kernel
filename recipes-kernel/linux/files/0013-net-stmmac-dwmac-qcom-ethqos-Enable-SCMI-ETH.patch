@@ -1,6 +1,6 @@
-From 1db8e0c5a5e9cbff6e3995893d20386188aeb010 Mon Sep 17 00:00:00 2001
-From: Abhishek Chauhan <quic_abchauha@quicinc.com>
-Date: Wed, 26 Feb 2025 16:11:46 -0800
+From 090bc0505e722a261d35f494cbd061118986d4c4 Mon Sep 17 00:00:00 2001
+From: Suraj Jaiswal <quic_jsuraj@quicinc.com>
+Date: Thu, 27 Mar 2025 08:46:46 +0530
 Subject: [PATCH] net: stmmac: dwmac-qcom-ethqos: Enable SCMI ETH and deep
  sleep support
 
@@ -27,9 +27,12 @@ Change-Id: I78115e943aa555fa83bcb535d454cbbf38cd0865
 Signed-off-by: Sarosh Hasan <quic_sarohasa@quicinc.com>
 Signed-off-by: Sagar Cheluvegowda <quic_scheluve@quicinc.com>
 Signed-off-by: Abhishek Chauhan <quic_abchauha@quicinc.com>
+
+Signed-off-by: Suraj Jaiswal <quic_jsuraj@quicinc.com>
 ---
  .../stmicro/stmmac/dwmac-qcom-ethqos.c        | 264 +++++++++++++++++-
- 1 file changed, 250 insertions(+), 14 deletions(-)
+ .../net/ethernet/stmicro/stmmac/stmmac_main.c |   3 +-
+ 2 files changed, 252 insertions(+), 15 deletions(-)
 
 diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 index 8f9ca89a646c..81037d604f93 100644
@@ -436,6 +439,21 @@ index 8f9ca89a646c..81037d604f93 100644
  	{ .compatible = "qcom,sa8775p-ethqos", .data = &emac_v4_0_0_data},
  	{ .compatible = "qcom,sc8280xp-ethqos", .data = &emac_v3_0_0_data},
  	{ .compatible = "qcom,sm8150-ethqos", .data = &emac_v2_1_0_data},
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+index 5217cae7d22f..c8ac79110fb8 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
++++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+@@ -1175,7 +1175,8 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
+ 		    (interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
+ 			netdev_dbg(priv->dev, "PCS RGMII support enabled\n");
+ 			priv->hw->pcs = STMMAC_PCS_RGMII;
+-		} else if (interface == PHY_INTERFACE_MODE_SGMII) {
++		} else if (interface == PHY_INTERFACE_MODE_SGMII ||
++				  (interface == PHY_INTERFACE_MODE_2500BASEX)) {
+ 			netdev_dbg(priv->dev, "PCS SGMII support enabled\n");
+ 			priv->hw->pcs = STMMAC_PCS_SGMII;
+ 		}
 -- 
-2.34.1
+2.25.1
 
