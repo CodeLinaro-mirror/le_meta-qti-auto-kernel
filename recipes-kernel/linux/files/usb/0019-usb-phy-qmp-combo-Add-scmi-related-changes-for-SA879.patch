@@ -1,7 +1,8 @@
-From f4a3f3509ad0e9a5487ce8693a5c945a5daa74a0 Mon Sep 17 00:00:00 2001
+From e97acb810b190d9069d8fcb06c654009535032e2 Mon Sep 17 00:00:00 2001
 From: Hiren Gohel <quic_vhiren@quicinc.com>
 Date: Tue, 19 Nov 2024 10:39:30 +0530
-Subject: [PATCH] usb: phy: qmp-combo: Add scmi related changes for SA8797
+Subject: [PATCH 19/20] usb: phy: qmp-combo: Add scmi related changes for
+ SA8797
 
 Add scmi calls to support QMP COMBO PHY for SA8797.
 
@@ -12,7 +13,7 @@ Signed-off-by: Hiren Gohel <quic_vhiren@quicinc.com>
  1 file changed, 243 insertions(+), 54 deletions(-)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-qmp-combo.c b/drivers/phy/qualcomm/phy-qcom-qmp-combo.c
-index 2b77cea809ed..2cec5efab29d 100644
+index 2b77cea809ed0..2cec5efab29d0 100644
 --- a/drivers/phy/qualcomm/phy-qcom-qmp-combo.c
 +++ b/drivers/phy/qualcomm/phy-qcom-qmp-combo.c
 @@ -15,6 +15,7 @@

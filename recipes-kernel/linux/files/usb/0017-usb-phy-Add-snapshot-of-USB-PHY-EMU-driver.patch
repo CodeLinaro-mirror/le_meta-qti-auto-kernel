@@ -1,7 +1,7 @@
-From 83d839a11cc4a3195e2ff3358abdf6e5d00341f8 Mon Sep 17 00:00:00 2001
+From f4d48b01e3bac3060802e0792eb1bc9ddf1e8775 Mon Sep 17 00:00:00 2001
 From: Selvarasu Ganesan <quic_selvaras@quicinc.com>
 Date: Mon, 20 May 2024 00:33:39 -0700
-Subject: [PATCH] usb: phy: Add snapshot of USB PHY EMU driver
+Subject: [PATCH 17/20] usb: phy: Add snapshot of USB PHY EMU driver
 
 Snapshot of the downstream USB PHY drivers based on msm-5.15.
 commit 00801f75c3b8 ("Merge "msm: Add initial support for
@@ -17,7 +17,7 @@ Signed-off-by: Selvarasu Ganesan <quic_selvaras@quicinc.com>
  create mode 100644 drivers/usb/phy/phy-qcom-emu.c
 
 diff --git a/drivers/usb/phy/Kconfig b/drivers/usb/phy/Kconfig
-index 5f629d7cad64..651a7e309733 100644
+index 5f629d7cad646..651a7e3097338 100644
 --- a/drivers/usb/phy/Kconfig
 +++ b/drivers/usb/phy/Kconfig
 @@ -172,4 +172,16 @@ config USB_ULPI_VIEWPORT
@@ -38,7 +38,7 @@ index 5f629d7cad64..651a7e309733 100644
 +
  endmenu
 diff --git a/drivers/usb/phy/Makefile b/drivers/usb/phy/Makefile
-index e5d619b4d8f6..dabf3502235c 100644
+index e5d619b4d8f68..dabf3502235c5 100644
 --- a/drivers/usb/phy/Makefile
 +++ b/drivers/usb/phy/Makefile
 @@ -23,3 +23,6 @@ obj-$(CONFIG_USB_MXS_PHY)		+= phy-mxs-usb.o
@@ -50,7 +50,7 @@ index e5d619b4d8f6..dabf3502235c 100644
 +
 diff --git a/drivers/usb/phy/phy-qcom-emu.c b/drivers/usb/phy/phy-qcom-emu.c
 new file mode 100644
-index 000000000000..c0884df730ff
+index 0000000000000..c0884df730ff7
 --- /dev/null
 +++ b/drivers/usb/phy/phy-qcom-emu.c
 @@ -0,0 +1,187 @@
@@ -242,5 +242,5 @@ index 000000000000..c0884df730ff
 +MODULE_DESCRIPTION("Qualcomm Technologies, Inc. USB Emulation PHY driver");
 +MODULE_LICENSE("GPL v2");
 -- 
-2.25.1
+2.17.1
 
