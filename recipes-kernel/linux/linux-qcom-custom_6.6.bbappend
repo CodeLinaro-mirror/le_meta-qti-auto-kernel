@@ -66,6 +66,14 @@ SRC_URI:append:sa8797 = " \
     file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
     file://qup/0008-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
+    file://qup/0013-PENDING-dmaengine-gpi-Add-new-register-offset-to-sup.patch \
+    file://qup/0014-PENDING-i2c-i2c-qcom-geni-Add-data-transfer-support-.patch \
+    file://qup/0015-PENDING-dmaengine-gpi-Add-new-API-to-enhance-CCU-QUP.patch \
+    file://qup/0016-PENDING-i2c-i2c-qcom-geni-Add-APIs-to-support-CCU-QU.patch \
+    file://qup/0017-PENDING-soc-qcom-ccu-qup-Add-CCU-QUP-platform-driver.patch \
+    file://qup/0018-PENDING-i2c-i2c-qcom-geni-Add-async-write-support.patch \
+    file://qup/0019-PENDING-soc-qcom-ccu-qup-Add-read-and-poll-API-suppo.patch \
+    file://qup/0020-PENDING-i2c-i2c-qcom-geni-Update-counter-setting-for.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
