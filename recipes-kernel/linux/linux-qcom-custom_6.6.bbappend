@@ -79,6 +79,7 @@ SRC_URI:remove:sa8797 = " \
 
 SRC_URI:append:sa8775 = " \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
+    file://0001-PENDING-defer-no-map-memory-init-process.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"
