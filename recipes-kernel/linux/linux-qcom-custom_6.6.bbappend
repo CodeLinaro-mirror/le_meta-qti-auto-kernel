@@ -88,6 +88,10 @@ SRC_URI:remove:sa8797 = " \
     file://0019-PCI-Safety-Initial-Commit.patch \
 "
 
+SRC_URI:append:sa8775 = " \
+    file://0001-mm-memblock-enable-memory-hotplug.patch \
+"
+
 KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa8775 = " ${WORKDIR}/earlyboot.cfg"
