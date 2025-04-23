@@ -78,6 +78,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0022-meta-qti-auto-kernel-Fix-double-unmap-issue-for-DMA-.patch \
     file://qup/0023-i2c-qcom-geni-Fix-I2C-multi-message-write-and-DMA-bu.patch \
     file://qup/0024-i2c-Enable-multi-random-write-feature.patch \
+    file://qup/0025-i2c-i2c-qcom-geni-Fix-NULL-pointer-dereference-issue.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
