@@ -82,6 +82,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0026-dmaengine-qcom-gpi-Add-I2C-bus-clear-and-bus-stop-su.patch \
     file://qup/0028-i2c-Add-support-for-NOP-Frame.patch \
     file://qup/0029-i2c-Fix-the-I2c-probe-issue.patch \
+    file://0020-bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
