@@ -84,7 +84,6 @@ SRC_URI:append:sa8797 = " \
 SRC_URI:remove:sa8797 = " \
     file://earlyboot.cfg \
     file://0017-PCI-qcom-ep-Add-support-for-SCMI-based-PCIe-EP.patch \
-    file://0018-PENDING-bus-mhi-host-pci_generic-Disable-auto-suspen.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0019-PCI-Safety-Initial-Commit.patch \
 "
