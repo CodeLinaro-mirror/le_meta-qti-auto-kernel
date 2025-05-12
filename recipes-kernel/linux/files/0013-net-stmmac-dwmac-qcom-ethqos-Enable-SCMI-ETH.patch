@@ -1,6 +1,6 @@
-From 1db8e0c5a5e9cbff6e3995893d20386188aeb010 Mon Sep 17 00:00:00 2001
-From: Abhishek Chauhan <quic_abchauha@quicinc.com>
-Date: Wed, 26 Feb 2025 16:11:46 -0800
+From f28180364975b259b5fde99af78a064e8a1b8826 Mon Sep 17 00:00:00 2001
+From: Suraj Jaiswal <quic_jsuraj@quicinc.com>
+Date: Wed, 23 Apr 2025 14:55:48 +0530
 Subject: [PATCH] net: stmmac: dwmac-qcom-ethqos: Enable SCMI ETH and deep
  sleep support
 
@@ -28,11 +28,11 @@ Signed-off-by: Sarosh Hasan <quic_sarohasa@quicinc.com>
 Signed-off-by: Sagar Cheluvegowda <quic_scheluve@quicinc.com>
 Signed-off-by: Abhishek Chauhan <quic_abchauha@quicinc.com>
 ---
- .../stmicro/stmmac/dwmac-qcom-ethqos.c        | 264 +++++++++++++++++-
- 1 file changed, 250 insertions(+), 14 deletions(-)
+ .../stmicro/stmmac/dwmac-qcom-ethqos.c        | 348 +++++++++++++++++-
+ 1 file changed, 334 insertions(+), 14 deletions(-)
 
 diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
-index 8f9ca89a646c..8dfa2467d519 100644
+index 667e18d144ce..7ab054f0e7bf 100644
 --- a/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 +++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 @@ -7,6 +7,8 @@
@@ -44,9 +44,9 @@ index 8f9ca89a646c..8dfa2467d519 100644
  #include <linux/pcs-xpcs-qcom.h>
  
  #include "stmmac.h"
-@@ -113,6 +115,13 @@
+@@ -111,6 +113,13 @@
  
- static u32 bus_id;
+ #define SGMII_10M_RX_CLK_DVDR			0x31
  
 +enum domain_t {
 +	POWER_CORE = 0,
@@ -58,7 +58,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  struct ethqos_emac_por {
  	unsigned int offset;
  	unsigned int value;
-@@ -127,10 +136,12 @@ struct ethqos_emac_driver_data {
+@@ -125,10 +134,12 @@ struct ethqos_emac_driver_data {
  	const char *link_clk_name;
  	bool has_integrated_pcs;
  	u32 dma_addr_width;
@@ -71,7 +71,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  };
  
  struct qcom_ethqos {
-@@ -153,6 +164,9 @@ struct qcom_ethqos {
+@@ -151,6 +162,9 @@ struct qcom_ethqos {
  	bool has_emac_ge_3;
  	bool needs_sgmii_loopback;
  	bool needs_rx_prog_swap;
@@ -81,7 +81,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  };
  
  static int rgmii_readl(struct qcom_ethqos *ethqos, unsigned int offset)
-@@ -359,6 +373,7 @@ static const struct ethqos_emac_driver_data emac_v4_0_0_data = {
+@@ -357,6 +371,7 @@ static const struct ethqos_emac_driver_data emac_v4_0_0_data = {
  	.has_integrated_pcs = true,
  	.needs_sgmii_loopback = true,
  	.dma_addr_width = 36,
@@ -89,7 +89,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	.dwmac4_addrs = {
  		.dma_chan = 0x00008100,
  		.dma_chan_offset = 0x1000,
-@@ -375,6 +390,11 @@ static const struct ethqos_emac_driver_data emac_v4_0_0_data = {
+@@ -373,6 +388,11 @@ static const struct ethqos_emac_driver_data emac_v4_0_0_data = {
  		.mtl_low_cred = 0x00008024,
  		.mtl_low_cred_offset = 0x1000,
  	},
@@ -101,7 +101,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  };
  
  static const struct ethqos_emac_driver_data emac_v6_6_0_data = {
-@@ -386,6 +406,7 @@ static const struct ethqos_emac_driver_data emac_v6_6_0_data = {
+@@ -384,6 +404,7 @@ static const struct ethqos_emac_driver_data emac_v6_6_0_data = {
  	.has_hdma = true,
  	.needs_sgmii_loopback = true,
  	.has_io_macro_ge_4 = true,
@@ -109,7 +109,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	.dwxgmac_addrs = {
  		.dma_even_chan_base  = 0x00008500,
  		.dma_odd_chan_base = 0x00008580,
-@@ -396,8 +417,71 @@ static const struct ethqos_emac_driver_data emac_v6_6_0_data = {
+@@ -394,8 +415,71 @@ static const struct ethqos_emac_driver_data emac_v6_6_0_data = {
  		.pps_base = 0x00007080,
  		.pps_offset = 0x10,
  	},
@@ -181,7 +181,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  static int ethqos_dll_configure(struct qcom_ethqos *ethqos)
  {
  	struct device *dev = &ethqos->pdev->dev;
-@@ -720,8 +804,12 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
+@@ -718,8 +802,12 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
  		rgmii_updatel(ethqos, RGMII_CONFIG2_RGMII_CLK_SEL_CFG,
  			      RGMII_CONFIG2_RGMII_CLK_SEL_CFG,
  			      RGMII_IO_MACRO_CONFIG2);
@@ -196,7 +196,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  		ethqos->serdes_speed = SPEED_2500;
  		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 0, 0, 0);
  		break;
-@@ -730,15 +818,23 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
+@@ -728,15 +816,23 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
  		rgmii_updatel(ethqos, RGMII_CONFIG2_RGMII_CLK_SEL_CFG,
  			      RGMII_CONFIG2_RGMII_CLK_SEL_CFG,
  			      RGMII_IO_MACRO_CONFIG2);
@@ -224,7 +224,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  		ethqos->serdes_speed = SPEED_1000;
  		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, 0, 0);
  		break;
-@@ -749,8 +845,12 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
+@@ -747,8 +843,12 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos)
  			      FIELD_PREP(RGMII_CONFIG_SGMII_CLK_DVDR,
  					 SGMII_10M_RX_CLK_DVDR),
  			      RGMII_IO_MACRO_CONFIG);
@@ -239,7 +239,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  		ethqos->serdes_speed = SPEED_1000;
  		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, 0, 0);
  		break;
-@@ -773,6 +873,9 @@ static int  ethqos_configure_5gbaser(struct qcom_ethqos *ethqos)
+@@ -771,6 +871,9 @@ static int  ethqos_configure_5gbaser(struct qcom_ethqos *ethqos)
  {
  	ethqos_set_func_clk_en(ethqos);
  
@@ -249,8 +249,8 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	rgmii_updatel(ethqos, RGMII_BYPASS_EN, RGMII_BYPASS_EN, RGMII_IO_MACRO_BYPASS);
  	rgmii_updatel(ethqos, SGMII_PHY_CNTRL0_2P5G_1G_CLK_SEL, BIT(5),
  		      EMAC_WRAPPER_SGMII_PHY_CNTRL0);
-@@ -811,6 +914,9 @@ static int ethqos_configure_usxgmii(struct qcom_ethqos *ethqos)
- {
+@@ -816,6 +919,9 @@ static int ethqos_configure_usxgmii(struct qcom_ethqos *ethqos)
+ 
  	ethqos_set_func_clk_en(ethqos);
  
 +	if (ethqos->use_domains)
@@ -259,7 +259,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	rgmii_updatel(ethqos, RGMII_BYPASS_EN, RGMII_BYPASS_EN, RGMII_IO_MACRO_BYPASS);
  	rgmii_updatel(ethqos, RGMII_CONFIG2_MODE_EN_VIA_GMII, 0, RGMII_IO_MACRO_CONFIG2);
  	rgmii_updatel(ethqos, SGMII_PHY_CNTRL0_2P5G_1G_CLK_SEL, BIT(5),
-@@ -929,6 +1035,190 @@ static void qcom_ethqos_serdes_powerdown(struct net_device *ndev, void *priv)
+@@ -944,6 +1050,190 @@ static void qcom_ethqos_serdes_powerdown(struct net_device *ndev, void *priv)
  	phy_exit(ethqos->serdes_phy);
  }
  
@@ -450,7 +450,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  static int ethqos_clks_config(void *priv, bool enabled)
  {
  	struct qcom_ethqos *ethqos = priv;
-@@ -1081,6 +1371,31 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
+@@ -1119,6 +1409,31 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
  	}
  
  	ethqos->pdev = pdev;
@@ -482,7 +482,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	ethqos->rgmii_base = devm_platform_ioremap_resource_byname(pdev, "rgmii");
  	if (IS_ERR(ethqos->rgmii_base))
  		return dev_err_probe(dev, PTR_ERR(ethqos->rgmii_base),
-@@ -1096,11 +1411,12 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
+@@ -1134,11 +1449,12 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
  	ethqos->has_emac_ge_3 = data->has_emac_ge_3;
  	ethqos->needs_sgmii_loopback = data->needs_sgmii_loopback;
  
@@ -500,7 +500,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	ret = ethqos_clks_config(ethqos, true);
  	if (ret)
  		return ret;
-@@ -1122,7 +1438,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
+@@ -1160,7 +1476,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
  	plat_dat->bsp_priv = ethqos;
  	plat_dat->fix_mac_speed = ethqos_fix_mac_speed;
  	plat_dat->dump_debug_regs = rgmii_dump;
@@ -512,7 +512,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	plat_dat->has_gmac4 = 1;
  	if (ethqos->has_emac_ge_3)
  		plat_dat->dwmac4_addrs = &data->dwmac4_addrs;
-@@ -1170,6 +1489,7 @@ static const struct of_device_id qcom_ethqos_match[] = {
+@@ -1204,6 +1523,7 @@ static const struct of_device_id qcom_ethqos_match[] = {
  	{ .compatible = "qcom,qcs404-ethqos", .data = &emac_v2_3_0_data},
  	{ .compatible = "qcom,qcs615-ethqos", .data = &emac_v2_3_1_data},
  	{ .compatible = "qcom,qcs8300-ethqos", .data = &emac_v4_0_0_data},
@@ -521,5 +521,5 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	{ .compatible = "qcom,sc8280xp-ethqos", .data = &emac_v3_0_0_data},
  	{ .compatible = "qcom,sm8150-ethqos", .data = &emac_v2_1_0_data},
 -- 
-2.34.1
+2.25.1
 
