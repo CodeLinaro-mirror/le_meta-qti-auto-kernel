@@ -1,4 +1,4 @@
-From fa72e4afd19e88cf2bde1d43a36b97b5d4695e2a Mon Sep 17 00:00:00 2001
+From eab8022bd1ed7277dd15d2e4fb60d8e55492d6d4 Mon Sep 17 00:00:00 2001
 From: Shazad Hussain <quic_shazhuss@quicinc.com>
 Date: Mon, 9 Dec 2024 20:32:22 +0530
 Subject: [PATCH] PENDING: scsi: ufs: qcom: Enable sa8255p platform
@@ -21,11 +21,11 @@ Co-developed-by: Nikunj Kela <quic_nkela@quicinc.com>
 Signed-off-by: Nikunj Kela <quic_nkela@quicinc.com>
 Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
 ---
- drivers/ufs/host/ufs-qcom.c | 235 +++++++++++++++++++++++++++++-------
- 1 file changed, 189 insertions(+), 46 deletions(-)
+ drivers/ufs/host/ufs-qcom.c | 234 +++++++++++++++++++++++++++++-------
+ 1 file changed, 189 insertions(+), 45 deletions(-)
 
 diff --git a/drivers/ufs/host/ufs-qcom.c b/drivers/ufs/host/ufs-qcom.c
-index f4be91c2012b..bb7a5c0fbe0e 100644
+index 506bcfdf2624..f2482aeb02da 100644
 --- a/drivers/ufs/host/ufs-qcom.c
 +++ b/drivers/ufs/host/ufs-qcom.c
 @@ -15,6 +15,7 @@
@@ -99,7 +99,7 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  static void ufs_qcom_dev_ref_clk_ctrl(struct ufs_qcom_host *host, bool enable)
  {
  	if (host->dev_ref_clk_ctrl_mmio &&
-@@ -1253,24 +1303,14 @@ static int ufs_qcom_icc_init(struct ufs_qcom_host *host)
+@@ -1298,24 +1348,14 @@ static int ufs_qcom_icc_init(struct ufs_qcom_host *host)
  	return 0;
  }
  
@@ -127,7 +127,7 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  
  	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
  	if (!host) {
-@@ -1287,29 +1327,12 @@ static int ufs_qcom_init(struct ufs_hba *hba)
+@@ -1332,29 +1372,12 @@ static int ufs_qcom_init(struct ufs_hba *hba)
  	if (IS_ERR(host->core_reset)) {
  		err = dev_err_probe(dev, PTR_ERR(host->core_reset),
  				    "Failed to get reset control\n");
@@ -159,7 +159,7 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  
  	host->device_reset = devm_gpiod_get_optional(dev, "reset",
  						     GPIOD_OUT_HIGH);
-@@ -1317,7 +1340,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
+@@ -1362,7 +1385,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
  		err = PTR_ERR(host->device_reset);
  		if (err != -EPROBE_DEFER)
  			dev_err(dev, "failed to acquire reset gpio: %d\n", err);
@@ -168,7 +168,7 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  	}
  
  	ufs_qcom_get_controller_revision(hba, &host->hw_ver.major,
-@@ -1348,18 +1371,9 @@ static int ufs_qcom_init(struct ufs_hba *hba)
+@@ -1393,20 +1416,12 @@ static int ufs_qcom_init(struct ufs_hba *hba)
  			clki->keep_link_active = true;
  	}
  
@@ -178,7 +178,9 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
 -
 -	ufs_qcom_set_caps(hba);
 -	ufs_qcom_advertise_quirks(hba);
--
+ 	ufs_qcom_set_host_params(hba);
+ 	ufs_qcom_set_phy_gear(host);
+ 
  	err = ufs_qcom_ice_init(host);
  	if (err)
 -		goto out_variant_clear;
@@ -188,11 +190,10 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  
  	if (hba->dev->id < MAX_UFS_QCOM_HOSTS)
  		ufs_qcom_hosts[hba->dev->id] = host;
-@@ -1377,6 +1391,56 @@ static int ufs_qcom_init(struct ufs_hba *hba)
- 	 */
- 	host->phy_gear = UFS_HS_G2;
+@@ -1419,6 +1434,56 @@ static int ufs_qcom_init(struct ufs_hba *hba)
+ 				__func__, err);
  
-+	return 0;
+ 	return 0;
 +}
 +
 +/**
@@ -242,10 +243,11 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
 +
 +	ufs_qcom_setup_clocks(hba, true, POST_CHANGE);
 +
- 	return 0;
++	return 0;
  
  out_variant_clear:
-@@ -1394,6 +1458,31 @@ static void ufs_qcom_exit(struct ufs_hba *hba)
+ 	ufshcd_set_variant(hba, NULL);
+@@ -1435,6 +1500,31 @@ static void ufs_qcom_exit(struct ufs_hba *hba)
  	phy_exit(host->generic_phy);
  }
  
@@ -277,7 +279,7 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  /**
   * ufs_qcom_set_clk_40ns_cycles - Configure 40ns clk cycles
   *
-@@ -2094,6 +2183,32 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
+@@ -2134,6 +2224,32 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
  	.config_esi		= ufs_qcom_config_esi,
  };
  
@@ -310,7 +312,7 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  /**
   * ufs_qcom_probe - probe routine of the driver
   * @pdev: pointer to Platform device handle
-@@ -2104,9 +2219,14 @@ static int ufs_qcom_probe(struct platform_device *pdev)
+@@ -2144,9 +2260,14 @@ static int ufs_qcom_probe(struct platform_device *pdev)
  {
  	int err;
  	struct device *dev = &pdev->dev;
@@ -326,7 +328,7 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  	if (err)
  		return dev_err_probe(dev, err, "ufshcd_pltfrm_init() failed\n");
  
-@@ -2129,8 +2249,31 @@ static int ufs_qcom_remove(struct platform_device *pdev)
+@@ -2169,8 +2290,31 @@ static int ufs_qcom_remove(struct platform_device *pdev)
  	return 0;
  }
  
@@ -358,7 +360,7 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  	{},
  };
  MODULE_DEVICE_TABLE(of, ufs_qcom_of_match);
-@@ -2145,8 +2288,8 @@ MODULE_DEVICE_TABLE(acpi, ufs_qcom_acpi_match);
+@@ -2185,8 +2329,8 @@ MODULE_DEVICE_TABLE(acpi, ufs_qcom_acpi_match);
  
  static const struct dev_pm_ops ufs_qcom_pm_ops = {
  	SET_RUNTIME_PM_OPS(ufshcd_runtime_suspend, ufshcd_runtime_resume, NULL)
@@ -370,5 +372,5 @@ index f4be91c2012b..bb7a5c0fbe0e 100644
  	.suspend         = ufshcd_system_suspend,
  	.resume          = ufshcd_system_resume,
 -- 
-2.17.1
+2.49.0
 
