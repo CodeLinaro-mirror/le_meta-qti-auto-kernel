@@ -71,6 +71,8 @@ SRC_URI:append = "\
     file://scm_adci/0008-PENDING-firmware-qcom-scm-Introduce-new-locking-mech.patch \
     file://scm_adci/0009-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
+    file://0001-mm-memblock-enable-memory-hotplug.patch \
+    file://0001-PENDING-defer-no-map-memory-init-process.patch \
 "
 
 SRC_URI:append:sa8797 = " \
@@ -100,11 +102,6 @@ SRC_URI:remove:sa8797 = " \
     file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
 "
 
-SRC_URI:append:sa8775 = " \
-    file://0001-mm-memblock-enable-memory-hotplug.patch \
-    file://0001-PENDING-defer-no-map-memory-init-process.patch \
-"
-
 SRC_URI:append:auto-slt = " \
     file://auto-slt.cfg \
     file://0001-pci-Add-pcie-module-dependency.patch \
@@ -113,6 +110,7 @@ SRC_URI:append:auto-slt = " \
 KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa8775 = " ${WORKDIR}/earlyboot.cfg"
+KERNEL_CONFIG_FRAGMENTS:append:sa7255 = " ${WORKDIR}/earlyboot.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains('DISTRO_FEATURES', 'selinux', '${WORKDIR}/selinux.cfg', '', d)}"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '', '${WORKDIR}/devmem.cfg', d)}"
 KERNEL_CONFIG_FRAGMENTS:append:auto-slt = " ${WORKDIR}/auto-slt.cfg"
