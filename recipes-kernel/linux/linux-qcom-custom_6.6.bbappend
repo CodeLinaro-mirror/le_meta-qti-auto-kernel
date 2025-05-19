@@ -93,6 +93,7 @@ SRC_URI:append:sa8797 = " \
     file://0020-bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
     file://0020-PCI-qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-s.patch \
     file://0021-dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
+    file://qup/0030-i2c-Add-validation-checks-and-fix-inter-frame-delay-.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
