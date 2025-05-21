@@ -18,6 +18,7 @@ SRC_URI:append = "\
     file://qup/0012-PENDING-spi-spi-geni-qcom-Add-support-for-S2R-featur.patch \
     file://qup/0013-PENDING-spi-spi-geni-qcom-set-lowest-OPP-during-susp.patch \
     file://qup/0014-PENDING-serial-qcom-geni-set-lowest-OPP-during-suspe.patch \
+    file://qup/0015-PENDING-spi-qcom-geni-Allow-SPI-mode-reconfiguration.patch \
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
