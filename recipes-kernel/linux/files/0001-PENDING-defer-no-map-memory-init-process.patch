@@ -1,0 +1,124 @@
+From 0cee0b6687fb2a77a77d8aee257ac5721c8ac3e5 Mon Sep 17 00:00:00 2001
+From: ziqic <ziqic@qti.qualcomm.com>
+Date: Mon, 24 Mar 2025 17:38:46 +0800
+Subject: [PATCH] PENDING: defer no-map memory init process
+
+Defer no-map memory init process and run it parallelly
+later to optimize bootkpi.
+
+Change-Id: I25d0f50c83abb9cf3ccc92fc2e45d2dff15c1d07
+Signed-off-by: ziqic <ziqic@qti.qualcomm.com>
+---
+ arch/arm64/Kconfig |  1 +
+ mm/Kconfig         |  3 +++
+ mm/memblock.c      |  3 +++
+ mm/mm_init.c       | 39 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 46 insertions(+)
+
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 09c70a318b80..59788dbbd3ec 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -257,6 +257,7 @@ config ARM64
+ 	select TRACE_IRQFLAGS_SUPPORT
+ 	select TRACE_IRQFLAGS_NMI_SUPPORT
+ 	select HAVE_SOFTIRQ_ON_OWN_STACK
++	select DEFER_NO_MAP_MEM_PAGE_INIT
+ 	help
+ 	  ARM 64-bit (AArch64) Linux support.
+ 
+diff --git a/mm/Kconfig b/mm/Kconfig
+index c11cd01169e8..774d499e5b9d 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -1007,6 +1007,9 @@ config DEFERRED_STRUCT_PAGE_INIT
+ 	  lifetime of the system until these kthreads finish the
+ 	  initialisation.
+ 
++config DEFER_NO_MAP_MEM_PAGE_INIT
++	bool
++
+ config PAGE_IDLE_FLAG
+ 	bool
+ 	select PAGE_EXTENSION if !64BIT
+diff --git a/mm/memblock.c b/mm/memblock.c
+index b8c31d9c4cca..e6529fc56580 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -2104,6 +2104,8 @@ static void __init memmap_init_reserved_pages(void)
+ 	 * set nid on all reserved pages and also treat struct
+ 	 * pages for the NOMAP regions as PageReserved
+ 	 */
++
++#ifndef CONFIG_DEFER_NO_MAP_MEM_PAGE_INIT
+ 	for_each_mem_region(region) {
+ 		nid = memblock_get_region_node(region);
+ 		start = region->base;
+@@ -2114,6 +2116,7 @@ static void __init memmap_init_reserved_pages(void)
+ 
+ 		memblock_set_node(start, end, &memblock.reserved, nid);
+ 	}
++#endif
+ 
+ 	/* initialize struct pages for the reserved regions */
+ 	for_each_reserved_mem_region(region) {
+diff --git a/mm/mm_init.c b/mm/mm_init.c
+index 77fd04c83d04..24e9d8b31131 100644
+--- a/mm/mm_init.c
++++ b/mm/mm_init.c
+@@ -2378,6 +2378,36 @@ void set_zone_contiguous(struct zone *zone)
+ 	zone->contiguous = true;
+ }
+ 
++#ifdef CONFIG_DEFER_NO_MAP_MEM_PAGE_INIT
++static int memmap_init_reserved_pages_thread(void *args)
++{
++	struct memblock_region *region;
++	phys_addr_t start, end;
++	int nid;
++
++	/*
++	* set nid on all reserved pages and also treat struct
++	* pages for the NOMAP regions as PageReserved
++	*/
++
++	for_each_mem_region(region) {
++		nid = memblock_get_region_node(region);
++		start = region->base;
++		end = start + region->size;
++
++		if (memblock_is_nomap(region)) {
++			reserve_bootmem_region(start, end, nid);
++		}
++
++		memblock_set_node(start, end, &memblock.reserved, nid);
++	}
++
++	pr_err("memmap_init_reserved_pages kthread finish.\n");
++
++	return 0;
++}
++#endif
++
+ void __init page_alloc_init_late(void)
+ {
+ 	struct zone *zone;
+@@ -2404,6 +2434,15 @@ void __init page_alloc_init_late(void)
+ 	files_maxfiles_init();
+ #endif
+ 
++#ifdef CONFIG_DEFER_NO_MAP_MEM_PAGE_INIT
++	struct task_struct *t;
++	t = kthread_run(memmap_init_reserved_pages_thread, NULL, "reserved-memory");
++	if (IS_ERR(t)) {
++		pr_err("Failed to create memmap_init_reserved_pages thread.\n");
++	}
++
++#endif
++
+ 	buffer_init();
+ 
+ 	/* Discard memblock private memory */
+-- 
+2.34.1
+

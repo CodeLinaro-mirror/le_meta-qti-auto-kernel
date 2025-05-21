@@ -66,6 +66,19 @@ SRC_URI:append:sa8797 = " \
     file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
     file://qup/0008-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
+    file://qup/0013-PENDING-dmaengine-gpi-Add-new-register-offset-to-sup.patch \
+    file://qup/0014-PENDING-i2c-i2c-qcom-geni-Add-data-transfer-support-.patch \
+    file://qup/0015-PENDING-dmaengine-gpi-Add-new-API-to-enhance-CCU-QUP.patch \
+    file://qup/0016-PENDING-i2c-i2c-qcom-geni-Add-APIs-to-support-CCU-QU.patch \
+    file://qup/0017-PENDING-soc-qcom-ccu-qup-Add-CCU-QUP-platform-driver.patch \
+    file://qup/0018-PENDING-i2c-i2c-qcom-geni-Add-async-write-support.patch \
+    file://qup/0019-PENDING-soc-qcom-ccu-qup-Add-read-and-poll-API-suppo.patch \
+    file://qup/0020-PENDING-i2c-i2c-qcom-geni-Update-counter-setting-for.patch \
+    file://qup/0021-meta-qti-auto-kernel-Fix-cyclic-depedancy-between-CC.patch \
+    file://qup/0022-meta-qti-auto-kernel-Fix-double-unmap-issue-for-DMA-.patch \
+    file://qup/0023-i2c-qcom-geni-Fix-I2C-multi-message-write-and-DMA-bu.patch \
+    file://qup/0024-i2c-Enable-multi-random-write-feature.patch \
+    file://qup/0025-i2c-i2c-qcom-geni-Fix-NULL-pointer-dereference-issue.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
@@ -74,6 +87,11 @@ SRC_URI:remove:sa8797 = " \
     file://0018-PENDING-bus-mhi-host-pci_generic-Disable-auto-suspen.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0019-PCI-Safety-Initial-Commit.patch \
+"
+
+SRC_URI:append:sa8775 = " \
+    file://0001-mm-memblock-enable-memory-hotplug.patch \
+    file://0001-PENDING-defer-no-map-memory-init-process.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"
