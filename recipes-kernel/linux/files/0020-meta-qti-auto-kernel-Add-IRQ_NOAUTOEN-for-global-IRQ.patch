@@ -1,0 +1,31 @@
+From 99c4db722cb014b25efd74226932a269f3e6e0a6 Mon Sep 17 00:00:00 2001
+From: Nitesh Gupta <nitegupt@qti.qualcomm.com>
+Date: Thu, 22 May 2025 18:29:07 +0530
+Subject: [PATCH] PCI: Add IRQ_NOAUTOEN for global IRQ for
+ PCIe
+
+Add IRQ_NOAUTOEN flag for global interrupt for PCIe.
+
+Change-Id: I3bfd4fb6f9d592a0da6514b39aa25941992b1f33
+Signed-off-by: Nitesh Gupta <nitegupt@qti.qualcomm.com>
+---
+ drivers/pci/controller/pcie-qcom-ecam.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/pci/controller/pcie-qcom-ecam.c b/drivers/pci/controller/pcie-qcom-ecam.c
+index ae235626bd42..673acb20a4de 100644
+--- a/drivers/pci/controller/pcie-qcom-ecam.c
++++ b/drivers/pci/controller/pcie-qcom-ecam.c
+@@ -979,9 +979,10 @@ static int qcom_pcie_ecam_probe(struct platform_device *pdev)
+ 
+ 	qcom_pcie_enable_error_reporting(pcie);
+ 
++	irq_set_status_flags(pcie->global_irq, IRQ_NOAUTOEN);
+ 	ret = devm_request_threaded_irq(dev, pcie->global_irq, NULL,
+ 					qcom_pcie_global_irq_thread,
+-					IRQF_ONESHOT,
++					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+ 					"global_irq", pcie);
+ 	if (ret) {
+ 		dev_err(dev, "Failed to request Global IRQ\n");
+-- 
