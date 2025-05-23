@@ -79,12 +79,12 @@ SRC_URI:append:sa8797 = " \
     file://qup/0023-i2c-qcom-geni-Fix-I2C-multi-message-write-and-DMA-bu.patch \
     file://qup/0024-i2c-Enable-multi-random-write-feature.patch \
     file://qup/0025-i2c-i2c-qcom-geni-Fix-NULL-pointer-dereference-issue.patch \
+    file://qup/0026-dmaengine-qcom-gpi-Add-I2C-bus-clear-and-bus-stop-su.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
     file://earlyboot.cfg \
     file://0017-PCI-qcom-ep-Add-support-for-SCMI-based-PCIe-EP.patch \
-    file://0018-PENDING-bus-mhi-host-pci_generic-Disable-auto-suspen.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0019-PCI-Safety-Initial-Commit.patch \
 "
