@@ -1,19 +1,19 @@
-From e97acb810b190d9069d8fcb06c654009535032e2 Mon Sep 17 00:00:00 2001
+From 8115f70a917e5b2214f95ba235e9311f51701ea3 Mon Sep 17 00:00:00 2001
 From: Hiren Gohel <quic_vhiren@quicinc.com>
 Date: Tue, 19 Nov 2024 10:39:30 +0530
-Subject: [PATCH 19/20] usb: phy: qmp-combo: Add scmi related changes for
- SA8797
+Subject: [PATCH] usb: phy: qmp-combo: Add scmi related changes for SA8797
 
 Add scmi calls to support QMP COMBO PHY for SA8797.
 
 Change-Id: I624df342cab83b714ed30565dbe8da92842f9049
 Signed-off-by: Hiren Gohel <quic_vhiren@quicinc.com>
+Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
 ---
- drivers/phy/qualcomm/phy-qcom-qmp-combo.c | 297 ++++++++++++++++++----
- 1 file changed, 243 insertions(+), 54 deletions(-)
+ drivers/phy/qualcomm/phy-qcom-qmp-combo.c | 295 ++++++++++++++++++----
+ 1 file changed, 241 insertions(+), 54 deletions(-)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-qmp-combo.c b/drivers/phy/qualcomm/phy-qcom-qmp-combo.c
-index 2b77cea809ed0..2cec5efab29d0 100644
+index 2b77cea809ed..55130d543bfb 100644
 --- a/drivers/phy/qualcomm/phy-qcom-qmp-combo.c
 +++ b/drivers/phy/qualcomm/phy-qcom-qmp-combo.c
 @@ -15,6 +15,7 @@
@@ -233,13 +233,13 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  		return 0;
  
 -	reset_control_bulk_assert(cfg->num_resets, qmp->resets);
--
--	clk_bulk_disable_unprepare(qmp->num_clks, qmp->clks);
 +	if (!qmp->cfg->fw_managed) {
 +		reset_control_bulk_assert(cfg->num_resets, qmp->resets);
 +		clk_bulk_disable_unprepare(qmp->num_clks, qmp->clks);
 +		regulator_bulk_disable(cfg->num_vregs, qmp->vregs);
  
+-	clk_bulk_disable_unprepare(qmp->num_clks, qmp->clks);
+-
 -	regulator_bulk_disable(cfg->num_vregs, qmp->vregs);
 +	} else
 +		qmp_combo_d0_to_d3(qmp);
@@ -273,16 +273,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  
  	/* PHY reset */
  	qphy_setbits(qmp->pcs, cfg->regs[QPHY_SW_RESET], SW_RESET);
-@@ -2608,6 +2743,8 @@ static int qmp_combo_usb_exit(struct phy *phy)
- 	if (ret)
- 		goto out_unlock;
- 
-+	qmp_combo_domain_detach(qmp);
-+
- 	qmp->usb_init_count--;
- 
- out_unlock:
-@@ -2701,8 +2838,12 @@ static int __maybe_unused qmp_combo_runtime_suspend(struct device *dev)
+@@ -2701,8 +2836,12 @@ static int __maybe_unused qmp_combo_runtime_suspend(struct device *dev)
  
  	qmp_combo_enable_autonomous_mode(qmp);
  
@@ -297,7 +288,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  
  	return 0;
  }
-@@ -2719,17 +2860,24 @@ static int __maybe_unused qmp_combo_runtime_resume(struct device *dev)
+@@ -2719,17 +2858,24 @@ static int __maybe_unused qmp_combo_runtime_resume(struct device *dev)
  		return 0;
  	}
  
@@ -330,7 +321,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	qmp_combo_disable_autonomous_mode(qmp);
  
  	return 0;
-@@ -2780,6 +2928,9 @@ static int qmp_combo_reset_init(struct qmp_combo *qmp)
+@@ -2780,6 +2926,9 @@ static int qmp_combo_reset_init(struct qmp_combo *qmp)
  	int i;
  	int ret;
  
@@ -340,7 +331,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	qmp->resets = devm_kcalloc(dev, cfg->num_resets,
  				   sizeof(*qmp->resets), GFP_KERNEL);
  	if (!qmp->resets)
-@@ -3240,10 +3391,12 @@ static int qmp_combo_parse_dt_lecacy_usb(struct qmp_combo *qmp, struct device_no
+@@ -3240,10 +3389,12 @@ static int qmp_combo_parse_dt_lecacy_usb(struct qmp_combo *qmp, struct device_no
  		qmp->pcs_misc = NULL;
  	}
  
@@ -356,7 +347,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	}
  
  	return 0;
-@@ -3321,14 +3474,16 @@ static int qmp_combo_parse_dt(struct qmp_combo *qmp)
+@@ -3321,14 +3472,16 @@ static int qmp_combo_parse_dt(struct qmp_combo *qmp)
  	}
  	qmp->dp_dp_phy = base + offs->dp_dp_phy;
  
@@ -380,7 +371,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	}
  
  	return 0;
-@@ -3338,13 +3493,16 @@ static struct phy *qmp_combo_phy_xlate(struct device *dev, struct of_phandle_arg
+@@ -3338,13 +3491,16 @@ static struct phy *qmp_combo_phy_xlate(struct device *dev, struct of_phandle_arg
  {
  	struct qmp_combo *qmp = dev_get_drvdata(dev);
  
@@ -397,7 +388,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  		return qmp->dp_phy;
  	}
  
-@@ -3359,6 +3517,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
+@@ -3359,6 +3515,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
  	struct phy_provider *phy_provider;
  	int ret;
  
@@ -405,7 +396,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
  	if (!qmp)
  		return -ENOMEM;
-@@ -3371,15 +3530,26 @@ static int qmp_combo_probe(struct platform_device *pdev)
+@@ -3371,15 +3528,26 @@ static int qmp_combo_probe(struct platform_device *pdev)
  	if (!qmp->cfg)
  		return -EINVAL;
  
@@ -438,7 +429,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  
  	if (of_property_read_bool(dev->of_node,
  				  "default-typec-orientation-reverse"))
-@@ -3404,6 +3574,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
+@@ -3404,6 +3572,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
  
  		ret = qmp_combo_parse_dt_legacy(qmp, usb_np, dp_np);
  	} else {
@@ -446,7 +437,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  		usb_np = of_node_get(dev->of_node);
  		dp_np = of_node_get(dev->of_node);
  
-@@ -3412,6 +3583,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
+@@ -3412,6 +3581,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
  	if (ret)
  		goto err_node_put;
  
@@ -454,7 +445,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	pm_runtime_set_active(dev);
  	ret = devm_pm_runtime_enable(dev);
  	if (ret)
-@@ -3422,10 +3594,14 @@ static int qmp_combo_probe(struct platform_device *pdev)
+@@ -3422,10 +3592,14 @@ static int qmp_combo_probe(struct platform_device *pdev)
  	 */
  	pm_runtime_forbid(dev);
  
@@ -472,7 +463,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	qmp->usb_phy = devm_phy_create(dev, usb_np, &qmp_combo_usb_phy_ops);
  	if (IS_ERR(qmp->usb_phy)) {
  		ret = PTR_ERR(qmp->usb_phy);
-@@ -3433,6 +3609,9 @@ static int qmp_combo_probe(struct platform_device *pdev)
+@@ -3433,6 +3607,9 @@ static int qmp_combo_probe(struct platform_device *pdev)
  		goto err_node_put;
  	}
  
@@ -482,7 +473,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	phy_set_drvdata(qmp->usb_phy, qmp);
  
  	qmp->dp_phy = devm_phy_create(dev, dp_np, &qmp_combo_dp_phy_ops);
-@@ -3442,6 +3621,9 @@ static int qmp_combo_probe(struct platform_device *pdev)
+@@ -3442,6 +3619,9 @@ static int qmp_combo_probe(struct platform_device *pdev)
  		goto err_node_put;
  	}
  
@@ -492,7 +483,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	phy_set_drvdata(qmp->dp_phy, qmp);
  
  	dev_set_drvdata(dev, qmp);
-@@ -3451,12 +3633,15 @@ static int qmp_combo_probe(struct platform_device *pdev)
+@@ -3451,12 +3631,15 @@ static int qmp_combo_probe(struct platform_device *pdev)
  	else
  		phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
  
@@ -508,7 +499,7 @@ index 2b77cea809ed0..2cec5efab29d0 100644
  	of_node_put(usb_np);
  	of_node_put(dp_np);
  	return ret;
-@@ -3507,6 +3692,10 @@ static const struct of_device_id qmp_combo_of_match_table[] = {
+@@ -3507,6 +3690,10 @@ static const struct of_device_id qmp_combo_of_match_table[] = {
  		.compatible = "qcom,sm8550-qmp-usb3-dp-phy",
  		.data = &sm8550_usb3dpphy_cfg,
  	},
