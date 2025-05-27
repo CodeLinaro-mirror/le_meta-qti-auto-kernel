@@ -172,7 +172,7 @@ index d5b8d91dde28..7e2af5163149 100644
  
 +	platform_set_drvdata(pdev, scm);
 +
- 	/* Let all above stores be available after this */
+ 	/* Paired with smp_load_acquire() in qcom_scm_is_available(). */
  	smp_store_release(&__scm, scm);
  
 +	xa_init(&__scm->waitq);
