@@ -86,6 +86,7 @@ SRC_URI:append:sa8775 = " \
 "
 
 SRC_URI:append:auto-slt = " \
+    file://auto-slt.cfg \
     file://0001-pci-Add-pcie-module-dependency.patch \
 "
 
@@ -94,3 +95,4 @@ KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa8775 = " ${WORKDIR}/earlyboot.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains('DISTRO_FEATURES', 'selinux', '${WORKDIR}/selinux.cfg', '', d)}"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '', '${WORKDIR}/devmem.cfg', d)}"
+KERNEL_CONFIG_FRAGMENTS:append:auto-slt = " ${WORKDIR}/auto-slt.cfg"
