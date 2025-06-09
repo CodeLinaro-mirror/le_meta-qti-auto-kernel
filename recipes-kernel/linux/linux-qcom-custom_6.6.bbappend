@@ -100,6 +100,15 @@ SRC_URI:remove:sa8797 = " \
 SRC_URI:append:sa8775 = " \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
+    file://0001-QCLINUX-Revert-of-commit-3359fb13eebc-QCLINUX-Enable.patch \
+    file://0002-Revert-QCLINUX-firmware-Remove-qtee_shmbridge-driver.patch \
+    file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
+"
+
+SRC_URI:append:sa7255 = " \
+    file://0001-QCLINUX-Revert-of-commit-3359fb13eebc-QCLINUX-Enable.patch \
+    file://0002-Revert-QCLINUX-firmware-Remove-qtee_shmbridge-driver.patch \
+    file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"

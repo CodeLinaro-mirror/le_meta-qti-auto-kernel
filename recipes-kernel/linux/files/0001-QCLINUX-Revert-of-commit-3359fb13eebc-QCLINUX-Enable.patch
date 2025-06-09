@@ -1,0 +1,35 @@
+From 2dfc8e1206ad03fba1d4d30d65ca47a9c2885f25 Mon Sep 17 00:00:00 2001
+From: Yuvaraj Ranganathan <yrangana@qti.qualcomm.com>
+Date: Thu, 5 Jun 2025 17:17:23 +0530
+Subject: [PATCH 1/2] QCLINUX: Revert of commit 3359fb13eebc ("QCLINUX: Enable
+ QCOM_SI_CORE and QCOM_SI_CORE_XTS")
+
+Revert of commit 3359fb13eebc ("QCLINUX: Enable QCOM_SI_CORE and
+QCOM_SI_CORE_XTS") and enabling QCOM_SMCINVOKE only for the auto target
+which was removed without any validation on auto targets.
+
+Change-Id: If31bd1bba3f8e2c69a3d872a198974cfd454e45a
+Signed-off-by: Yuvaraj Ranganathan <yrangana@qti.qualcomm.com>
+---
+ arch/arm64/configs/qcom_gen4auto.config | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/arch/arm64/configs/qcom_gen4auto.config b/arch/arm64/configs/qcom_gen4auto.config
+index ac3cbe1e8d7a..192e93fe4475 100644
+--- a/arch/arm64/configs/qcom_gen4auto.config
++++ b/arch/arm64/configs/qcom_gen4auto.config
+@@ -52,10 +52,7 @@ CONFIG_QCOM_QMI_COOLING=m
+ CONFIG_QCOM_QPS615_PCIE_SWITCH=y
+ CONFIG_QCOM_SCM_ADDON=y
+ CONFIG_QCOM_SECURE_BUFFER=y
+-CONFIG_QCOM_SI_CORE=m
+-CONFIG_QCOM_SI_CORE_MEM_OBJECT=m
+-CONFIG_QCOM_SI_CORE_WQ=y
+-CONFIG_QCOM_SI_CORE_XTS=m
++CONFIG_QCOM_SMCINVOKE=m
+ CONFIG_QCOM_SMP2P_SLEEPSTATE=y
+ # CONFIG_QCOM_SOC_DEBUG is not set
+ CONFIG_QCOM_SPMI_ADC5_GEN3=m
+-- 
+2.25.1
+
