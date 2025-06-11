@@ -1,4 +1,4 @@
-From ab7e8b192b521d659d22a32cf39d7d9f8d19df14 Mon Sep 17 00:00:00 2001
+From 62c212fc7000dfcceead9013306a76cbb1f07dc9 Mon Sep 17 00:00:00 2001
 From: Praveen Talari <quic_ptalari@quicinc.com>
 Date: Wed, 17 Jul 2024 19:28:51 +0530
 Subject: [PATCH] PENDING: serial: qcom-geni: Enable Serial on SA8255p platform
@@ -17,11 +17,11 @@ Signed-off-by: Praveen Talari <quic_ptalari@quicinc.com>
 Signed-off-by: Nikunj Kela <quic_nkela@quicinc.com>
 Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
 ---
- drivers/tty/serial/qcom_geni_serial.c | 308 ++++++++++++++++++++------
- 1 file changed, 238 insertions(+), 70 deletions(-)
+ drivers/tty/serial/qcom_geni_serial.c | 307 ++++++++++++++++++++------
+ 1 file changed, 236 insertions(+), 71 deletions(-)
 
 diff --git a/drivers/tty/serial/qcom_geni_serial.c b/drivers/tty/serial/qcom_geni_serial.c
-index ec2c084d7ae0..e8e0ad6f020b 100644
+index f8dafb25fc8d..87b3965f05a7 100644
 --- a/drivers/tty/serial/qcom_geni_serial.c
 +++ b/drivers/tty/serial/qcom_geni_serial.c
 @@ -122,6 +122,9 @@ static DEFINE_IDA(port_ida);
@@ -34,7 +34,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  };
  
  struct qcom_geni_private_data {
-@@ -1310,27 +1313,22 @@ static unsigned long get_clk_div_rate(struct clk *clk, unsigned int baud,
+@@ -1305,28 +1308,22 @@ static unsigned long get_clk_div_rate(struct clk *clk, unsigned int baud,
  	return ser_clk;
  }
  
@@ -67,6 +67,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  	unsigned int avg_bw_core;
 -	unsigned long timeout;
 -
+-	qcom_geni_serial_stop_rx(uport);
 -	/* baud rate */
 -	baud = uart_get_baud_rate(uport, termios, old, 300, 4000000);
 +	unsigned int clk_div;
@@ -75,7 +76,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  
  	sampling_rate = UART_OVERSAMPLING;
  	/* Sampling rate is halved for IP versions >= 2.5 */
-@@ -1339,12 +1337,12 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
+@@ -1335,12 +1332,12 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
  		sampling_rate /= 2;
  
  	clk_rate = get_clk_div_rate(port->se.clk, baud,
@@ -85,12 +86,12 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  		dev_err(port->se.dev,
  			"Couldn't find suitable clock rate for %u\n",
  			baud * sampling_rate);
--		return;
+-		goto out_restart_rx;
 +		return -EINVAL;
  	}
  
  	serial_trace_log(port->se.dev, "baud: %u, desired_rate: %u, clk_rate: %lu, clk_div: %u\n",
-@@ -1366,6 +1364,64 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
+@@ -1362,6 +1359,64 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
  	port->se.icc_paths[CPU_TO_GENI].avg_bw = Bps_to_icc(baud);
  	geni_icc_set_bw(&port->se);
  
@@ -155,19 +156,17 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  	/* parity */
  	tx_trans_cfg = readl(uport->membase + SE_UART_TX_TRANS_CFG);
  	tx_parity_cfg = readl(uport->membase + SE_UART_TX_PARITY_CFG);
-@@ -1433,8 +1489,9 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
+@@ -1429,8 +1484,7 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
  	writel(bits_per_char, uport->membase + SE_UART_TX_WORD_LEN);
  	writel(bits_per_char, uport->membase + SE_UART_RX_WORD_LEN);
  	writel(stop_bit_len, uport->membase + SE_UART_TX_STOP_BIT_LEN);
 -	writel(ser_clk_cfg, uport->membase + GENI_SER_M_CLK_CFG);
 -	writel(ser_clk_cfg, uport->membase + GENI_SER_S_CLK_CFG);
 +
-+out_restart_rx:
-+	qcom_geni_serial_start_rx(uport);
+ out_restart_rx:
+ 	qcom_geni_serial_start_rx(uport);
  }
- 
- #ifdef CONFIG_SERIAL_QCOM_GENI_CONSOLE
-@@ -1615,26 +1672,74 @@ static struct uart_driver qcom_geni_uart_driver = {
+@@ -1613,26 +1667,74 @@ static struct uart_driver qcom_geni_uart_driver = {
  	.nr =  GENI_UART_PORTS,
  };
  
@@ -253,7 +252,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  }
  
  static int qcom_geni_rs485_config(struct uart_port *uport,
-@@ -1731,16 +1836,54 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
+@@ -1729,16 +1831,54 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
  	port->dev_data = data;
  	port->se.dev = &pdev->dev;
  	port->se.wrapper = dev_get_drvdata(pdev->dev.parent);
@@ -315,7 +314,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  	uport->mapbase = res->start;
  
  	uport->rs485_config = qcom_geni_rs485_config;
-@@ -1752,30 +1895,24 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
+@@ -1750,30 +1890,24 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
  	if (!data->console) {
  		port->rx_buf = devm_kzalloc(uport->dev,
  					    DMA_RX_BUF_SIZE, GFP_KERNEL);
@@ -357,7 +356,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  	uport->irq = irq;
  	uport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_QCOM_GENI_CONSOLE);
  
-@@ -1788,16 +1925,6 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
+@@ -1786,16 +1920,6 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
  	if (of_property_read_bool(pdev->dev.of_node, "cts-rts-swap"))
  		port->cts_rts_swap = true;
  
@@ -374,7 +373,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  	port->private_data.drv = drv;
  	uport->private_data = &port->private_data;
  	platform_set_drvdata(pdev, port);
-@@ -1807,7 +1934,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
+@@ -1805,7 +1929,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
  			IRQF_TRIGGER_HIGH, port->name, uport);
  	if (ret) {
  		dev_err(uport->dev, "Failed to get IRQ ret %d\n", ret);
@@ -383,7 +382,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  	}
  
  	ret = uart_get_rs485_mode(uport);
-@@ -1818,7 +1945,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
+@@ -1816,7 +1940,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
  
  	ret = uart_add_one_port(drv, uport);
  	if (ret)
@@ -392,7 +391,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  
  	if (port->wakeup_irq > 0) {
  		device_init_wakeup(&pdev->dev, true);
-@@ -1828,11 +1955,15 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
+@@ -1826,11 +1950,15 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
  			device_init_wakeup(&pdev->dev, false);
  			ida_free(&port_ida, uport->line);
  			uart_remove_one_port(drv, uport);
@@ -409,7 +408,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  }
  
  static int qcom_geni_serial_remove(struct platform_device *pdev)
-@@ -1845,6 +1976,7 @@ static int qcom_geni_serial_remove(struct platform_device *pdev)
+@@ -1843,6 +1971,7 @@ static int qcom_geni_serial_remove(struct platform_device *pdev)
  	device_init_wakeup(&pdev->dev, false);
  	ida_free(&port_ida, uport->line);
  	uart_remove_one_port(drv, &port->uport);
@@ -417,7 +416,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  
  	return 0;
  }
-@@ -1886,11 +2018,39 @@ static int qcom_geni_serial_sys_resume(struct device *dev)
+@@ -1884,11 +2013,39 @@ static int qcom_geni_serial_sys_resume(struct device *dev)
  static const struct qcom_geni_device_data qcom_geni_console_data = {
  	.console = true,
  	.mode = GENI_SE_FIFO,
@@ -457,7 +456,7 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  };
  
  static const struct dev_pm_ops qcom_geni_serial_pm_ops = {
-@@ -1903,10 +2063,18 @@ static const struct of_device_id qcom_geni_serial_match_table[] = {
+@@ -1901,10 +2058,18 @@ static const struct of_device_id qcom_geni_serial_match_table[] = {
  		.compatible = "qcom,geni-debug-uart",
  		.data = &qcom_geni_console_data,
  	},
@@ -477,5 +476,5 @@ index ec2c084d7ae0..e8e0ad6f020b 100644
  };
  MODULE_DEVICE_TABLE(of, qcom_geni_serial_match_table);
 -- 
-2.43.0
+2.17.1
 

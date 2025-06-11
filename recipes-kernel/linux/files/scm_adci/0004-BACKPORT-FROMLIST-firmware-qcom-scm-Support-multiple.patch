@@ -132,8 +132,8 @@ index d5b8d91dde28..7e2af5163149 100644
 +		return PTR_ERR(wq);
 +	}
  
--	wait_for_completion(&__scm->waitq_comp);
-+	wait_for_completion(wq);
+-	wait_for_completion_state(&__scm->waitq_comp, TASK_IDLE);
++	wait_for_completion_state(wq, TASK_IDLE);
  
  	return 0;
  }
@@ -172,7 +172,7 @@ index d5b8d91dde28..7e2af5163149 100644
  
 +	platform_set_drvdata(pdev, scm);
 +
- 	/* Let all above stores be available after this */
+ 	/* Paired with smp_load_acquire() in qcom_scm_is_available(). */
  	smp_store_release(&__scm, scm);
  
 +	xa_init(&__scm->waitq);

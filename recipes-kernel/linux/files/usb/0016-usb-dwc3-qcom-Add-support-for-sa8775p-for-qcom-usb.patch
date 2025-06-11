@@ -1,9 +1,9 @@
-From 8ce40500eb06ab68167fdece00ec08538589a1f2 Mon Sep 17 00:00:00 2001
+From 2f3f6e1167ef5a560f8c40c4e51fd20c2b819508 Mon Sep 17 00:00:00 2001
 From: Faisal Hassan <quic_faisalh@quicinc.com>
 Date: Mon, 17 Mar 2025 16:57:05 +0530
-Subject: [PATCH 16/20] usb: dwc3: qcom: Add support for sa8775p for qcom usb
+Subject: [PATCH] usb: dwc3: qcom: Add support for sa8797p for qcom usb
 
-QCOM SoC sa8775p allow multiple resources to be managed
+QCOM SoC sa8797p allow multiple resources to be managed
 by firmware. On this platform, tasks related to clocks, regulators,
 resets, TLMM and interconnects can be delegated to the firmware,
 while the remaining responsibilities are handled by Linux.
@@ -26,12 +26,13 @@ Change-Id: If0b4602bbedffdee07550e74a24edf35ca616d63
 Signed-off-by: Sriram Dash <quic_sriramd@quicinc.com>
 Signed-off-by: Hiren Gohel <quic_vhiren@quicinc.com>
 Signed-off-by: Faisal Hassan <quic_faisalh@quicinc.com>
+Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
 ---
- drivers/usb/dwc3/dwc3-qcom.c | 44 ++++++++++++++++++++----------------
- 1 file changed, 25 insertions(+), 19 deletions(-)
+ drivers/usb/dwc3/dwc3-qcom.c | 40 +++++++++++++++++++-----------------
+ 1 file changed, 21 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/usb/dwc3/dwc3-qcom.c b/drivers/usb/dwc3/dwc3-qcom.c
-index 72d5192e89280..6b62bc5148fbf 100644
+index e856453ca716..490a7ef2bff8 100644
 --- a/drivers/usb/dwc3/dwc3-qcom.c
 +++ b/drivers/usb/dwc3/dwc3-qcom.c
 @@ -108,10 +108,6 @@ struct dwc3_qcom {
@@ -88,19 +89,15 @@ index 72d5192e89280..6b62bc5148fbf 100644
  static void dwc3_qcom_d0_to_d1(struct dwc3_qcom *qcom)
  {
  	if (!qcom->pd_list)
-@@ -579,6 +575,11 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom, bool wakeup)
- 	else
- 		dwc3_qcom_d0_to_d3(qcom);
- 
-+	if (wakeup)
-+		dwc3_qcom_d0_to_d1(qcom);
-+	else
-+		dwc3_qcom_d0_to_d3(qcom);
+@@ -574,6 +570,7 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom, bool wakeup)
+ 	val = readl(qcom->qscratch_base + PWR_EVNT_IRQ_STAT_REG);
+ 	if (!(val & PWR_EVNT_LPM_IN_L2_MASK))
+ 		dev_err(qcom->dev, "HS-PHY not in L2\n");
 +
- 	for (i = qcom->num_clocks - 1; i >= 0; i--)
- 		clk_disable_unprepare(qcom->clks[i]);
- 
-@@ -1142,6 +1143,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+ 	if (wakeup)
+ 		dwc3_qcom_d0_to_d1(qcom);
+ 	else
+@@ -1142,6 +1139,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	struct resource		*res, *parent_res = NULL;
  	struct resource		local_res;
  	int			ret, i;
@@ -108,7 +105,7 @@ index 72d5192e89280..6b62bc5148fbf 100644
  	bool			wakeup_source;
  	bool			legacy_binding;
  
-@@ -1149,8 +1151,6 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1149,8 +1147,6 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	if (!qcom)
  		return -ENOMEM;
  
@@ -117,7 +114,7 @@ index 72d5192e89280..6b62bc5148fbf 100644
  	legacy_binding = dwc3_qcom_has_separate_dwc3_of_node(dev);
  
  	if (!legacy_binding)
-@@ -1165,7 +1165,10 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1165,7 +1161,10 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	if (ret)
  		return ret;
  
@@ -129,7 +126,7 @@ index 72d5192e89280..6b62bc5148fbf 100644
  		ret = dwc3_qcom_domain_attach(qcom);
  		if (ret) {
  			dev_err(dev, "Failed to attach domains. Bail out\n");
-@@ -1188,14 +1191,14 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1188,14 +1187,14 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	if (legacy_binding) {
  		qcom->resets = devm_reset_control_array_get_optional_exclusive(dev);
  		if (IS_ERR(qcom->resets)) {
@@ -147,7 +144,7 @@ index 72d5192e89280..6b62bc5148fbf 100644
  
  		usleep_range(10, 1000);
  
-@@ -1325,12 +1328,12 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1325,12 +1324,12 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	}
  reset_assert:
  	reset_control_assert(qcom->resets);
@@ -161,7 +158,7 @@ index 72d5192e89280..6b62bc5148fbf 100644
  	return ret;
  }
  
-@@ -1518,13 +1521,16 @@ static const struct dev_pm_ops dwc3_qcom_dev_pm_ops = {
+@@ -1518,13 +1517,16 @@ static const struct dev_pm_ops dwc3_qcom_dev_pm_ops = {
  };
  
  static const struct of_device_id dwc3_qcom_of_match[] = {

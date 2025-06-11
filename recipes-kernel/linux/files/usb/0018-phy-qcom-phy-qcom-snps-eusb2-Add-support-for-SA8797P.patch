@@ -1,7 +1,7 @@
-From 3c48c255569cbb8c6ff9e7029700c9fb74d8252d Mon Sep 17 00:00:00 2001
+From d26e9aace5de3b4cbdff4a23f9aabca0034b6ba8 Mon Sep 17 00:00:00 2001
 From: Faisal Hassan <quic_faisalh@quicinc.com>
 Date: Fri, 1 Nov 2024 20:24:53 +0530
-Subject: [PATCH 18/20] phy: qcom: phy-qcom-snps-eusb2: Add support for SA8797P
+Subject: [PATCH] phy: qcom: phy-qcom-snps-eusb2: Add support for SA8797P
 
 This patch adds support for the SA8797P SoC to the phy-qcom-snps-eusb2
 driver. The SA8797P platform allows multiple resources, such as clocks,
@@ -22,14 +22,19 @@ supported.
 transition: d0 <--> d3  :: both core and transfer suppliers
 transition: d0 <--> d1  :: only transfer supplier
 
+Patch set details :
+
+Patch set 6 : Basic eUSB phy enablement, merged as .patch
+Patch set 7 onwards : Add EUD check
+
 Change-Id: I1b7c0362fd42cd71ee6f7ad069ca5a92cce3270f
 Signed-off-by: Faisal Hassan <quic_faisalh@quicinc.com>
 ---
- drivers/phy/qualcomm/phy-qcom-snps-eusb2.c | 220 ++++++++++++++++-----
- 1 file changed, 170 insertions(+), 50 deletions(-)
+ drivers/phy/qualcomm/phy-qcom-snps-eusb2.c | 248 +++++++++++++++++----
+ 1 file changed, 199 insertions(+), 49 deletions(-)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c b/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
-index 1484691a41d59..a2568c339bd58 100644
+index 1484691a41d5..1eb8e9162630 100644
 --- a/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
 +++ b/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
 @@ -10,6 +10,7 @@
@@ -40,7 +45,17 @@ index 1484691a41d59..a2568c339bd58 100644
  #include <linux/regulator/consumer.h>
  #include <linux/reset.h>
  
-@@ -125,6 +126,7 @@ struct qcom_snps_eusb2_hsphy {
+@@ -115,6 +116,9 @@
+ #define USB_PHY_APB_RDDATA_MSB		(0x148)
+ #define APB_REG_RDDATA_15_8_MASK	GENMASK(7, 4)
+ 
++#define EUD_EN_REG			0x88E9000
++#define EUD_EN_SIZE			0x4
++
+ static const char * const eusb2_hsphy_vreg_names[] = {
+ 	"vdd", "vdda12",
+ };
+@@ -125,6 +129,7 @@ struct qcom_snps_eusb2_hsphy {
  	struct phy *phy;
  	void __iomem *base;
  
@@ -48,13 +63,14 @@ index 1484691a41d59..a2568c339bd58 100644
  	struct clk *ref_clk;
  	struct reset_control *phy_reset;
  
-@@ -133,15 +135,72 @@ struct qcom_snps_eusb2_hsphy {
+@@ -133,15 +138,73 @@ struct qcom_snps_eusb2_hsphy {
  	enum phy_mode mode;
  
  	struct phy *repeater;
 +
 +	struct dev_pm_domain_list *pd_list;
 +	bool fw_managed;
++	bool eud_enable;
  };
  
 +static void qcom_snps_domain_detach(struct qcom_snps_eusb2_hsphy *phy)
@@ -86,7 +102,7 @@ index 1484691a41d59..a2568c339bd58 100644
 +{
 +	int ret;
 +
-+	if (!phy->pd_list)
++	if (!phy->pd_list || phy->eud_enable)
 +		return 0;
 +
 +	ret = pm_runtime_resume_and_get(phy->pd_list->pd_devs[1]);
@@ -101,7 +117,7 @@ index 1484691a41d59..a2568c339bd58 100644
 +/* d0_to_d3 transition by turning off all the suppliers */
 +static void qcom_snps_d0_to_d3(struct qcom_snps_eusb2_hsphy *phy)
 +{
-+	if (!phy->pd_list)
++	if (!phy->pd_list || phy->eud_enable)
 +		return;
 +
 +	pm_runtime_put_sync(phy->pd_list->pd_devs[0]);
@@ -122,32 +138,43 @@ index 1484691a41d59..a2568c339bd58 100644
  }
  
  static void qcom_snps_eusb2_hsphy_write_mask(void __iomem *base, u32 offset,
-@@ -235,36 +294,43 @@ static int qcom_snps_eusb2_hsphy_init(struct phy *p)
+@@ -235,36 +298,46 @@ static int qcom_snps_eusb2_hsphy_init(struct phy *p)
  	struct qcom_snps_eusb2_hsphy *phy = phy_get_drvdata(p);
  	int ret;
  
 -	ret = regulator_bulk_enable(ARRAY_SIZE(phy->vregs), phy->vregs);
 -	if (ret)
-+	ret = qcom_snps_d3_to_d0(phy);
-+	if (ret < 0) {
-+		dev_err(&p->dev, "Failed to transition to d0 state\n");
- 		return ret;
+-		return ret;
 -
 -	ret = phy_init(phy->repeater);
 -	if (ret) {
 -		dev_err(&p->dev, "repeater init failed. %d\n", ret);
 -		goto disable_vreg;
 -	}
--
++	if(phy->eud_enable)
++		return 0;
+ 
 -	ret = clk_prepare_enable(phy->ref_clk);
 -	if (ret) {
 -		dev_err(&p->dev, "failed to enable ref clock, %d\n", ret);
 -		goto disable_vreg;
- 	}
- 
+-	}
+-
 -	ret = reset_control_assert(phy->phy_reset);
 -	if (ret) {
 -		dev_err(&p->dev, "failed to assert phy_reset, %d\n", ret);
+-		goto disable_ref_clk;
++	ret = qcom_snps_d3_to_d0(phy);
++	if (ret < 0) {
++		dev_err(&p->dev, "Failed to transition to d0 state\n");
++		return ret;
+ 	}
+ 
+-	usleep_range(100, 150);
+-
+-	ret = reset_control_deassert(phy->phy_reset);
+-	if (ret) {
+-		dev_err(&p->dev, "failed to de-assert phy_reset, %d\n", ret);
 -		goto disable_ref_clk;
 +	if (!phy->fw_managed) {
 +		ret = regulator_bulk_enable(ARRAY_SIZE(phy->vregs), phy->vregs);
@@ -181,18 +208,10 @@ index 1484691a41d59..a2568c339bd58 100644
 +		}
  	}
 -
--	usleep_range(100, 150);
--
--	ret = reset_control_deassert(phy->phy_reset);
--	if (ret) {
--		dev_err(&p->dev, "failed to de-assert phy_reset, %d\n", ret);
--		goto disable_ref_clk;
--	}
--
  	qcom_snps_eusb2_hsphy_write_mask(phy->base, USB_PHY_CFG0,
  					 CMN_CTRL_OVERRIDE_EN, CMN_CTRL_OVERRIDE_EN);
  
-@@ -281,10 +347,30 @@ static int qcom_snps_eusb2_hsphy_init(struct phy *p)
+@@ -281,10 +354,30 @@ static int qcom_snps_eusb2_hsphy_init(struct phy *p)
  	qcom_snps_eusb2_hsphy_write_mask(phy->base, USB_PHY_FSEL_SEL,
  					 FSEL_SEL, FSEL_SEL);
  
@@ -227,7 +246,7 @@ index 1484691a41d59..a2568c339bd58 100644
  
  	qcom_snps_eusb2_hsphy_write_mask(phy->base, USB_PHY_CFG_CTRL_1,
  					 PHY_CFG_PLL_CPBIAS_CNTRL_MASK,
-@@ -348,11 +434,15 @@ static int qcom_snps_eusb2_hsphy_exit(struct phy *p)
+@@ -348,11 +441,15 @@ static int qcom_snps_eusb2_hsphy_exit(struct phy *p)
  {
  	struct qcom_snps_eusb2_hsphy *phy = phy_get_drvdata(p);
  
@@ -237,22 +256,41 @@ index 1484691a41d59..a2568c339bd58 100644
 -	regulator_bulk_disable(ARRAY_SIZE(phy->vregs), phy->vregs);
 +	if (!phy->fw_managed) {
 +		clk_disable_unprepare(phy->ref_clk);
-+
-+		regulator_bulk_disable(ARRAY_SIZE(phy->vregs), phy->vregs);
  
 -	phy_exit(phy->repeater);
++		regulator_bulk_disable(ARRAY_SIZE(phy->vregs), phy->vregs);
++
 +		phy_exit(phy->repeater);
 +	}
  
  	return 0;
  }
-@@ -374,36 +464,54 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
- 	int ret, i;
- 	int num;
+@@ -364,6 +461,24 @@ static const struct phy_ops qcom_snps_eusb2_hsphy_ops = {
+ 	.owner		= THIS_MODULE,
+ };
  
-+	pr_err("HVG : %s %d",__func__,__LINE__);
++static int qcom_snps_eusb2_enable_eud(struct qcom_snps_eusb2_hsphy *phy)
++{
++	void __iomem *eud_en;
++	u32 val;
 +
- 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
++	eud_en = ioremap(EUD_EN_REG, EUD_EN_SIZE);
++	if (!eud_en)
++		return -ENOMEM;
++
++	val = readl_relaxed(eud_en);
++	if(val)
++		phy->eud_enable = true;
++
++	iounmap(eud_en);
++
++	return 0;
++}
++
+ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
+ {
+ 	struct device *dev = &pdev->dev;
+@@ -378,32 +493,55 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
  	if (!phy)
  		return -ENOMEM;
  
@@ -267,15 +305,9 @@ index 1484691a41d59..a2568c339bd58 100644
 -	phy->phy_reset = devm_reset_control_get_exclusive(dev, NULL);
 -	if (IS_ERR(phy->phy_reset))
 -		return PTR_ERR(phy->phy_reset);
--
--	phy->ref_clk = devm_clk_get(dev, "ref");
--	if (IS_ERR(phy->ref_clk))
--		return dev_err_probe(dev, PTR_ERR(phy->ref_clk),
--				     "failed to get ref clk\n");
 +	phy->dev = dev;
 +
 +	if (phy->fw_managed) {
-+	pr_err("HVG : %s %d",__func__,__LINE__);
 +		ret = qcom_snps_domain_attach(phy);
 +		if (ret)
 +			return ret;
@@ -288,6 +320,18 @@ index 1484691a41d59..a2568c339bd58 100644
 +		if (IS_ERR(phy->ref_clk))
 +			return dev_err_probe(dev, PTR_ERR(phy->ref_clk),
 +					     "failed to get ref clk\n");
++	}
+ 
+-	phy->ref_clk = devm_clk_get(dev, "ref");
+-	if (IS_ERR(phy->ref_clk))
+-		return dev_err_probe(dev, PTR_ERR(phy->ref_clk),
+-				     "failed to get ref clk\n");
++	if (of_property_read_bool(np,"qcom,enable-eud")) {
++		ret = qcom_snps_eusb2_enable_eud(phy);
++		if (ret) {
++			dev_info(dev, "failed to map eud reg");
++			return ret;
++		}
 +	}
  
  	num = ARRAY_SIZE(phy->vregs);
@@ -317,7 +361,7 @@ index 1484691a41d59..a2568c339bd58 100644
  
  	generic_phy = devm_phy_create(dev, NULL, &qcom_snps_eusb2_hsphy_ops);
  	if (IS_ERR(generic_phy)) {
-@@ -423,14 +531,26 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
+@@ -423,14 +561,26 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
  	return 0;
  }
  
@@ -345,5 +389,5 @@ index 1484691a41d59..a2568c339bd58 100644
  		.name	= "qcom-snps-eusb2-hsphy",
  		.of_match_table = qcom_snps_eusb2_hsphy_of_match_table,
 -- 
-2.17.1
+2.25.1
 
