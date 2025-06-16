@@ -53,6 +53,8 @@ SRC_URI:append = "\
     file://scm_adci/0008-PENDING-firmware-qcom-scm-Introduce-new-locking-mech.patch \
     file://scm_adci/0009-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
+    file://0001-mm-memblock-enable-memory-hotplug.patch \
+    file://0001-PENDING-defer-no-map-memory-init-process.patch \
 "
 
 SRC_URI:append:sa8797 = " \
@@ -98,8 +100,6 @@ SRC_URI:remove:sa8797 = " \
 "
 
 SRC_URI:append:sa8775 = " \
-    file://0001-mm-memblock-enable-memory-hotplug.patch \
-    file://0001-PENDING-defer-no-map-memory-init-process.patch \
     file://0001-QCLINUX-Revert-of-commit-3359fb13eebc-QCLINUX-Enable.patch \
     file://0002-Revert-QCLINUX-firmware-Remove-qtee_shmbridge-driver.patch \
     file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
@@ -114,5 +114,6 @@ SRC_URI:append:sa7255 = " \
 KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa8775 = " ${WORKDIR}/earlyboot.cfg"
+KERNEL_CONFIG_FRAGMENTS:append:sa7255 = " ${WORKDIR}/earlyboot.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains('DISTRO_FEATURES', 'selinux', '${WORKDIR}/selinux.cfg', '', d)}"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '', '${WORKDIR}/devmem.cfg', d)}"
