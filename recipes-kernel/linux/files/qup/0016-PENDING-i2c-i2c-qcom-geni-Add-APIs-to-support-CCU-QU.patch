@@ -1,6 +1,6 @@
-From 14b87e800b2d29c3e7ddf5c0bd652aecdf32f9de Mon Sep 17 00:00:00 2001
-From: Aniket Randive <quic_arandive@quicinc.com>
-Date: Mon, 7 Apr 2025 12:28:10 +0530
+From 1bf382dd7d965a2ee1201d1b3bf0f463b493f6d9 Mon Sep 17 00:00:00 2001
+From: Aniket Randive <arandive@qti.qualcomm.com>
+Date: Tue, 17 Jun 2025 16:42:04 +0530
 Subject: [PATCH] i2c: i2c-qcom-geni: Add APIs to support CCU QUP client
 
 Add follwing new exported APIs to support CCU QUP client,
@@ -16,13 +16,13 @@ Apart from this added support for priority data transfer on
 regular channel if priority bit is set.
 
 Change-Id: Id8c7c7b18a8f9d631f3b208346d6f126aded2116
-Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
+Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
 ---
- drivers/i2c/busses/i2c-qcom-geni.c | 462 +++++++++++++++++++++++++++--
- 1 file changed, 443 insertions(+), 19 deletions(-)
+ drivers/i2c/busses/i2c-qcom-geni.c | 458 +++++++++++++++++++++++++++--
+ 1 file changed, 441 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index f62645d96328..2ddf3b6500d9 100644
+index 1ac1a3f0ad3c..7d9df0723da2 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
 @@ -108,16 +108,16 @@ struct geni_i2c_desc {
@@ -562,28 +562,24 @@ index f62645d96328..2ddf3b6500d9 100644
  		dma_async_issue_pending(gi2c->tx_c[idx]);
  
  		time_left = wait_for_completion_timeout(&gi2c->done, XFER_TIMEOUT);
-@@ -1272,12 +1692,14 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -1272,10 +1692,12 @@ static int geni_i2c_probe(struct platform_device *pdev)
  	init_completion(&gi2c->done);
  	spin_lock_init(&gi2c->lock);
  	platform_set_drvdata(pdev, gi2c);
 -	ret = devm_request_irq(dev, gi2c->irq, geni_i2c_irq, IRQF_NO_AUTOEN,
 -			       dev_name(dev), gi2c);
--	if (ret) {
--		dev_err(dev, "Request_irq failed:%d: err:%d\n",
--			gi2c->irq, ret);
--		return ret;
+-	if (ret)
+-		return dev_err_probe(dev, ret, "Request_irq failed: %d\n", gi2c->irq);
 +	if (!gi2c->is_ccu_qup) {
 +		ret = devm_request_irq(dev, gi2c->irq, geni_i2c_irq, IRQF_NO_AUTOEN,
-+					dev_name(dev), gi2c);
-+		if (ret) {
-+			dev_err(dev, "Request_irq failed:%d: err:%d\n",
-+				gi2c->irq, ret);
-+			return ret;
-+		}
- 	}
++				       dev_name(dev), gi2c);
++		if (ret)
++			return dev_err_probe(dev, ret, "Request_irq failed: %d\n", gi2c->irq);
++	}
+ 
  	i2c_set_adapdata(&gi2c->adap, gi2c);
  	gi2c->adap.dev.parent = dev;
-@@ -1338,7 +1760,8 @@ static int __maybe_unused geni_i2c_runtime_suspend(struct device *dev)
+@@ -1335,7 +1757,8 @@ static int __maybe_unused geni_i2c_runtime_suspend(struct device *dev)
  	int ret = 0;
  	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
  
@@ -593,7 +589,7 @@ index f62645d96328..2ddf3b6500d9 100644
  
  	if (gi2c->dev_data->geni_se_switch_state) {
  		ret = gi2c->dev_data->geni_se_switch_state(dev, false);
-@@ -1365,7 +1788,8 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
+@@ -1362,7 +1785,8 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
  		}
  	}
  
@@ -604,5 +600,5 @@ index f62645d96328..2ddf3b6500d9 100644
  	return ret;
  }
 -- 
-2.17.1
+2.34.1
 
