@@ -1,7 +1,7 @@
-From 6debc596b1f971d2fb610c174cbddefca899e1dd Mon Sep 17 00:00:00 2001
+From d24dc73e2fa220593f8532bb2e4d2210ed599ae1 Mon Sep 17 00:00:00 2001
 From: Praveen Talari <quic_ptalari@quicinc.com>
 Date: Mon, 10 Mar 2025 14:19:49 +0530
-Subject: [PATCH 1/4] PENDING: i2c: qcom-geni: cleanup in probe function
+Subject: [PATCH] PENDING: i2c: qcom-geni: cleanup in probe function
 
 Move serial engine configuration from probe to new
 function that is geni_i2c_init().
@@ -9,14 +9,14 @@ function that is geni_i2c_init().
 Change-Id: I2720e92c4d17078e9916a95610a3cef6e21a8e2f
 Signed-off-by: Praveen Talari <quic_ptalari@quicinc.com>
 ---
- drivers/i2c/busses/i2c-qcom-geni.c | 133 ++++++++++++++++-------------
- 1 file changed, 75 insertions(+), 58 deletions(-)
+ drivers/i2c/busses/i2c-qcom-geni.c | 134 ++++++++++++++++-------------
+ 1 file changed, 75 insertions(+), 59 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index 74f1cc8648e0..c53e34a26d9f 100644
+index f814b38b5f82..f7aa8a9afe21 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -893,10 +893,80 @@ static int geni_i2c_switch_resource_state(struct device *dev, bool state)
+@@ -896,10 +896,80 @@ static int geni_i2c_switch_resource_state(struct device *dev, bool state)
  	return ret;
  }
  
@@ -98,7 +98,7 @@ index 74f1cc8648e0..c53e34a26d9f 100644
  	int ret;
  	struct device *dev = &pdev->dev;
  	const struct geni_i2c_desc *desc = NULL;
-@@ -991,81 +1061,28 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -988,81 +1058,27 @@ static int geni_i2c_probe(struct platform_device *pdev)
  	pm_runtime_use_autosuspend(gi2c->se.dev);
  	pm_runtime_enable(gi2c->se.dev);
  
@@ -136,8 +136,8 @@ index 74f1cc8648e0..c53e34a26d9f 100644
 -			tx_depth = desc->tx_fifo_depth;
 -
 -		if (!tx_depth) {
--			dev_err(dev, "Invalid TX FIFO depth\n");
--			ret = -ENXIO;
+-			ret = dev_err_probe(dev, -EINVAL,
+-					    "Invalid TX FIFO depth\n");
 -			goto err;
 -		}
 -
@@ -166,7 +166,7 @@ index 74f1cc8648e0..c53e34a26d9f 100644
  
  	ret = i2c_add_adapter(&gi2c->adap);
  	if (ret) {
- 		dev_err(dev, "Error adding i2c adapter %d\n", ret);
+ 		dev_err_probe(dev, ret, "Error adding i2c adapter\n");
  		pm_runtime_disable(gi2c->se.dev);
 -		goto err_dma;
 +		goto err;
@@ -174,7 +174,7 @@ index 74f1cc8648e0..c53e34a26d9f 100644
  
  	i2c_trace_log(dev, "Geni-I2C adaptor successfully added\n");
  
- 	return 0;
+-	return ret;
 -
 -err_dma:
 -	release_gpi_dma(gi2c);
