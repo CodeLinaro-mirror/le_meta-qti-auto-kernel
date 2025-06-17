@@ -111,6 +111,10 @@ SRC_URI:append:sa7255 = " \
     file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
 "
 
+SRC_URI:append:auto-slt = " \
+    file://0001-pci-Add-pcie-module-dependency.patch \
+"
+
 KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa8775 = " ${WORKDIR}/earlyboot.cfg"
