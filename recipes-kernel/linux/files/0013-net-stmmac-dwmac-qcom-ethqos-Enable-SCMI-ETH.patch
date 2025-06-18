@@ -1,6 +1,6 @@
-From f9a5cfa61edd253492abe26beec840f03c673d27 Mon Sep 17 00:00:00 2001
+From 74e79a900f6420cafcd81cbed761e3c2d49d7fbc Mon Sep 17 00:00:00 2001
 From: Suraj Jaiswal <quic_jsuraj@quicinc.com>
-Date: Fri, 4 Apr 2025 16:25:13 +0530
+Date: Wed, 18 Jun 2025 11:26:00 +0530
 Subject: [PATCH] net: stmmac: dwmac-qcom-ethqos: Enable SCMI ETH and deep
  sleep support
 
@@ -34,7 +34,7 @@ Signed-off-by: Suraj Jaiswal <quic_jsuraj@quicinc.com>
  2 files changed, 336 insertions(+), 15 deletions(-)
 
 diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
-index 8f9ca89a646c..8dfa2467d519 100644
+index f960594254ae..2a49a2275b32 100644
 --- a/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 +++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 @@ -7,6 +7,8 @@
@@ -62,7 +62,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	unsigned int value;
 @@ -127,10 +136,12 @@ struct ethqos_emac_driver_data {
  	const char *link_clk_name;
- 	bool has_integrated_pcs;
+ 	u32 has_flags;
  	u32 dma_addr_width;
 +	unsigned int ptp_clk_rate;
  	struct dwmac4_addrs dwmac4_addrs;
@@ -84,7 +84,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  
  static int rgmii_readl(struct qcom_ethqos *ethqos, unsigned int offset)
 @@ -359,6 +373,7 @@ static const struct ethqos_emac_driver_data emac_v4_0_0_data = {
- 	.has_integrated_pcs = true,
+ 	.has_flags = (STMMAC_FLAG_HAS_INTEGRATED_PCS | STMMAC_FLAG_SPH_DISABLE),
  	.needs_sgmii_loopback = true,
  	.dma_addr_width = 36,
 +	.ptp_clk_rate = 230400000,
@@ -261,7 +261,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	rgmii_updatel(ethqos, RGMII_BYPASS_EN, RGMII_BYPASS_EN, RGMII_IO_MACRO_BYPASS);
  	rgmii_updatel(ethqos, RGMII_CONFIG2_MODE_EN_VIA_GMII, 0, RGMII_IO_MACRO_CONFIG2);
  	rgmii_updatel(ethqos, SGMII_PHY_CNTRL0_2P5G_1G_CLK_SEL, BIT(5),
-@@ -929,6 +1035,190 @@ static void qcom_ethqos_serdes_powerdown(struct net_device *ndev, void *priv)
+@@ -939,6 +1045,190 @@ static void qcom_ethqos_serdes_powerdown(struct net_device *ndev, void *priv)
  	phy_exit(ethqos->serdes_phy);
  }
  
@@ -452,7 +452,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  static int ethqos_clks_config(void *priv, bool enabled)
  {
  	struct qcom_ethqos *ethqos = priv;
-@@ -1081,6 +1371,31 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
+@@ -1097,6 +1387,31 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
  	}
  
  	ethqos->pdev = pdev;
@@ -484,7 +484,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	ethqos->rgmii_base = devm_platform_ioremap_resource_byname(pdev, "rgmii");
  	if (IS_ERR(ethqos->rgmii_base))
  		return dev_err_probe(dev, PTR_ERR(ethqos->rgmii_base),
-@@ -1096,11 +1411,12 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
+@@ -1112,11 +1427,12 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
  	ethqos->has_emac_ge_3 = data->has_emac_ge_3;
  	ethqos->needs_sgmii_loopback = data->needs_sgmii_loopback;
  
@@ -502,7 +502,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	ret = ethqos_clks_config(ethqos, true);
  	if (ret)
  		return ret;
-@@ -1122,7 +1438,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
+@@ -1138,7 +1454,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
  	plat_dat->bsp_priv = ethqos;
  	plat_dat->fix_mac_speed = ethqos_fix_mac_speed;
  	plat_dat->dump_debug_regs = rgmii_dump;
@@ -514,7 +514,7 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	plat_dat->has_gmac4 = 1;
  	if (ethqos->has_emac_ge_3)
  		plat_dat->dwmac4_addrs = &data->dwmac4_addrs;
-@@ -1170,6 +1489,7 @@ static const struct of_device_id qcom_ethqos_match[] = {
+@@ -1191,6 +1510,7 @@ static const struct of_device_id qcom_ethqos_match[] = {
  	{ .compatible = "qcom,qcs404-ethqos", .data = &emac_v2_3_0_data},
  	{ .compatible = "qcom,qcs615-ethqos", .data = &emac_v2_3_1_data},
  	{ .compatible = "qcom,qcs8300-ethqos", .data = &emac_v4_0_0_data},
@@ -524,10 +524,10 @@ index 8f9ca89a646c..8dfa2467d519 100644
  	{ .compatible = "qcom,sm8150-ethqos", .data = &emac_v2_1_0_data},
 
 diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
-index 5217cae7d22f..c8ac79110fb8 100644
+index 1025d123a455..dc4df65eff83 100644
 --- a/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
 +++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
-@@ -1175,7 +1175,8 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
+@@ -1182,7 +1182,8 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
  		    (interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
  			netdev_dbg(priv->dev, "PCS RGMII support enabled\n");
  			priv->hw->pcs = STMMAC_PCS_RGMII;
