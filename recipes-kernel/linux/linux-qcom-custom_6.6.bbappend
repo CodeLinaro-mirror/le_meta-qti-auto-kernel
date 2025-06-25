@@ -52,6 +52,7 @@ SRC_URI:append = "\
     file://scm_adci/0007-UPSTREAM-firmware-qcom-scm-Remove-QCOM_SMC_WAITQ_FLA.patch \
     file://scm_adci/0008-PENDING-firmware-qcom-scm-Introduce-new-locking-mech.patch \
     file://scm_adci/0009-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
+    file://scm_adci/0010-PENDING-firmware-qcom-scm-Add-Mutex-locking-mechanis.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
