@@ -1,21 +1,22 @@
-From 10d47d0ad72797eeebce85e1a77441805f1282ac Mon Sep 17 00:00:00 2001
+From 0e83da21c90b21aa870166d23c2b39514f9fa602 Mon Sep 17 00:00:00 2001
 From: Sriram Dash <quic_sriramd@quicinc.com>
 Date: Fri, 28 Feb 2025 11:13:01 +0530
-Subject: [PATCH 04/20] PENDING: usb: dwc3: qcom: Trivial code cleanup
+Subject: [PATCH] PENDING: usb: dwc3: qcom: Trivial code cleanup
 
 Trivial code cleanup for supporting cyclomatic complexity.
 
 Change-Id: I4238b893efbadb16772be6a25111fdc892b9672c
 Signed-off-by: Sriram Dash <quic_sriramd@quicinc.com>
+Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
 ---
- drivers/usb/dwc3/dwc3-qcom.c | 48 +++++++++++++++++++++++-------------
- 1 file changed, 31 insertions(+), 17 deletions(-)
+ drivers/usb/dwc3/dwc3-qcom.c | 47 +++++++++++++++++++++++-------------
+ 1 file changed, 30 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/usb/dwc3/dwc3-qcom.c b/drivers/usb/dwc3/dwc3-qcom.c
-index 2b5d516e116cb..2ea09ada65560 100644
+index 8b8277167427..234b6ca079b5 100644
 --- a/drivers/usb/dwc3/dwc3-qcom.c
 +++ b/drivers/usb/dwc3/dwc3-qcom.c
-@@ -1001,6 +1001,34 @@ static void dwc3_qcom_vbus_regulator_get(struct dwc3_qcom *qcom)
+@@ -1020,6 +1020,33 @@ static void dwc3_qcom_vbus_regulator_get(struct dwc3_qcom *qcom)
  	}
  }
  
@@ -46,11 +47,10 @@ index 2b5d516e116cb..2ea09ada65560 100644
 +	return ret;
 +}
 +
-+
  static int dwc3_qcom_probe(struct platform_device *pdev)
  {
  	struct device_node	*np = pdev->dev.of_node;
-@@ -1027,23 +1055,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1046,23 +1073,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	qcom->dwc.dev = qcom->dev;
  
  	if (has_acpi_companion(dev)) {
@@ -76,7 +76,7 @@ index 2b5d516e116cb..2ea09ada65560 100644
 +			goto clk_disable;
  	}
  
- 	if (legacy_binding) {
+ 	qcom->resets = devm_reset_control_array_get_optional_exclusive(dev);
 -- 
-2.17.1
+2.34.1
 
