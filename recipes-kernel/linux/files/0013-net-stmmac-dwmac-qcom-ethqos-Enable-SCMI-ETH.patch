@@ -1,6 +1,6 @@
-From c05d492651b70999319b47fc236ba9ff4bfb7875 Mon Sep 17 00:00:00 2001
-From: Abhishek Chauhan <quic_abchauha@quicinc.com>
-Date: Tue, 17 Jun 2025 16:36:59 -0700
+From 097946a3b82e262012ab189c0fa947773d9953b0 Mon Sep 17 00:00:00 2001
+From: Suraj Jaiswal <quic_jsuraj@quicinc.com>
+Date: Fri, 20 Jun 2025 12:33:24 +0530
 Subject: [PATCH] net: stmmac: dwmac-qcom-ethqos: Enable SCMI ETH and deep
  sleep support
 
@@ -33,7 +33,7 @@ Signed-off-by: Suraj Jaiswal <quic_jsuraj@quicinc.com>
  1 file changed, 273 insertions(+), 14 deletions(-)
 
 diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
-index 07dc7aa2c3ca..d9213066f10b 100644
+index 4af2f506778d..1b4f085f92cf 100644
 --- a/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 +++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 @@ -7,6 +7,8 @@
@@ -61,7 +61,7 @@ index 07dc7aa2c3ca..d9213066f10b 100644
  	unsigned int value;
 @@ -125,10 +134,12 @@ struct ethqos_emac_driver_data {
  	const char *link_clk_name;
- 	bool has_integrated_pcs;
+ 	u32 has_flags;
  	u32 dma_addr_width;
 +	unsigned int ptp_clk_rate;
  	struct dwmac4_addrs dwmac4_addrs;
@@ -82,7 +82,7 @@ index 07dc7aa2c3ca..d9213066f10b 100644
  
  static int rgmii_readl(struct qcom_ethqos *ethqos, unsigned int offset)
 @@ -357,6 +370,7 @@ static const struct ethqos_emac_driver_data emac_v4_0_0_data = {
- 	.has_integrated_pcs = true,
+ 	.has_flags = (STMMAC_FLAG_HAS_INTEGRATED_PCS | STMMAC_FLAG_SPH_DISABLE),
  	.needs_sgmii_loopback = true,
  	.dma_addr_width = 36,
 +	.ptp_clk_rate = 230400000,
@@ -468,5 +468,5 @@ index 07dc7aa2c3ca..d9213066f10b 100644
  	{ .compatible = "qcom,sc8280xp-ethqos", .data = &emac_v3_0_0_data},
  	{ .compatible = "qcom,sm8150-ethqos", .data = &emac_v2_1_0_data},
 -- 
-2.34.1
+2.25.1
 
