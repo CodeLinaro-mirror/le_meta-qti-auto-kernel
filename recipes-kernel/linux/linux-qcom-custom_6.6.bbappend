@@ -21,6 +21,7 @@ SRC_URI:append = "\
     file://qup/0015-PENDING-spi-qcom-geni-Allow-SPI-mode-reconfiguration.patch \
     file://qup/0016-PENDING-serial-Ensure-DMA-buffer-is-synced-before-CP.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
+    file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
     file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
     file://usb/0003-PENDING-usb-dwc3-drd-expose-role-switch-control-to-u.patch \
@@ -69,7 +70,6 @@ SRC_URI:append:sa8797 = " \
     file://0012-PENDING-cpufreq-scmi-Skip-SCMI-devices-that-aren-t-u.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
-    file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
     file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
     file://qup/0008-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
