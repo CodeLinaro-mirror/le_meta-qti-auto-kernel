@@ -1,13 +1,13 @@
-From af8957290beec330545e3c74b11beff140767d8d Mon Sep 17 00:00:00 2001
-From: Aniket Randive <quic_arandive@quicinc.com>
-Date: Wed, 9 Apr 2025 10:31:03 +0530
+From 21b971bc4de33780d87e9557d21c0469d260619a Mon Sep 17 00:00:00 2001
+From: Aniket Randive <arandive@qti.qualcomm.com>
+Date: Tue, 17 Jun 2025 16:48:50 +0530
 Subject: [PATCH] i2c: Fix circular dependency between I2C and CCU driver
 
 Remove export symbol functions and use function pointers
 to resolve circular dependency between I2C and CCU drivers.
 
 Change-Id: Ieb153f07f439692994f500a7978845da3085845a
-Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
+Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
 ---
  drivers/dma/qcom/gpi.c                |  40 ++++---
  drivers/i2c/busses/i2c-qcom-geni.c    | 160 ++++++++++++++++++--------
@@ -121,7 +121,7 @@ index 0203c00f9f85..4817fdebde15 100644
  		rwlock_init(&gpii->pm_lock);
  
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index af43618b75ef..335dd94c2cb0 100644
+index 0663adc35e93..84f91f78141b 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
 @@ -365,7 +365,6 @@ void geni_i2c_register_callback(ccu_qup_notify_client cb)
@@ -426,7 +426,7 @@ index af43618b75ef..335dd94c2cb0 100644
  		}
  	} while (++i < idx);
  
-@@ -1748,6 +1808,7 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
+@@ -1751,6 +1811,7 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
  		fifo_disable = readl_relaxed(gi2c->se.base + GENI_IF_DISABLE_RO) & FIFO_IF_DISABLE;
  
  	if (fifo_disable) {
@@ -435,7 +435,7 @@ index af43618b75ef..335dd94c2cb0 100644
  		ret = setup_gpi_dma(gi2c);
  		if (ret) {
 @@ -1873,6 +1934,15 @@ static int geni_i2c_probe(struct platform_device *pdev)
- 	}
+ 		return dev_err_probe(dev, ret, "Invalid clk frequency %d Hz\n", gi2c->clk_freq_out);
  
  	gi2c->adap.algo = &geni_i2c_algo;
 +
@@ -701,5 +701,5 @@ index 168880d57e29..a1732d7cc17f 100644
 +void register_gpi_irq(ccu_gpi_handle_isr_t);
  #endif /* _QCOM_CCU_QUP_H_ */
 -- 
-2.17.1
+2.34.1
 

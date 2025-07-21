@@ -21,6 +21,7 @@ SRC_URI:append = "\
     file://qup/0015-PENDING-spi-qcom-geni-Allow-SPI-mode-reconfiguration.patch \
     file://qup/0016-PENDING-serial-Ensure-DMA-buffer-is-synced-before-CP.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
+    file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
     file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
     file://usb/0003-PENDING-usb-dwc3-drd-expose-role-switch-control-to-u.patch \
@@ -35,14 +36,13 @@ SRC_URI:append = "\
     file://usb/0012-PENDING-usb-dwc3-qcom-Add-support-for-sa8255p-for-qc.patch \
     file://usb/0013-PENDING-phy-qcom-snps-femto-v2-Call-qcom_snps_hsphy_.patch \
     file://usb/0014-PENDING-phy-qcom-snps-femto-v2-Add-support-for-SA825.patch \
+    file://pcie/0001-PCIe_RC_Add-Qualcomm-PCIe-ECAM-root-complex-driv.patch \
+    file://pcie/0004-MHI_RC_bus-mhi-host-pci_generic-Disable-auto-suspen.patch \
+    file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
     file://0001-FROMLIST-of-of_reserved_mem-Increase-limit-for-reser.patch \
     file://0013-net-stmmac-dwmac-qcom-ethqos-Enable-SCMI-ETH.patch \
     file://0014-PENDING-qcom-Add-sa7255p-compatibles-for-core-driver.patch \
-    file://0015-PENDING-PCI-Add-Qualcomm-PCIe-ECAM-root-complex-driv.patch \
     file://0016-PENDING-ice-Enable-ICE-on-SA8255p-Qualcomm-platforms.patch \
-    file://0017-PCI-qcom-ep-Add-support-for-SCMI-based-PCIe-EP.patch \
-    file://0018-PENDING-bus-mhi-host-pci_generic-Disable-auto-suspen.patch \
-    file://0019-PCI-Safety-Initial-Commit.patch \
     file://scm_adci/0001-QCLINUX-arm64-dts-qcom-sa8255p-Modify-correct-dt-nam.patch \
     file://scm_adci/0002-QCLINUX-arm64-dts-qcom-sa8775p-Modify-correct-dt-nam.patch \
     file://scm_adci/0003-QCLINUX-arm64-dts-qcom-sa7255p-Modify-correct-dt-nam.patch \
@@ -52,7 +52,10 @@ SRC_URI:append = "\
     file://scm_adci/0007-UPSTREAM-firmware-qcom-scm-Remove-QCOM_SMC_WAITQ_FLA.patch \
     file://scm_adci/0008-PENDING-firmware-qcom-scm-Introduce-new-locking-mech.patch \
     file://scm_adci/0009-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
+    file://scm_adci/0010-PENDING-firmware-qcom-scm-Add-Mutex-locking-mechanis.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
+    file://0001-mm-memblock-enable-memory-hotplug.patch \
+    file://0001-PENDING-defer-no-map-memory-init-process.patch \
 "
 
 SRC_URI:append:sa8797 = " \
@@ -87,19 +90,20 @@ SRC_URI:append:sa8797 = " \
     file://qup/0027-ccu-Add-support-to-load-the-CCU-QUP-FW.patch \
     file://qup/0028-i2c-Add-support-for-NOP-Frame.patch \
     file://qup/0029-i2c-Fix-the-I2c-probe-issue.patch \
-    file://0020-bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
+    file://qup/0030-i2c-Add-validation-checks-and-fix-inter-frame-delay-.patch \
+    file://qup/0031-dmaengine-qcom-gpi-Add-premature-cancel-support-for-.patch \
+    file://pcie/0005-MHI_RC_bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
+    file://pcie/0007-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-Nords.patch \
+    file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
     file://earlyboot.cfg \
-    file://0017-PCI-qcom-ep-Add-support-for-SCMI-based-PCIe-EP.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
-    file://0019-PCI-Safety-Initial-Commit.patch \
+    file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
 "
 
 SRC_URI:append:sa8775 = " \
-    file://0001-mm-memblock-enable-memory-hotplug.patch \
-    file://0001-PENDING-defer-no-map-memory-init-process.patch \
     file://0001-QCLINUX-Revert-of-commit-3359fb13eebc-QCLINUX-Enable.patch \
     file://0002-Revert-QCLINUX-firmware-Remove-qtee_shmbridge-driver.patch \
     file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
@@ -111,8 +115,15 @@ SRC_URI:append:sa7255 = " \
     file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
 "
 
+SRC_URI:append:auto-slt = " \
+    file://auto-slt.cfg \
+    file://pcie/0002-PCIe_RC_Add-pcie-module-dependency.patch \
+"
+
 KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa8775 = " ${WORKDIR}/earlyboot.cfg"
+KERNEL_CONFIG_FRAGMENTS:append:sa7255 = " ${WORKDIR}/earlyboot.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains('DISTRO_FEATURES', 'selinux', '${WORKDIR}/selinux.cfg', '', d)}"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '', '${WORKDIR}/devmem.cfg', d)}"
+KERNEL_CONFIG_FRAGMENTS:append:auto-slt = " ${WORKDIR}/auto-slt.cfg"

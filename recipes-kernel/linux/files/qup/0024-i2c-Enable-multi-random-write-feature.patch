@@ -1,6 +1,6 @@
-From 2a6c0984aeb7ebbb211245c135cd6db5db64046e Mon Sep 17 00:00:00 2001
-From: Aniket Randive <quic_arandive@quicinc.com>
-Date: Wed, 9 Apr 2025 12:35:31 +0530
+From 2b7e72fdb40e1453e19b82a4b6a89b6ac2c9b89c Mon Sep 17 00:00:00 2001
+From: Aniket Randive <arandive@qti.qualcomm.com>
+Date: Tue, 17 Jun 2025 16:52:30 +0530
 Subject: [PATCH] i2c: Enable multi random write feature
 
 Enable multi-random write feature and add changes to
@@ -12,7 +12,7 @@ from CCU QUP driver probe to GSI driver probe due
 to symbol availability issues.
 
 Change-Id: I5c31587c30a7410218d3b04e68f7226bad58bf6c
-Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
+Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
 ---
  drivers/dma/qcom/gpi.c                | 15 ++++----
  drivers/i2c/busses/i2c-qcom-geni.c    | 49 +++++++++++----------------
@@ -89,7 +89,7 @@ index 4817fdebde15..d83914d36afa 100644
  			/* vchan setup */
  			vchan_init(&gchan->vc, &gpi_dev->dma_device);
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index 809a8eee7633..7e4af7541af3 100644
+index 894e0adfa8fb..7fc391b41eb0 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
 @@ -306,10 +306,9 @@ static const struct geni_i2c_clk_fld geni_ccu_i2c_clk_map[] = {
@@ -197,7 +197,7 @@ index 809a8eee7633..7e4af7541af3 100644
  	return 0;
  
  err:
-@@ -1820,12 +1807,12 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
+@@ -1823,12 +1810,12 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
  	if (fifo_disable) {
  		init_tx_rx_ch(gi2c);
  		/* FIFO is disabled, so we can only use GPI DMA */
@@ -212,7 +212,7 @@ index 809a8eee7633..7e4af7541af3 100644
  		gi2c->xfer_mode = GENI_GPI_DMA;
  		geni_se_select_mode(&gi2c->se, gi2c->xfer_mode);
  		i2c_trace_log(gi2c->se.dev, "Using GPI DMA mode for I2C\n");
-@@ -1932,9 +1919,11 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -1935,9 +1922,11 @@ static int geni_i2c_probe(struct platform_device *pdev)
  	if (has_acpi_companion(dev))
  		ACPI_COMPANION_SET(&gi2c->adap.dev, ACPI_COMPANION(dev));
  
@@ -226,8 +226,8 @@ index 809a8eee7633..7e4af7541af3 100644
 +	}
  
  	ret = geni_i2c_clk_map_idx(gi2c);
- 	if (ret) {
-@@ -1994,7 +1983,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
+ 	if (ret)
+@@ -1992,7 +1981,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
  		pm_runtime_disable(gi2c->se.dev);
  		goto err;
  	}
@@ -235,7 +235,7 @@ index 809a8eee7633..7e4af7541af3 100644
 +													
  	i2c_trace_log(dev, "Geni-I2C adaptor successfully added\n");
  
- 	return 0;
+ err:
 diff --git a/drivers/soc/qcom/qcom_ccu_qup.c b/drivers/soc/qcom/qcom_ccu_qup.c
 index fec39eccb659..fdaf933459c8 100644
 --- a/drivers/soc/qcom/qcom_ccu_qup.c
@@ -377,5 +377,5 @@ index a1732d7cc17f..7930aca2e914 100644
  static int ccu_open(struct inode *inode, struct file *filp);
  
 -- 
-2.17.1
+2.34.1
 
