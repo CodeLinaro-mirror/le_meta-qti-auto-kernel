@@ -1,7 +1,7 @@
-From 8ce622379370672890d37a72289230eb287ec0c5 Mon Sep 17 00:00:00 2001
+From 8e49acecaeb8776d09c764aafad48a1d52a33e50 Mon Sep 17 00:00:00 2001
 From: Aniket Randive <quic_arandive@quicinc.com>
 Date: Fri, 18 Oct 2024 12:26:57 +0530
-Subject: [PATCH 3/8] PENDING: dmaengine: gpi: Add new API to enhance CCU QUP
+Subject: [PATCH] PENDING: dmaengine: gpi: Add new API to enhance CCU QUP
  features
 
 Introduce a new API to support CCU QUP features, including
@@ -18,7 +18,7 @@ Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
  3 files changed, 522 insertions(+), 93 deletions(-)
 
 diff --git a/drivers/dma/qcom/gpi.c b/drivers/dma/qcom/gpi.c
-index 9acb9fd2854f..a117dc4cc54e 100644
+index 7c8de95f5d99..79759841f8d5 100644
 --- a/drivers/dma/qcom/gpi.c
 +++ b/drivers/dma/qcom/gpi.c
 @@ -24,6 +24,9 @@
@@ -869,7 +869,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  	mutex_unlock(&gpii->ctrl_lock);
  	return ret;
  }
-@@ -1707,7 +2034,8 @@ static int gpi_pause(struct dma_chan *chan)
+@@ -1812,7 +2139,8 @@ static int gpi_pause(struct dma_chan *chan)
  		}
  	}
  
@@ -879,7 +879,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  
  	/* Wait for threads to complete out */
  	tasklet_kill(&gpii->ev_task);
-@@ -1734,7 +2062,8 @@ static int gpi_resume(struct dma_chan *chan)
+@@ -1840,7 +2168,8 @@ static int gpi_resume(struct dma_chan *chan)
  		return 0;
  	}
  
@@ -887,9 +887,9 @@ index 9acb9fd2854f..a117dc4cc54e 100644
 +	if (!gpii->gpi_dev->cfg.is_ccu_qup)
 +		enable_irq(gpii->irq);
  
- 	/* send start command to start the channels */
- 	for (i = 0; i < MAX_CHANNELS_PER_GPII; i++) {
-@@ -1801,6 +2130,9 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
+ 	if (gpi_ctrl && gpi_ctrl->cmd == QCOM_GPI_CHANNEL_CONFIGURE) {
+ 		ret = gpi_channels_configure(chan);
+@@ -1921,6 +2250,9 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
  		tre->dword[3] = u32_encode_bits(1, TRE_I2C_LOCK);
  		tre->dword[3] |= u32_encode_bits(0, TRE_MINOR_TYPE);
  		tre->dword[3] |= u32_encode_bits(3, TRE_MAJOR_TYPE);
@@ -899,7 +899,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  	}
  
  	/* first create config tre if applicable */
-@@ -1814,12 +2146,16 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
+@@ -1934,12 +2266,16 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
  		tre->dword[0] |= u32_encode_bits(i2c->pack_enable, TRE_I2C_C0_TX_PACK);
  		tre->dword[0] |= u32_encode_bits(i2c->pack_enable, TRE_I2C_C0_RX_PACK);
  
@@ -917,7 +917,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  	}
  
  	/* create the GO tre for Tx */
-@@ -1833,12 +2169,18 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
+@@ -1953,12 +2289,18 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
  			tre->dword[0] = u32_encode_bits(i2c->op, TRE_I2C_GO_CMD);
  
  		tre->dword[0] |= u32_encode_bits(i2c->addr, TRE_I2C_GO_ADDR);
@@ -936,7 +936,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  
  		if (i2c->multi_msg)
  			tre->dword[3] |= u32_encode_bits(1, TRE_FLAGS_LINK);
-@@ -1859,6 +2201,9 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
+@@ -1979,6 +2321,9 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
  
  		tre->dword[3] = u32_encode_bits(TRE_TYPE_DMA, TRE_FLAGS_TYPE);
  		tre->dword[3] |= u32_encode_bits(1, TRE_FLAGS_IEOT);
@@ -946,7 +946,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  	}
  
  	/* Unlock tre for last transfer */
-@@ -1873,6 +2218,9 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
+@@ -1993,6 +2338,9 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
  		tre->dword[3] = u32_encode_bits(1, TRE_I2C_UNLOCK);
  		tre->dword[3] |= u32_encode_bits(1, TRE_MINOR_TYPE);
  		tre->dword[3] |= u32_encode_bits(3, TRE_MAJOR_TYPE);
@@ -956,7 +956,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  	}
  
  	for (i = 0; i < tre_idx; i++)
-@@ -2258,6 +2606,14 @@ static int gpi_alloc_chan_resources(struct dma_chan *chan)
+@@ -2378,6 +2726,14 @@ static int gpi_alloc_chan_resources(struct dma_chan *chan)
  	return ret;
  }
  
@@ -971,7 +971,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  static int gpi_find_avail_gpii(struct gpi_dev *gpi_dev, u32 seid)
  {
  	struct gchan *tx_chan, *rx_chan;
-@@ -2304,7 +2660,7 @@ static struct dma_chan *gpi_of_dma_xlate(struct of_phandle_args *args,
+@@ -2424,7 +2780,7 @@ static struct dma_chan *gpi_of_dma_xlate(struct of_phandle_args *args,
  {
  	struct gpi_dev *gpi_dev = (struct gpi_dev *)of_dma->of_dma_data;
  	u32 seid, chid;
@@ -980,7 +980,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  	struct gchan *gchan;
  
  	if (args->args_count < 3) {
-@@ -2321,8 +2677,19 @@ static struct dma_chan *gpi_of_dma_xlate(struct of_phandle_args *args,
+@@ -2441,8 +2797,19 @@ static struct dma_chan *gpi_of_dma_xlate(struct of_phandle_args *args,
  
  	seid = args->args[1];
  
@@ -1002,7 +1002,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  	if (gpii < 0) {
  		dev_err(gpi_dev->dev, "no available gpii instances\n");
  		return NULL;
-@@ -2345,7 +2712,6 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2465,7 +2832,6 @@ static int gpi_probe(struct platform_device *pdev)
  {
  	struct gpi_dev *gpi_dev;
  	unsigned int i;
@@ -1010,7 +1010,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  	int ret;
  	const struct gpi_config *data;
  
-@@ -2377,17 +2743,16 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2497,17 +2863,16 @@ static int gpi_probe(struct platform_device *pdev)
  	if (!data)
  		return -EINVAL;
  
@@ -1033,7 +1033,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  
  	ret = dma_set_mask(gpi_dev->dev, DMA_BIT_MASK(64));
  	if (ret) {
-@@ -2406,25 +2771,29 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2526,25 +2891,29 @@ static int gpi_probe(struct platform_device *pdev)
  		struct gpii *gpii = &gpi_dev->gpiis[i];
  		int chan;
  
@@ -1074,7 +1074,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  
  		/* set up channel specific register info */
  		for (chan = 0; chan < MAX_CHANNELS_PER_GPII; chan++) {
-@@ -2432,11 +2801,11 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2552,11 +2921,11 @@ static int gpi_probe(struct platform_device *pdev)
  
  			/* set up ch cntxt register map */
  			gchan->ch_cntxt_base_reg = gpi_dev->ee_base +
@@ -1089,7 +1089,7 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  
  			/* vchan setup */
  			vchan_init(&gchan->vc, &gpi_dev->dma_device);
-@@ -2445,8 +2814,10 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2565,8 +2934,10 @@ static int gpi_probe(struct platform_device *pdev)
  			gchan->gpii = gpii;
  			gchan->dir = GPII_CHAN_DIR[chan];
  		}
@@ -1101,10 +1101,10 @@ index 9acb9fd2854f..a117dc4cc54e 100644
  			     (unsigned long)gpii);
  		init_completion(&gpii->cmd_completion);
 diff --git a/include/linux/dma/qcom-gpi-dma.h b/include/linux/dma/qcom-gpi-dma.h
-index 6912331ccad7..9cebdce71a5f 100644
+index f5b1ceea6966..b0ba2db0dde2 100644
 --- a/include/linux/dma/qcom-gpi-dma.h
 +++ b/include/linux/dma/qcom-gpi-dma.h
-@@ -54,6 +54,24 @@ struct gpi_spi_config {
+@@ -64,6 +64,24 @@ struct gpi_spi_config {
  	u8 flags;
  };
  
@@ -1129,7 +1129,7 @@ index 6912331ccad7..9cebdce71a5f 100644
  enum i2c_op {
  	I2C_WRITE = 1,
  	I2C_READ,
-@@ -75,6 +93,10 @@ enum i2c_op {
+@@ -85,6 +103,10 @@ enum i2c_op {
   * @muli-msg: is part of multi i2c r-w msgs
   * @status: gpi event status
   * @gi2c: pointer to qcom i2c structure
@@ -1140,7 +1140,7 @@ index 6912331ccad7..9cebdce71a5f 100644
   */
  struct gpi_i2c_config {
  	u8 set_config;
-@@ -93,6 +115,18 @@ struct gpi_i2c_config {
+@@ -103,6 +125,18 @@ struct gpi_i2c_config {
  	bool last_msg;
  	u32 status;
  	struct geni_i2c_dev *gi2c;
@@ -1202,5 +1202,5 @@ index cff3dba65820..c7c65595a7a5 100644
   * dmaengine_terminate_all() - Terminate all active DMA transfers
   * @chan: The channel for which to terminate the transfers
 -- 
-2.17.1
+2.34.1
 

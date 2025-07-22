@@ -20,6 +20,7 @@ SRC_URI:append = "\
     file://qup/0014-PENDING-serial-qcom-geni-set-lowest-OPP-during-suspe.patch \
     file://qup/0015-PENDING-spi-qcom-geni-Allow-SPI-mode-reconfiguration.patch \
     file://qup/0016-PENDING-serial-Ensure-DMA-buffer-is-synced-before-CP.patch \
+    file://qup/0017-PENDING-dmaengine-qcom-gpi-Handle-GPII-channel-recon.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
@@ -92,6 +93,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0029-i2c-Fix-the-I2c-probe-issue.patch \
     file://qup/0030-i2c-Add-validation-checks-and-fix-inter-frame-delay-.patch \
     file://qup/0031-dmaengine-qcom-gpi-Add-premature-cancel-support-for-.patch \
+    file://qup/0032-PENDING-i2c-qcom-geni-Add-GSI-S2R-support-for-CCU-QU.patch \
     file://pcie/0005-MHI_RC_bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
     file://pcie/0007-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-Nords.patch \
     file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
