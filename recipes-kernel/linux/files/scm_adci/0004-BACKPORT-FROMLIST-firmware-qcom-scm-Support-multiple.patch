@@ -133,7 +133,7 @@ index d5b8d91dde28..7e2af5163149 100644
 +	}
  
 -	wait_for_completion_state(&__scm->waitq_comp, TASK_IDLE);
-+	wait_for_completion_state(wq, TASK_IDLE);
++	wait_for_completion_state(wq, TASK_IDLE | TASK_FREEZABLE | TASK_KILLABLE);
  
  	return 0;
  }
