@@ -99,6 +99,7 @@ SRC_URI:append:sa8797 = " \
     file://pcie/0005-MHI_RC_bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
     file://pcie/0007-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-Nords.patch \
     file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
+    file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
