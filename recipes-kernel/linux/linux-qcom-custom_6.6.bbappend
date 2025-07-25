@@ -100,6 +100,7 @@ SRC_URI:append:sa8797 = " \
     file://pcie/0007-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-Nords.patch \
     file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
+    file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
