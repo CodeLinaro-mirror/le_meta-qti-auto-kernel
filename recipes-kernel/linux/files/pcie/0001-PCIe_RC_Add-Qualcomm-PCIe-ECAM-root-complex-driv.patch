@@ -1,7 +1,7 @@
-From 3bc6319d63926a07abaddb78c09f9c4a9d139345 Mon Sep 17 00:00:00 2001
+From 32370502b5704981d8e84c33b78eb2f1527b2aff Mon Sep 17 00:00:00 2001
 From: Nitesh Gupta <nitegupt@qti.qualcomm.com>
 Date: Wed, 25 Jun 2025 15:34:25 +0530
-Subject: [PATCH 1/1] PENDING: PCI: Add Qualcomm PCIe ECAM root complex driver
+Subject: [PATCH] PENDING: PCI: Add Qualcomm PCIe ECAM root complex driver
 
 On some of Qualcomm platform, firmware configures PCIe controller into
 ECAM mode allowing static memory allocation for configuration space of
@@ -25,8 +25,8 @@ Signed-off-by: Nitesh Gupta <nitegupt@qti.qualcomm.com>
 ---
  drivers/pci/controller/Kconfig          |   12 +
  drivers/pci/controller/Makefile         |    1 +
- drivers/pci/controller/pcie-qcom-ecam.c | 1090 +++++++++++++++++++++++
- 3 files changed, 1103 insertions(+)
+ drivers/pci/controller/pcie-qcom-ecam.c | 1142 +++++++++++++++++++++++
+ 3 files changed, 1155 insertions(+)
  create mode 100644 drivers/pci/controller/pcie-qcom-ecam.c
 
 diff --git a/drivers/pci/controller/Kconfig b/drivers/pci/controller/Kconfig
@@ -66,10 +66,10 @@ index 015f711b0433..44cfc592bfe6 100644
  obj-y				+= dwc/
 diff --git a/drivers/pci/controller/pcie-qcom-ecam.c b/drivers/pci/controller/pcie-qcom-ecam.c
 new file mode 100644
-index 000000000000..baad9aa7c590
+index 000000000000..5c5af76e54ff
 --- /dev/null
 +++ b/drivers/pci/controller/pcie-qcom-ecam.c
-@@ -0,0 +1,1090 @@
+@@ -0,0 +1,1142 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Qualcomm PCIe ECAM root host controller driver
@@ -976,24 +976,72 @@ index 000000000000..baad9aa7c590
 +	.name = "qcom_pcie"
 +};
 +
-+static int qcom_pcie_ecam_suspend_noirq(struct device *dev)
++static int qcom_pcie_ecam_suspend(struct device *dev)
 +{
-+	if(atomic_read(&dev->power.usage_count) > 1)
-+		pm_runtime_put_noidle(dev);
++	int ret;
 +
-+	return pm_runtime_put_sync(dev);
++	/*
++	 * Due to usage of single power domain with GenPd framework, there is
++	 * additional +1 usage count is seen. dpm_suspend() will remove its -1
++	 * and suspend device i.e. performing D3cold with it. Hence remove
++	 * this driver based +1 count, and return success with positive value from
++	 * pm_runtime_put_sync().
++	 */
++	ret = pm_runtime_put_sync(dev);
++	if (ret < 0)
++		dev_err(dev, "fail to suspend pcie controller: %d\n", ret);
++
++	return 0;
 +}
 +
-+static int qcom_pcie_ecam_resume_noirq(struct device *dev)
++static int qcom_pcie_ecam_resume(struct device *dev)
 +{
-+	struct qcom_msi *msi;
++	struct qcom_pcie *pcie = (struct qcom_pcie *)dev_get_drvdata(dev);
++	int ret;
++
++	ret = pm_runtime_get_sync(dev);
++	if (ret < 0)
++		dev_err(dev, "fail to resume pcie controller: %d\n", ret);
++
++	if (pcie && pcie->msi)
++		qcom_msi_config(pcie->msi->msi_domain);
++	/*
++	 * Return success as core suspend framework based dpm_start() has already
++	 * performed pm_runtime_get_sync() with GenPD device here which would cause
++	 * driver based pm_runtime_get_sync() returning positive number, and will
++	 * till return success here.
++	 */
++	return 0;
++}
++
++static int qcom_pci_ecam_runtime_suspend(struct device *dev)
++{
++	return 0;
++}
++
++static int qcom_pci_ecam_runtime_resume(struct device *dev)
++{
 +	struct qcom_pcie *pcie = (struct qcom_pcie *)dev_get_drvdata(dev);
 +
-+	msi = pcie->msi;
-+	qcom_msi_config(msi->msi_domain);
-+	pm_runtime_get_noresume(dev);
++	/*
++	 * During suspend msi address gets cleared,
++	 * re-configuring the msi in resume process.
++	 */
++	if (pcie && pcie->msi)
++		qcom_msi_config(pcie->msi->msi_domain);
 +
-+	return pm_runtime_get_sync(dev);
++	return 0;
++}
++
++static void qcom_pcie_ecam_shutdown(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	int ret;
++
++	/* Put PCIe into D3cold to avoid any access while rebooting device */
++	ret = qcom_pcie_ecam_suspend(dev);
++	if (ret)
++		dev_err(dev, "fail to shutdown pcie controller: %d\n", ret);
 +}
 +
 +static int qcom_pcie_link_transition_count(struct seq_file *s, void *data)
@@ -1035,7 +1083,7 @@ index 000000000000..baad9aa7c590
 +static int qcom_pcie_ecam_probe(struct platform_device *pdev)
 +{
 +	struct device *dev = &pdev->dev;
-+	struct qcom_msi *msi;
++	struct qcom_msi *msi = NULL;
 +	int ret = 0;
 +	u64 addr;
 +	struct qcom_pcie *pcie;
@@ -1094,7 +1142,8 @@ index 000000000000..baad9aa7c590
 +	ret = pci_host_common_probe(pdev);
 +	if (ret) {
 +		dev_err(dev, "pci_host_common_probe() failed:%d\n", ret);
-+		qcom_msi_deinit(msi);
++		if(msi)
++			qcom_msi_deinit(msi);
 +		pm_runtime_put_sync(dev);
 +	}
 +
@@ -1125,8 +1174,10 @@ index 000000000000..baad9aa7c590
 +}
 +
 +static const struct dev_pm_ops qcom_pcie_ecam_pm_ops = {
-+	SET_SYSTEM_SLEEP_PM_OPS(qcom_pcie_ecam_suspend_noirq,
-+				qcom_pcie_ecam_resume_noirq)
++	SET_RUNTIME_PM_OPS(qcom_pci_ecam_runtime_suspend,
++				qcom_pci_ecam_runtime_resume, NULL)
++	SET_SYSTEM_SLEEP_PM_OPS(qcom_pcie_ecam_suspend,
++				qcom_pcie_ecam_resume)
 +};
 +
 +static const struct pci_ecam_ops qcom_pcie_ecam_ops = {
@@ -1148,6 +1199,7 @@ index 000000000000..baad9aa7c590
 +
 +static struct platform_driver qcom_pcie_ecam_driver = {
 +	.probe	= qcom_pcie_ecam_probe,
++	.shutdown	= qcom_pcie_ecam_shutdown,
 +	.driver	= {
 +		.name			= "qcom-pcie-ecam-rc",
 +		.suppress_bind_attrs	= true,
@@ -1161,4 +1213,5 @@ index 000000000000..baad9aa7c590
 +MODULE_DESCRIPTION("Qualcomm PCIe ECAM root complex driver");
 +MODULE_LICENSE("GPL");
 -- 
+2.25.1
 
