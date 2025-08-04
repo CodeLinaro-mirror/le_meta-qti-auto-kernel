@@ -1,7 +1,7 @@
-From 4540cd03ed6e71fae0361b87e912296c7ac2145d Mon Sep 17 00:00:00 2001
+From df0489d218afc7528a1b7bd58756e77adf99028f Mon Sep 17 00:00:00 2001
 From: Praveen Talari <quic_ptalari@quicinc.com>
 Date: Mon, 10 Mar 2025 16:30:02 +0530
-Subject: [PATCH 2/4] PENDING: i2c: qcom-geni: Add support for S2R feature
+Subject: [PATCH] PENDING: i2c: qcom-geni: Add support for S2R feature
 
 In the context of S2R(System to RAM), a mode intended for
 prolonged sleep cycles, the system-on-chip (SoC)
@@ -26,7 +26,7 @@ Signed-off-by: Praveen Talari <quic_ptalari@quicinc.com>
  1 file changed, 36 insertions(+), 12 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index c53e34a26d9f..a915b7d1a2ae 100644
+index 0d48e1665698..a442c2db864b 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
 @@ -17,6 +17,7 @@
@@ -34,10 +34,10 @@ index c53e34a26d9f..a915b7d1a2ae 100644
  #include <linux/soc/qcom/geni-se.h>
  #include <linux/spinlock.h>
 +#include <linux/suspend.h>
- #include <soc/qcom/qup_fw_load.h>
  
  #define CREATE_TRACE_POINTS
-@@ -126,10 +127,10 @@ struct geni_i2c_dev {
+ #include <trace/events/qup_buses_trace.h>
+@@ -125,10 +126,10 @@ struct geni_i2c_dev {
  	dma_addr_t dma_addr;
  	struct dma_chan *tx_c;
  	struct dma_chan *rx_c;
@@ -49,7 +49,7 @@ index c53e34a26d9f..a915b7d1a2ae 100644
  };
  
  struct geni_i2c_err_log {
-@@ -751,7 +752,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
+@@ -750,7 +751,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
  
  	qcom_geni_i2c_conf(gi2c);
  
@@ -58,7 +58,7 @@ index c53e34a26d9f..a915b7d1a2ae 100644
  		ret = geni_i2c_gpi_xfer(gi2c, msgs, num);
  	else
  		ret = geni_i2c_fifo_xfer(gi2c, msgs, num);
-@@ -906,6 +907,9 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
+@@ -876,6 +877,9 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
  	bool fifo_disable;
  	int ret = 0;
  
@@ -68,7 +68,7 @@ index c53e34a26d9f..a915b7d1a2ae 100644
  	ret = pm_runtime_get_sync(gi2c->se.dev);
  	if (ret < 0) {
  		dev_err(gi2c->se.dev, "error turning on device :%d\n", ret);
-@@ -930,10 +934,11 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
+@@ -908,10 +912,11 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
  			goto err;
  		}
  
@@ -82,7 +82,7 @@ index c53e34a26d9f..a915b7d1a2ae 100644
  		tx_depth = geni_se_get_tx_fifo_depth(&gi2c->se);
  
  		/* I2C Master Hub Serial Elements doesn't have the HW_PARAM_0 register */
-@@ -957,7 +962,7 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
+@@ -935,7 +940,7 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
  err:
  	if (pm_runtime_put_sync(gi2c->se.dev) < 0) {
  		dev_err(gi2c->se.dev, "error turning off device :%d\n", ret);
@@ -91,7 +91,7 @@ index c53e34a26d9f..a915b7d1a2ae 100644
  			release_gpi_dma(gi2c);
  	}
  
-@@ -1066,6 +1071,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -1038,6 +1043,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
  		i2c_trace_log(&pdev->dev, "Multi-EE usecase with shared SE\n");
  	}
  
@@ -99,7 +99,7 @@ index c53e34a26d9f..a915b7d1a2ae 100644
  	ret =  geni_i2c_init(gi2c);
  	if (ret < 0) {
  		dev_err(gi2c->se.dev, "geni_i2c_prepare is failed :%d\n", ret);
-@@ -1143,24 +1149,42 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
+@@ -1114,24 +1120,42 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
  static int __maybe_unused geni_i2c_suspend_noirq(struct device *dev)
  {
  	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
@@ -150,5 +150,5 @@ index c53e34a26d9f..a915b7d1a2ae 100644
  
  static const struct dev_pm_ops geni_i2c_pm_ops = {
 -- 
-2.17.1
+2.34.1
 
