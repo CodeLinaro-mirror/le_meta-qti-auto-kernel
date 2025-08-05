@@ -102,6 +102,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
+    file://qup/0036-ccu-Optimize-interrupt-handling-and-improve-GSI-reso.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
