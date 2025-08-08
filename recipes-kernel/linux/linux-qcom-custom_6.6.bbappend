@@ -17,6 +17,7 @@ SRC_URI:append = "\
     file://qup/0011-PENDING-serial-qcom-geni-Add-support-for-S2R-feature.patch \
     file://qup/0012-PENDING-spi-spi-geni-qcom-Add-support-for-S2R-featur.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
+    file://0001-PENDING-scsi-ufs-Bypass-Link-startup.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
     file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
     file://usb/0003-PENDING-usb-dwc3-drd-expose-role-switch-control-to-u.patch \
