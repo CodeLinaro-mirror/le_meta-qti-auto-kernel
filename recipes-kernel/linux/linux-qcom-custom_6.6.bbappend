@@ -68,7 +68,6 @@ SRC_URI:append:sa8797 = " \
     file://usb/0018-phy-qcom-phy-qcom-snps-eusb2-Add-support-for-SA8797P.patch \
     file://usb/0019-usb-phy-qmp-combo-Add-scmi-related-changes-for-SA879.patch \
     file://usb/0020-usb-phy-Disable-DP-hardcode-lane-B.patch \
-    file://0012-PENDING-cpufreq-scmi-Skip-SCMI-devices-that-aren-t-u.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
     file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
