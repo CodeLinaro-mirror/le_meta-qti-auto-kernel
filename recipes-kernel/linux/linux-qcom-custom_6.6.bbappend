@@ -31,14 +31,13 @@ SRC_URI:append = "\
     file://usb/0012-PENDING-usb-dwc3-qcom-Add-support-for-sa8255p-for-qc.patch \
     file://usb/0013-PENDING-phy-qcom-snps-femto-v2-Call-qcom_snps_hsphy_.patch \
     file://usb/0014-PENDING-phy-qcom-snps-femto-v2-Add-support-for-SA825.patch \
+    file://pcie/0001-PCIe_RC_Add-Qualcomm-PCIe-ECAM-root-complex-driv.patch \
+    file://pcie/0004-MHI_RC_bus-mhi-host-pci_generic-Disable-auto-suspen.patch \
+    file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
     file://0001-FROMLIST-of-of_reserved_mem-Increase-limit-for-reser.patch \
     file://0013-net-stmmac-dwmac-qcom-ethqos-Enable-SCMI-ETH.patch \
     file://0014-PENDING-qcom-Add-sa7255p-compatibles-for-core-driver.patch \
-    file://0015-PENDING-PCI-Add-Qualcomm-PCIe-ECAM-root-complex-driv.patch \
     file://0016-PENDING-ice-Enable-ICE-on-SA8255p-Qualcomm-platforms.patch \
-    file://0017-PCI-qcom-ep-Add-support-for-SCMI-based-PCIe-EP.patch \
-    file://0018-PENDING-bus-mhi-host-pci_generic-Disable-auto-suspen.patch \
-    file://0019-PCI-Safety-Initial-Commit.patch \
     file://scm_adci/0001-QCLINUX-arm64-dts-qcom-sa8255p-Modify-correct-dt-nam.patch \
     file://scm_adci/0002-QCLINUX-arm64-dts-qcom-sa8775p-Modify-correct-dt-nam.patch \
     file://scm_adci/0003-QCLINUX-arm64-dts-qcom-sa7255p-Modify-correct-dt-nam.patch \
@@ -49,7 +48,6 @@ SRC_URI:append = "\
     file://scm_adci/0008-PENDING-firmware-qcom-scm-Introduce-new-locking-mech.patch \
     file://scm_adci/0009-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
-    file://0020-meta-qti-auto-kernel-Add-IRQ_NOAUTOEN-for-global-IRQ.patch \
 "
 
 SRC_URI:append:sa8797 = " \
@@ -68,15 +66,16 @@ SRC_URI:append:sa8797 = " \
     file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
     file://qup/0008-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
+    file://pcie/0005-MHI_RC_bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
+    file://pcie/0007-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-Nords.patch \
+    file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
     file://earlyboot.cfg \
-    file://0017-PCI-qcom-ep-Add-support-for-SCMI-based-PCIe-EP.patch \
-    file://0018-PENDING-bus-mhi-host-pci_generic-Disable-auto-suspen.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
-    file://0019-PCI-Safety-Initial-Commit.patch \
     file://0020-meta-qti-auto-kernel-Add-IRQ_NOAUTOEN-for-global-IRQ.patch \
+    file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
 "
 
 SRC_URI:append:sa8775 = " \
