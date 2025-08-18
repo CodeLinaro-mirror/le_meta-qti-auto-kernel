@@ -32,6 +32,16 @@ do_deploy() {
         done
     fi
 
+    if [ -n "${OOT_DDR_DTBOS}" ]; then
+        install -d ${DEPLOYDIR}/build-artifacts/ddrdtbos
+
+        for dtb in ${OOT_DDR_DTBOS}; do
+            if [ -f ${B}/$dtb ]; then
+                install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/ddrdtbos
+            fi
+        done
+    fi
+
     if [ -n "${KERNEL_BASE_DTB}" ]; then
         install -d ${DEPLOYDIR}/build-artifacts/kernel-dtb
 
