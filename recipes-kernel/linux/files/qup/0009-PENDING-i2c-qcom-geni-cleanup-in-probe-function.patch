@@ -1,7 +1,7 @@
-From a5cc255682df24d9497fea6074e8a9375c9c25db Mon Sep 17 00:00:00 2001
+From 01ff5a65c8de01ad498119393a4ac3e2c7e09a41 Mon Sep 17 00:00:00 2001
 From: Praveen Talari <quic_ptalari@quicinc.com>
 Date: Mon, 10 Mar 2025 14:19:49 +0530
-Subject: [PATCH] PENDING: i2c: qcom-geni: cleanup in probe function
+Subject: [PATCH 2/2] PENDING: i2c: qcom-geni: cleanup in probe function
 
 Move serial engine configuration from probe to new
 function that is geni_i2c_init().
@@ -14,10 +14,10 @@ Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
  1 file changed, 83 insertions(+), 67 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index ec473cd1f421..0d48e1665698 100644
+index d885d85006fb..c70ad4ba0099 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -863,10 +863,88 @@ static int geni_i2c_switch_resource_state(struct device *dev, bool state)
+@@ -898,10 +898,88 @@ static int geni_i2c_switch_resource_state(struct device *dev, bool state)
  	return ret;
  }
  
@@ -67,7 +67,7 @@ index ec473cd1f421..0d48e1665698 100644
 +		}
 +
 +		gi2c->gpi_mode = true;
-+		i2c_trace_log(gi2c->se.dev, "Using GPI DMA mode for I2C\n");
++		I2C_DBG_LOG(LOG_LVL_INFO, gi2c->se.dev, "Using GPI DMA mode for I2C\n");
 +	} else {
 +		gi2c->gpi_mode = false;
 +		tx_depth = geni_se_get_tx_fifo_depth(&gi2c->se);
@@ -87,7 +87,7 @@ index ec473cd1f421..0d48e1665698 100644
 +		geni_se_config_packing(&gi2c->se, BITS_PER_BYTE,
 +				       PACKING_BYTES_PW, true, true, true);
 +
-+		i2c_trace_log(gi2c->se.dev, "i2c fifo/se-dma mode. fifo depth:%d\n", tx_depth);
++		I2C_DBG_LOG(LOG_LVL_INFO, gi2c->se.dev, "i2c fifo/se-dma mode. fifo depth:%d\n", tx_depth);
 +	}
 +
 +err:
@@ -107,7 +107,7 @@ index ec473cd1f421..0d48e1665698 100644
  	int ret;
  	struct device *dev = &pdev->dev;
  	const struct geni_i2c_desc *desc = NULL;
-@@ -955,89 +1033,27 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -990,78 +1068,22 @@ static int geni_i2c_probe(struct platform_device *pdev)
  	pm_runtime_use_autosuspend(gi2c->se.dev);
  	pm_runtime_enable(gi2c->se.dev);
  
@@ -143,7 +143,7 @@ index ec473cd1f421..0d48e1665698 100644
 -			goto err;
 -		}
 -
--		i2c_trace_log(dev, "Using GPI DMA mode for I2C\n");
+-		I2C_DBG_LOG(LOG_LVL_INFO, dev, "Using GPI DMA mode for I2C\n");
 -	} else {
 -		gi2c->gpi_mode = false;
 -		tx_depth = geni_se_get_tx_fifo_depth(&gi2c->se);
@@ -163,12 +163,12 @@ index ec473cd1f421..0d48e1665698 100644
 -		geni_se_config_packing(&gi2c->se, BITS_PER_BYTE,
 -				       PACKING_BYTES_PW, true, true, true);
 -
--		i2c_trace_log(dev, "i2c fifo/se-dma mode. fifo depth:%d\n", tx_depth);
+-		I2C_DBG_LOG(LOG_LVL_INFO, dev, "i2c fifo/se-dma mode. fifo depth:%d\n", tx_depth);
 -	}
 -
  	if (of_property_read_bool(pdev->dev.of_node, "qcom,shared-se")) {
  		gi2c->is_shared = true;
- 		i2c_trace_log(&pdev->dev, "Multi-EE usecase with shared SE\n");
+ 		I2C_DBG_LOG(LOG_LVL_VERBOSE, &pdev->dev, "Multi-EE usecase with shared SE\n");
  	}
  
 -	ret = pm_runtime_put_sync(gi2c->se.dev);
@@ -189,7 +189,10 @@ index ec473cd1f421..0d48e1665698 100644
 +		goto err;
  	}
  
- 	i2c_trace_log(dev, "Geni-I2C adaptor successfully added\n");
+ 	ret = device_create_file(gi2c->se.dev, &dev_attr_log_level);
+@@ -1071,13 +1093,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
+ 
+ 	I2C_DBG_LOG(LOG_LVL_INFO, dev, "Geni-I2C adaptor successfully added\n");
  
 -	return ret;
 -
