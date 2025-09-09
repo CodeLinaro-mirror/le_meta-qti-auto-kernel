@@ -1,7 +1,7 @@
-From ea07086d3c40efdb042e74f654742767c99bca4f Mon Sep 17 00:00:00 2001
+From 12c3d2e72273cddb0867bc1d78094cee0f8c43cb Mon Sep 17 00:00:00 2001
 From: Aniket Randive <quic_arandive@quicinc.com>
 Date: Mon, 7 Apr 2025 14:59:37 +0530
-Subject: [PATCH] i2c: i2c-qcom-geni: Update counter setting for CCU QUP
+Subject: [PATCH 08/12] i2c: i2c-qcom-geni: Update counter setting for CCU QUP
 
 Add 38.4MHz serial engine clock in Titan clock controller
 to achieve 1MHz bus frequency. Include counter settings
@@ -18,10 +18,10 @@ Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
  1 file changed, 32 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index a6f9b876d9d6..af43618b75ef 100644
+index 3a7b0871fd47..3a1208672939 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -294,6 +294,18 @@ static const struct geni_i2c_clk_fld geni_i2c_clk_map[] = {
+@@ -288,6 +288,18 @@ static const struct geni_i2c_clk_fld geni_i2c_clk_map[] = {
  	{KHZ(1000), 1, 3,  9, 18},
  };
  
@@ -40,7 +40,7 @@ index a6f9b876d9d6..af43618b75ef 100644
  static int setup_gpi_dma(struct geni_i2c_dev *gi2c);
  static void release_gpi_dma(struct geni_i2c_dev *gi2c);
  static void i2c_gpi_cb_result(void *cb, const struct dmaengine_result *result);
-@@ -301,12 +313,17 @@ static ccu_qup_notify_client ccu_qup_update_xfer_completion = NULL;
+@@ -316,12 +328,17 @@ static DEVICE_ATTR_RW(log_level);
  
  static int geni_i2c_clk_map_idx(struct geni_i2c_dev *gi2c)
  {
@@ -63,7 +63,7 @@ index a6f9b876d9d6..af43618b75ef 100644
  			return 0;
  		}
  	}
-@@ -318,7 +335,16 @@ static void qcom_geni_i2c_conf(struct geni_i2c_dev *gi2c)
+@@ -333,7 +350,16 @@ static void qcom_geni_i2c_conf(struct geni_i2c_dev *gi2c)
  	const struct geni_i2c_clk_fld *itr = gi2c->clk_fld;
  	u32 val;
  
@@ -82,5 +82,5 @@ index a6f9b876d9d6..af43618b75ef 100644
  	val = (itr->clk_div << CLK_DIV_SHFT) | SER_CLK_EN;
  	writel_relaxed(val, gi2c->se.base + GENI_SER_M_CLK_CFG);
 -- 
-2.17.1
+2.34.1
 

@@ -1,7 +1,7 @@
-From 401253aa1bc3359414800fae19821c0589a75a7f Mon Sep 17 00:00:00 2001
+From 7e351b84b00feae41fc44aef77301bfb60405a3a Mon Sep 17 00:00:00 2001
 From: Aniket Randive <quic_arandive@quicinc.com>
 Date: Tue, 8 Apr 2025 10:35:50 +0530
-Subject: [PATCH] i2c: Fix double unmap issue for DMA buf
+Subject: [PATCH 10/12] i2c: Fix double unmap issue for DMA buf
 
 Ensure the DMA buffer is not unmapped for the first
 message if it has already been freed. Pass the message
@@ -15,10 +15,10 @@ Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
  1 file changed, 19 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index e06b240be5e2..9195cef2ca51 100644
+index 21317b93691f..7520536fae43 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -1134,16 +1134,13 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1172,16 +1172,13 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  			       void *tx_buf, dma_addr_t tx_addr,
  			       void *rx_buf, dma_addr_t rx_addr)
  {
@@ -37,7 +37,7 @@ index e06b240be5e2..9195cef2ca51 100644
  		if (!gi2c->is_ccu_qup)
  			i2c_put_dma_safe_msg_buf(rx_buf, msg, !gi2c->err);
  	}
-@@ -1168,11 +1165,12 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1206,11 +1203,12 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  
  	peripheral_cfg = config->peripheral_config;
  	if (gi2c->is_ccu_qup) {
@@ -54,7 +54,7 @@ index e06b240be5e2..9195cef2ca51 100644
  		if (!dma_buf)
  			return -ENOMEM;
  		i2c_trace_log(gi2c->se.dev, "%s: CCU QUP - msg.len:%d - [%d]\n",
-@@ -1192,6 +1190,8 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1230,6 +1228,8 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  	addr = dma_map_single(gi2c->se.dev->parent, dma_buf, len, map_dirn);
  	if (dma_mapping_error(gi2c->se.dev->parent, addr)) {
  		i2c_put_dma_safe_msg_buf(dma_buf, msg, false);
@@ -63,7 +63,7 @@ index e06b240be5e2..9195cef2ca51 100644
  		return -ENOMEM;
  	}
  
-@@ -1508,10 +1508,8 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+@@ -1550,10 +1550,8 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
  err:
  	dev_err(gi2c->se.dev, "GPI transfer failed: %d\n", ret);
  	if (gi2c->is_ccu_qup) {
@@ -76,7 +76,7 @@ index e06b240be5e2..9195cef2ca51 100644
  	}
  	dmaengine_terminate_sync(gi2c->rx_c[idx]);
  	dmaengine_terminate_sync(gi2c->tx_c[idx]);
-@@ -1691,10 +1689,14 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
+@@ -1725,10 +1723,14 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
  
  err:
  	for (idx = i; idx > 0; idx--) {
@@ -96,5 +96,5 @@ index e06b240be5e2..9195cef2ca51 100644
  	return ret;
  }
 -- 
-2.17.1
+2.34.1
 

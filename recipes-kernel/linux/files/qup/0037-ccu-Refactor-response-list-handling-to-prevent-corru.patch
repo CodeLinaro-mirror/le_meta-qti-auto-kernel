@@ -1,8 +1,8 @@
-From 821cb7022f2db9e6e2a72979b0ebd1061beb623f Mon Sep 17 00:00:00 2001
+From 2afb8dfb57b37fc7a790666ee8aa0f53810e88ae Mon Sep 17 00:00:00 2001
 From: Aniket Randive <arandive@qti.qualcomm.com>
 Date: Mon, 4 Aug 2025 17:24:39 +0530
-Subject: [PATCH] ccu: Refactor response list handling to prevent corruption
- across contexts
+Subject: [PATCH 5/6] ccu: Refactor response list handling to prevent
+ corruption across contexts
 
 Introduce a dedicated spinlock to protect access to response_list,
 ensuring safe synchronization between tasklet context writers and
@@ -17,10 +17,10 @@ Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
  1 file changed, 20 insertions(+), 25 deletions(-)
 
 diff --git a/drivers/soc/qcom/qcom_ccu_qup.c b/drivers/soc/qcom/qcom_ccu_qup.c
-index 4889e2912779..5a5fe863b76e 100644
+index bc2c34590652..e8df91797655 100644
 --- a/drivers/soc/qcom/qcom_ccu_qup.c
 +++ b/drivers/soc/qcom/qcom_ccu_qup.c
-@@ -211,7 +211,8 @@ static ssize_t ccu_response_read(struct file *filp, char __user *buf,
+@@ -190,7 +190,8 @@ static ssize_t ccu_response_read(struct file *filp, char __user *buf,
  				 size_t count, loff_t *f_pos)
  {
  	struct ccu_qup *ccu;
@@ -30,7 +30,7 @@ index 4889e2912779..5a5fe863b76e 100644
  	int ret;
  
  	if (!filp || !filp->private_data)
-@@ -228,37 +229,33 @@ static ssize_t ccu_response_read(struct file *filp, char __user *buf,
+@@ -207,37 +208,33 @@ static ssize_t ccu_response_read(struct file *filp, char __user *buf,
  		return -EINVAL;
  	}
  
@@ -85,7 +85,7 @@ index 4889e2912779..5a5fe863b76e 100644
  }
  
  /*
-@@ -299,11 +296,9 @@ void ccu_update_xfer_result(struct ccu_xfer_result *result)
+@@ -278,11 +275,9 @@ void ccu_update_xfer_result(struct ccu_xfer_result *result)
  	struct ccu_response_data *entry;
  	unsigned long flags;
  
@@ -97,7 +97,7 @@ index 4889e2912779..5a5fe863b76e 100644
  		return;
  	}
  
-@@ -311,10 +306,10 @@ void ccu_update_xfer_result(struct ccu_xfer_result *result)
+@@ -290,10 +285,10 @@ void ccu_update_xfer_result(struct ccu_xfer_result *result)
  	if (!entry->res_buf) {
  		CCU_ERR_LOG(LOG_LVL_ERROR, ccu->dev, "Memory allocation failed for buf\n");
  		kfree(entry);
