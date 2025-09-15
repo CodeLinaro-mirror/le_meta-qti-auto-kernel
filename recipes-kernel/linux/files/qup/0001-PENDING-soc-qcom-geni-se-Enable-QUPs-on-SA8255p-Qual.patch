@@ -1,4 +1,4 @@
-From 886c1efa147ea01ba523c81cfaa52b5e282d6b03 Mon Sep 17 00:00:00 2001
+From e1a219763dc7eb9fda471f473dbe9432dea94954 Mon Sep 17 00:00:00 2001
 From: Praveen Talari <quic_ptalari@quicinc.com>
 Date: Wed, 17 Jul 2024 19:28:50 +0530
 Subject: [PATCH] PENDING: soc: qcom: geni-se: Enable QUPs on SA8255p Qualcomm
@@ -15,11 +15,11 @@ Signed-off-by: Praveen Talari <quic_ptalari@quicinc.com>
 Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
 ---
  drivers/soc/qcom/qcom-geni-se.c  | 39 ++++++++++++++++++++++++++++++++
- include/linux/soc/qcom/geni-se.h |  8 +++++++
- 2 files changed, 47 insertions(+)
+ include/linux/soc/qcom/geni-se.h |  9 ++++++++
+ 2 files changed, 48 insertions(+)
 
 diff --git a/drivers/soc/qcom/qcom-geni-se.c b/drivers/soc/qcom/qcom-geni-se.c
-index 41dce8f65eef..1486a154c230 100644
+index 20d9ccb40ca7..fbd16a46c399 100644
 --- a/drivers/soc/qcom/qcom-geni-se.c
 +++ b/drivers/soc/qcom/qcom-geni-se.c
 @@ -18,6 +18,7 @@
@@ -30,7 +30,7 @@ index 41dce8f65eef..1486a154c230 100644
  #include <linux/soc/qcom/geni-se.h>
  #include <linux/soc/qcom/qup-fw-load.h>
  
-@@ -1266,6 +1267,34 @@ int geni_load_se_firmware(struct geni_se *se, enum geni_se_protocol_type protoco
+@@ -1304,6 +1305,34 @@ int geni_load_se_firmware(struct geni_se *se, enum geni_se_protocol_type protoco
  }
  EXPORT_SYMBOL_GPL(geni_load_se_firmware);
  
@@ -65,7 +65,7 @@ index 41dce8f65eef..1486a154c230 100644
  static int geni_se_probe(struct platform_device *pdev)
  {
  	struct device *dev = &pdev->dev;
-@@ -1289,6 +1318,9 @@ static int geni_se_probe(struct platform_device *pdev)
+@@ -1327,6 +1356,9 @@ static int geni_se_probe(struct platform_device *pdev)
  		if (!desc)
  			return -EINVAL;
  
@@ -75,7 +75,7 @@ index 41dce8f65eef..1486a154c230 100644
  		wrapper->num_clks = min_t(unsigned int, desc->num_clks, MAX_CLKS);
  
  		for (i = 0; i < wrapper->num_clks; ++i)
-@@ -1313,6 +1345,7 @@ static int geni_se_probe(struct platform_device *pdev)
+@@ -1351,6 +1383,7 @@ static int geni_se_probe(struct platform_device *pdev)
  		}
  	}
  
@@ -83,7 +83,7 @@ index 41dce8f65eef..1486a154c230 100644
  	dev_set_drvdata(dev, wrapper);
  	dev_dbg(dev, "GENI SE Driver probed\n");
  	return devm_of_platform_populate(dev);
-@@ -1328,6 +1361,11 @@ static const struct geni_se_desc qup_desc = {
+@@ -1366,6 +1399,11 @@ static const struct geni_se_desc qup_desc = {
  	.num_clks = ARRAY_SIZE(qup_clks),
  };
  
@@ -95,7 +95,7 @@ index 41dce8f65eef..1486a154c230 100644
  static const char * const i2c_master_hub_clks[] = {
  	"s-ahb",
  };
-@@ -1340,6 +1378,7 @@ static const struct geni_se_desc i2c_master_hub_desc = {
+@@ -1378,6 +1416,7 @@ static const struct geni_se_desc i2c_master_hub_desc = {
  static const struct of_device_id geni_se_dt_match[] = {
  	{ .compatible = "qcom,geni-se-qup", .data = &qup_desc },
  	{ .compatible = "qcom,geni-se-i2c-master-hub", .data = &i2c_master_hub_desc },
@@ -104,7 +104,7 @@ index 41dce8f65eef..1486a154c230 100644
  };
  MODULE_DEVICE_TABLE(of, geni_se_dt_match);
 diff --git a/include/linux/soc/qcom/geni-se.h b/include/linux/soc/qcom/geni-se.h
-index d0688d3c0b6c..39990e4a6726 100644
+index ba55cdb2f2a4..d30b33e68469 100644
 --- a/include/linux/soc/qcom/geni-se.h
 +++ b/include/linux/soc/qcom/geni-se.h
 @@ -8,6 +8,8 @@
@@ -116,7 +116,7 @@ index d0688d3c0b6c..39990e4a6726 100644
  
  /**
   * enum geni_se_xfer_mode: Transfer modes supported by Serial Engines
-@@ -65,6 +67,7 @@ struct geni_icc_path {
+@@ -81,6 +83,7 @@ struct geni_icc_path {
   * @icc_paths:		Array of ICC paths for SE
   * * @mode:		Transfer mode se fifo, dma or gsi.
   * @protocol:		Protocol spi or i2c or serial.
@@ -124,7 +124,7 @@ index d0688d3c0b6c..39990e4a6726 100644
   */
  struct geni_se {
  	void __iomem *base;
-@@ -76,6 +79,7 @@ struct geni_se {
+@@ -92,6 +95,7 @@ struct geni_se {
  	struct geni_icc_path icc_paths[3];
  	enum geni_se_xfer_mode mode;
  	enum geni_se_protocol_type protocol;
@@ -132,7 +132,7 @@ index d0688d3c0b6c..39990e4a6726 100644
  };
  
  /* Common SE registers */
-@@ -321,6 +325,9 @@ struct geni_se {
+@@ -337,6 +341,9 @@ struct geni_se {
  
  #define GENI_DEFAULT_BW			Bps_to_icc(1000)
  
@@ -142,10 +142,11 @@ index d0688d3c0b6c..39990e4a6726 100644
  #if IS_ENABLED(CONFIG_QCOM_GENI_SE)
  
  u32 geni_se_get_qup_hw_version(struct geni_se *se);
-@@ -545,5 +552,6 @@ int geni_icc_disable(struct geni_se *se);
- int geni_load_se_firmware(struct geni_se *se, enum geni_se_protocol_type protocol);
- 
+@@ -563,5 +570,7 @@ int geni_load_se_firmware(struct geni_se *se, enum geni_se_protocol_type protoco
  void geni_se_clks_off(struct geni_se *se);
+ 
+ void geni_trace_log(struct device *dev, const char *driver_name, const char *fmt, ...);
++
 +int geni_se_transition_d3d0(struct geni_se *se, bool high);
  #endif
  #endif
