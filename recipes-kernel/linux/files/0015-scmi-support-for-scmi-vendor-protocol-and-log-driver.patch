@@ -9,27 +9,27 @@ driver
 Change-Id: Ida2eaa250af8cc6fd9061dfb70d66fb8af684d2d
 Signed-off-by: Deepti Jaggi <quic_djaggi@quicinc.com>
 ---
- drivers/firmware/arm_scmi/Kconfig            |  10 +
- drivers/firmware/arm_scmi/Makefile           |   1 +
- drivers/firmware/arm_scmi/qcom_scmi_vendor.c | 156 ++++
- drivers/soc/qcom/Kconfig                     |  22 +
- drivers/soc/qcom/Makefile                    |   2 +
- drivers/soc/qcom/cpucp_log.c                 | 706 +++++++++++++++++++
- drivers/soc/qcom/qcom_scmi_client.c          |  57 ++
- drivers/soc/qcom/trace_cpucp.h               |  91 +++
- include/linux/qcom_scmi_vendor.h             |  41 ++
- 9 files changed, 1086 insertions(+)
- create mode 100644 drivers/firmware/arm_scmi/qcom_scmi_vendor.c
+ drivers/firmware/arm_scmi/transports/Kconfig  |  11 +
+ drivers/firmware/arm_scmi/transports/Makefile |   1 +
+ .../arm_scmi/transports/qcom_scmi_vendor.c    | 156 ++++
+ drivers/soc/qcom/Kconfig                      |  22 +
+ drivers/soc/qcom/Makefile                     |   2 +
+ drivers/soc/qcom/cpucp_log.c                  | 706 ++++++++++++++++++
+ drivers/soc/qcom/qcom_scmi_client.c           |  59 ++
+ drivers/soc/qcom/trace_cpucp.h                |  91 +++
+ include/linux/qcom_scmi_vendor.h              |  41 +
+ 9 files changed, 1089 insertions(+)
+ create mode 100644 drivers/firmware/arm_scmi/transports/qcom_scmi_vendor.c
  create mode 100644 drivers/soc/qcom/cpucp_log.c
  create mode 100644 drivers/soc/qcom/qcom_scmi_client.c
  create mode 100644 drivers/soc/qcom/trace_cpucp.h
  create mode 100644 include/linux/qcom_scmi_vendor.h
 
-diff --git a/drivers/firmware/arm_scmi/Kconfig b/drivers/firmware/arm_scmi/Kconfig
-index 706d1264d038..0690cf749aec 100644
---- a/drivers/firmware/arm_scmi/Kconfig
-+++ b/drivers/firmware/arm_scmi/Kconfig
-@@ -166,6 +166,16 @@ config ARM_SCMI_TRANSPORT_VIRTIO_ATOMIC_ENABLE
+diff --git a/drivers/firmware/arm_scmi/transports/Kconfig b/drivers/firmware/arm_scmi/transports/Kconfig
+index 57eccf316e26..010703f77dde 100644
+--- a/drivers/firmware/arm_scmi/transports/Kconfig
++++ b/drivers/firmware/arm_scmi/transports/Kconfig
+@@ -120,4 +120,15 @@ config ARM_SCMI_TRANSPORT_VIRTIO_ATOMIC_ENABLE
  	  in atomic context too, at the price of using a number of busy-waiting
  	  primitives all over instead. If unsure say N.
  
@@ -43,33 +43,29 @@ index 706d1264d038..0690cf749aec 100644
 +
 +	  This driver defines the commands or message ID's used for this
 +	  communication and also exposes the ops used by clients.
- endif #ARM_SCMI_PROTOCOL
- 
- config ARM_SCMI_POWER_DOMAIN
-diff --git a/drivers/firmware/arm_scmi/Makefile b/drivers/firmware/arm_scmi/Makefile
-index b31d78fa66cc..dba538b8ea24 100644
---- a/drivers/firmware/arm_scmi/Makefile
-+++ b/drivers/firmware/arm_scmi/Makefile
-@@ -18,6 +18,7 @@ obj-$(CONFIG_ARM_SCMI_PROTOCOL) += scmi-module.o
- 
- obj-$(CONFIG_ARM_SCMI_POWER_DOMAIN) += scmi_pm_domain.o
- obj-$(CONFIG_ARM_SCMI_POWER_CONTROL) += scmi_power_control.o
++
+ endmenu
+diff --git a/drivers/firmware/arm_scmi/transports/Makefile b/drivers/firmware/arm_scmi/transports/Makefile
+index b08686571712..4cceb72ef623 100644
+--- a/drivers/firmware/arm_scmi/transports/Makefile
++++ b/drivers/firmware/arm_scmi/transports/Makefile
+@@ -7,3 +7,4 @@ scmi_transport_optee-objs := optee.o
+ obj-$(CONFIG_ARM_SCMI_TRANSPORT_OPTEE) += scmi_transport_optee.o
+ scmi_transport_virtio-objs := virtio.o
+ obj-$(CONFIG_ARM_SCMI_TRANSPORT_VIRTIO) += scmi_transport_virtio.o
 +obj-$(CONFIG_QTI_SCMI_VENDOR_PROTOCOL) += qcom_scmi_vendor.o
- 
- ifeq ($(CONFIG_THUMB2_KERNEL)$(CONFIG_CC_IS_CLANG),yy)
- # The use of R7 in the SMCCC conflicts with the compiler's use of R7 as a frame
-diff --git a/drivers/firmware/arm_scmi/qcom_scmi_vendor.c b/drivers/firmware/arm_scmi/qcom_scmi_vendor.c
+diff --git a/drivers/firmware/arm_scmi/transports/qcom_scmi_vendor.c b/drivers/firmware/arm_scmi/transports/qcom_scmi_vendor.c
 new file mode 100644
 index 000000000000..620f748953a9
 --- /dev/null
-+++ b/drivers/firmware/arm_scmi/qcom_scmi_vendor.c
++++ b/drivers/firmware/arm_scmi/transports/qcom_scmi_vendor.c
 @@ -0,0 +1,156 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 + */
 +
-+#include "common.h"
++#include "../common.h"
 +#include <linux/qcom_scmi_vendor.h>
 +
 +#define	EXTENDED_MSG_ID			0
