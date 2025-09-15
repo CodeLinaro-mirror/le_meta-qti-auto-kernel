@@ -1,7 +1,7 @@
-From 2b7e72fdb40e1453e19b82a4b6a89b6ac2c9b89c Mon Sep 17 00:00:00 2001
+From d53b4837fd898afda9dd3510df9eaf162803faf3 Mon Sep 17 00:00:00 2001
 From: Aniket Randive <arandive@qti.qualcomm.com>
-Date: Tue, 17 Jun 2025 16:52:30 +0530
-Subject: [PATCH] i2c: Enable multi random write feature
+Date: Mon, 8 Sep 2025 15:56:01 +0530
+Subject: [PATCH 12/12] i2c: Enable multi random write feature
 
 Enable multi-random write feature and add changes to
 process IEOB IRQ for CDM mode. Enable only IEOB IRQ
@@ -14,17 +14,17 @@ to symbol availability issues.
 Change-Id: I5c31587c30a7410218d3b04e68f7226bad58bf6c
 Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
 ---
- drivers/dma/qcom/gpi.c                | 15 ++++----
- drivers/i2c/busses/i2c-qcom-geni.c    | 49 +++++++++++----------------
- drivers/soc/qcom/qcom_ccu_qup.c       | 45 ++++++++++++------------
+ drivers/dma/qcom/gpi.c                | 14 +++++----
+ drivers/i2c/busses/i2c-qcom-geni.c    | 45 ++++++++++-----------------
+ drivers/soc/qcom/qcom_ccu_qup.c       | 45 ++++++++++++++-------------
  include/linux/soc/qcom/qcom_ccu_qup.h |  5 ++-
- 4 files changed, 56 insertions(+), 58 deletions(-)
+ 4 files changed, 53 insertions(+), 56 deletions(-)
 
 diff --git a/drivers/dma/qcom/gpi.c b/drivers/dma/qcom/gpi.c
-index 4817fdebde15..d83914d36afa 100644
+index 1cc3d626248b..4fd0a7ed17be 100644
 --- a/drivers/dma/qcom/gpi.c
 +++ b/drivers/dma/qcom/gpi.c
-@@ -812,8 +812,7 @@ void ccu_gpi_configure_mode(struct dma_chan *chan, int mode, int type)
+@@ -847,8 +847,7 @@ void ccu_gpi_configure_mode(struct dma_chan *chan, int mode, int type)
  {
  	struct gchan *gchan = to_gchan(chan);
  	struct gpii *gpii = gchan->gpii;
@@ -34,7 +34,7 @@ index 4817fdebde15..d83914d36afa 100644
  
  	gchan->mode = mode;
  	gchan->ch_type = type;
-@@ -1163,7 +1162,8 @@ static void process_gpi_irq(struct gpii *gpii)
+@@ -1202,7 +1201,8 @@ static void process_gpi_irq(struct gpii *gpii)
  		}
  
  		/* transfer complete interrupt */
@@ -44,15 +44,7 @@ index 4817fdebde15..d83914d36afa 100644
  			gpi_process_ieob(gpii);
  			type &= ~GPII_n_CNTXT_TYPE_IRQ_MSK_IEOB;
  		}
-@@ -1521,6 +1521,7 @@ static void gpi_process_events(struct gpii *gpii)
- 				break;
- 			case CCU_ERROR_NOTIFICATION_EV_TYPE:
- 				dev_dbg(gpii->gpi_dev->dev, "CCU error notifcation event\n");
-+				gchan = &gpii->gchan[chid];
- 				gpi_process_ccu_error_event(gchan,
- 							    &gpi_event->ccu_error_notif_event);
- 				break;
-@@ -2176,7 +2177,7 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
+@@ -2365,7 +2365,7 @@ static int gpi_create_i2c_tre(struct gchan *chan, struct gpi_desc *desc,
  			tre->dword[0] = u32_encode_bits(i2c->op, TRE_I2C_GO_CMD);
  
  		tre->dword[0] |= u32_encode_bits(i2c->addr, TRE_I2C_GO_ADDR);
@@ -61,7 +53,7 @@ index 4817fdebde15..d83914d36afa 100644
  		tre->dword[0] |= u32_encode_bits(i2c->stretch, TRE_I2C_GO_STRETCH);
  		tre->dword[0] |= u32_encode_bits(i2c->pre_delay, TRE_I2C_GO_PRE_DELAY);
  		tre->dword[0] |= u32_encode_bits(i2c->post_delay, TRE_I2C_GO_POST_DELAY);
-@@ -2754,6 +2755,8 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2963,6 +2963,8 @@ static int gpi_probe(struct platform_device *pdev)
  	if (data->is_ccu_qup) {
  		gpi_dev->cfg = *data;
  		register_gpi_irq(ccu_gpi_handle_isr);
@@ -70,7 +62,7 @@ index 4817fdebde15..d83914d36afa 100644
  	}
  
  	gpi_dev->ee_base = gpi_dev->ee_base - data->ee_offset;
-@@ -2792,7 +2795,7 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -3002,7 +3004,7 @@ static int gpi_probe(struct platform_device *pdev)
  				(GPII_n_EV_CH_k_DOORBELL_0_OFFS(i, 0, gpi_dev->cfg.db_off)));
  		gpii->ev_ring_rp_lsb_reg = gpii->ev_cntxt_base_reg + CNTXT_4_RING_RP_LSB;
  		gpii->ev_cmd_reg = (gpi_dev->ee_base +
@@ -79,7 +71,7 @@ index 4817fdebde15..d83914d36afa 100644
  		gpii->ieob_clr_reg = (gpi_dev->ee_base +
  				      (GPII_n_CNTXT_SRC_IEOB_IRQ_CLR_OFFS
  				      (i, gpi_dev->cfg.irq_off)));
-@@ -2815,7 +2818,7 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -3025,7 +3027,7 @@ static int gpi_probe(struct platform_device *pdev)
  			gchan->ch_cntxt_db_reg = gpi_dev->ee_base +
  				(GPII_n_CH_k_DOORBELL_0_OFFS(i, chan, gpi_dev->cfg.db_off));
  			gchan->ch_cmd_reg = gpi_dev->ee_base +
@@ -89,10 +81,10 @@ index 4817fdebde15..d83914d36afa 100644
  			/* vchan setup */
  			vchan_init(&gchan->vc, &gpi_dev->dma_device);
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index 894e0adfa8fb..7fc391b41eb0 100644
+index d8abd5c7ad2f..ecc9734bd502 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -306,10 +306,9 @@ static const struct geni_i2c_clk_fld geni_ccu_i2c_clk_map[] = {
+@@ -300,10 +300,9 @@ static const struct geni_i2c_clk_fld geni_ccu_i2c_clk_map[] = {
  	{KHZ(1000), 1, 7, 20, 36},
  };
  
@@ -102,9 +94,9 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  static void i2c_gpi_cb_result(void *cb, const struct dmaengine_result *result);
 -static ccu_qup_notify_client ccu_qup_update_xfer_completion = NULL;
  
- static int geni_i2c_clk_map_idx(struct geni_i2c_dev *gi2c)
- {
-@@ -355,17 +354,6 @@ static void qcom_geni_i2c_conf(struct geni_i2c_dev *gi2c)
+ static int log_level = -1;
+ static ssize_t log_level_show(struct device *dev,
+@@ -370,17 +369,6 @@ static void qcom_geni_i2c_conf(struct geni_i2c_dev *gi2c)
  	writel_relaxed(val, gi2c->se.base + SE_I2C_SCL_COUNTERS);
  }
  
@@ -122,7 +114,7 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  /*
   * geni_i2c_power_on_off - This function is used to turn on or off all the clock
   *                         and it will free the GPII resources in suspend path and
-@@ -654,7 +642,7 @@ static int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no,
+@@ -669,7 +657,7 @@ static int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no,
  		gi2c->tx_c[idx] = NULL;
  	}
  
@@ -131,7 +123,7 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  	if (ret) {
  		dev_err(gi2c->se.dev, "AR: Setup gpi dma failed\n");
  		return ret;
-@@ -1134,7 +1122,9 @@ static void i2c_gpi_cb_result(void *cb, const struct dmaengine_result *result)
+@@ -1160,7 +1148,9 @@ static void i2c_gpi_cb_result(void *cb, const struct dmaengine_result *result)
  		if (!gi2c->err)
  			gi2c->ccu.result.err_no = gi2c->err;
  
@@ -142,7 +134,7 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  		/* Free the dma buffer associated to this frame */
  		geni_i2c_release_buf(gi2c, gpii_idx);
  	}
-@@ -1210,7 +1200,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1236,7 +1226,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  	if (op == I2C_WRITE && gi2c->is_ccu_qup) {
  		/* set the TX sub pkt_len */
  		if (gi2c->ccu.msg[idx]->pkt_len > 0) {
@@ -151,7 +143,7 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  			peripheral_cfg->rx_len = gi2c->ccu.msg[idx]->pkt_len;
  		} else {
  			peripheral_cfg->rx_len = len;
-@@ -1652,10 +1642,10 @@ static inline void init_tx_rx_ch(struct geni_i2c_dev *gi2c)
+@@ -1685,10 +1675,10 @@ static inline void init_tx_rx_ch(struct geni_i2c_dev *gi2c)
  	}
  }
  
@@ -164,7 +156,7 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  	/* For TOP QUP, only a single GPII is used per serial engine. However, for CCU QUP,
  	 * up to three GPIIs can be used per serial engine. When a single GPII is used, the
  	 * "tx" and "rx" names are provided using the `dma-names` property from the DTSI.
-@@ -1665,13 +1655,10 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
+@@ -1698,13 +1688,10 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
  	const char *tx_ch[CCU_MAX_GPII] = {"tx", "tx1", "tx2"};
  	const char *rx_ch[CCU_MAX_GPII] = {"rx", "rx1", "rx2"};
  
@@ -179,7 +171,7 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  			gi2c->tx_c[i] = dma_request_chan(gi2c->se.dev, tx_ch[i]);
  			if (IS_ERR(gi2c->tx_c[i])) {
  				ret = dev_err_probe(gi2c->se.dev, PTR_ERR(gi2c->tx_c[i]),
-@@ -1681,7 +1668,7 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
+@@ -1714,7 +1701,7 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
  		}
  
  		if (!gi2c->rx_c[i]) {
@@ -188,7 +180,7 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  			gi2c->rx_c[i] = dma_request_chan(gi2c->se.dev, rx_ch[i]);
  			if (IS_ERR(gi2c->rx_c[i])) {
  				ret = dev_err_probe(gi2c->se.dev, PTR_ERR(gi2c->rx_c[i]),
-@@ -1693,7 +1680,7 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
+@@ -1726,7 +1713,7 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
  		}
  	} while (++i < idx);
  
@@ -197,7 +189,7 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  	return 0;
  
  err:
-@@ -1823,12 +1810,12 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
+@@ -1832,7 +1819,7 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
  	if (fifo_disable) {
  		init_tx_rx_ch(gi2c);
  		/* FIFO is disabled, so we can only use GPI DMA */
@@ -206,13 +198,7 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  		if (ret) {
  			dev_err(gi2c->se.dev, "Failed to setup GPI DMA mode\n");
  			goto err;
- 		}
--
-+		
- 		gi2c->xfer_mode = GENI_GPI_DMA;
- 		geni_se_select_mode(&gi2c->se, gi2c->xfer_mode);
- 		i2c_trace_log(gi2c->se.dev, "Using GPI DMA mode for I2C\n");
-@@ -1935,9 +1922,11 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -1944,9 +1931,11 @@ static int geni_i2c_probe(struct platform_device *pdev)
  	if (has_acpi_companion(dev))
  		ACPI_COMPANION_SET(&gi2c->adap.dev, ACPI_COMPANION(dev));
  
@@ -227,15 +213,6 @@ index 894e0adfa8fb..7fc391b41eb0 100644
  
  	ret = geni_i2c_clk_map_idx(gi2c);
  	if (ret)
-@@ -1992,7 +1981,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
- 		pm_runtime_disable(gi2c->se.dev);
- 		goto err;
- 	}
--
-+													
- 	i2c_trace_log(dev, "Geni-I2C adaptor successfully added\n");
- 
- err:
 diff --git a/drivers/soc/qcom/qcom_ccu_qup.c b/drivers/soc/qcom/qcom_ccu_qup.c
 index fec39eccb659..fdaf933459c8 100644
 --- a/drivers/soc/qcom/qcom_ccu_qup.c

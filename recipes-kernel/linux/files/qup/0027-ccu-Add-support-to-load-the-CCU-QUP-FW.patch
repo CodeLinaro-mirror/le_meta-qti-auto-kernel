@@ -1,7 +1,7 @@
-From 20b95c4c5a95f40d73c990527261d6ff5d916b14 Mon Sep 17 00:00:00 2001
+From 8ed1d0cc965a4f61fc4ce6747df6f02dda8ddfb9 Mon Sep 17 00:00:00 2001
 From: Aniket Randive <arandive@qti.qualcomm.com>
 Date: Thu, 24 Apr 2025 15:52:29 +0530
-Subject: [PATCH] ccu: Add support to load the CCU QUP FW
+Subject: [PATCH 03/13] ccu: Add support to load the CCU QUP FW
 
 Add support to load the firmware for CCU QUP using SCM
 call.
@@ -41,5 +41,5 @@ index 7930aca2e914..d34ecb65bf1e 100644
  /* CCU QUP Interrupt Register */
  #define CCU_QUP_IRQ_STATUS	0x0
 -- 
-2.17.1
+2.34.1
 

@@ -1,7 +1,7 @@
-From 35b8e4302e28c4910602b1899b13f100236d74ef Mon Sep 17 00:00:00 2001
+From bc7378fe69ed1a2a7c7719193a6748e6adae5cf0 Mon Sep 17 00:00:00 2001
 From: Aniket Randive <quic_arandive@quicinc.com>
 Date: Mon, 7 Apr 2025 18:55:54 +0530
-Subject: [PATCH 7/8] PENDING: soc: qcom: ccu-qup: Add read and poll API
+Subject: [PATCH 07/12] PENDING: soc: qcom: ccu-qup: Add read and poll API
  support
 
 In asynchronous mode for write transfers, upon completion
@@ -19,7 +19,7 @@ Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
  2 files changed, 138 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/soc/qcom/qcom_ccu_qup.c b/drivers/soc/qcom/qcom_ccu_qup.c
-index d4fdc30b9232..f070ccbef564 100644
+index 472e86f162b1..f02773d047f0 100644
 --- a/drivers/soc/qcom/qcom_ccu_qup.c
 +++ b/drivers/soc/qcom/qcom_ccu_qup.c
 @@ -14,14 +14,17 @@
@@ -238,5 +238,5 @@ index b61e78efbe03..168880d57e29 100644
  
  int ccu_sync_id_to_sync_ch_mapping(struct ccu_qup *ccu, struct sync_info sync[]);
 -- 
-2.17.1
+2.34.1
 

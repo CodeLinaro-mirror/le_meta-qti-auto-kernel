@@ -1,8 +1,8 @@
-From b14f881a43a19adaf265a30ecf12dabb4f3134a8 Mon Sep 17 00:00:00 2001
-From: Maramaina Naresh <mnaresh@qti.qualcomm.com>
-Date: Thu, 22 May 2025 17:04:51 +0530
-Subject: [PATCH] dmaengine: qcom: gpi: Add premature cancel support for CCU
- QUP
+From 5e7b6f6336d98754d2059f71afb8883fa96323a3 Mon Sep 17 00:00:00 2001
+From: Aniket Randive <arandive@qti.qualcomm.com>
+Date: Mon, 8 Sep 2025 17:04:37 +0530
+Subject: [PATCH 07/13] dmaengine: qcom: gpi: Add premature cancel support for
+ CCU QUP
 
 Add support for handling premature cancel scenarios in the GPI driver
 for CCU QUP. This includes several improvements and fixes to ensure
@@ -21,17 +21,18 @@ Changes include:
 
 Change-Id: I95dc7f16f1f948e7c21140d8396ca6d9c12b2fb5
 Signed-off-by: Maramaina Naresh <mnaresh@qti.qualcomm.com>
+Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
 ---
- drivers/dma/qcom/gpi.c             | 72 ++++++++++++++------------
- drivers/i2c/busses/i2c-qcom-geni.c | 83 ++++++++++++++++++++----------
+ drivers/dma/qcom/gpi.c             | 73 ++++++++++++++------------
+ drivers/i2c/busses/i2c-qcom-geni.c | 84 ++++++++++++++++++++----------
  drivers/soc/qcom/qcom_ccu_qup.c    |  4 ++
- 3 files changed, 99 insertions(+), 60 deletions(-)
+ 3 files changed, 101 insertions(+), 60 deletions(-)
 
 diff --git a/drivers/dma/qcom/gpi.c b/drivers/dma/qcom/gpi.c
-index 14cb11eb7d6b..f8ae78498d08 100644
+index bffd65d5707a..b3ad568c7409 100644
 --- a/drivers/dma/qcom/gpi.c
 +++ b/drivers/dma/qcom/gpi.c
-@@ -88,24 +88,6 @@
+@@ -102,24 +102,6 @@
  /* Lock Unlock TRE */
  #define TRE_I2C_UNLOCK		BIT(8)
  
@@ -56,7 +57,7 @@ index 14cb11eb7d6b..f8ae78498d08 100644
  /* Register offsets from gpi-top */
  #define GPII_n_CH_k_CNTXT_0_OFFS(n, k, ccu)\
  	((ccu) ? (0x20000 + (0x1000 * (n)) + (0x80 * (k)))\
-@@ -1403,8 +1385,12 @@ static void gpi_process_xfer_compl_event(struct gchan *gchan,
+@@ -1447,8 +1429,13 @@ static void gpi_process_xfer_compl_event(struct gchan *gchan,
  	unsigned long flags;
  	u32 chid;
  
@@ -68,10 +69,11 @@ index 14cb11eb7d6b..f8ae78498d08 100644
 +	 * even when the channel is no longer active.
 +	 */
 +	if (!gpii->premature_cancel && unlikely(gchan->pm_state != ACTIVE_STATE)) {
- 		dev_err(gpii->gpi_dev->dev, "skipping processing event because ch @ %s state\n",
- 			TO_GPI_PM_STR(gchan->pm_state));
- 		return;
-@@ -1891,28 +1877,29 @@ static void gpi_queue_xfer(struct gpii *gpii, struct gchan *gchan,
++ 
+ 		GPI_ERR_LOG(LOG_LVL_ERROR, gpii->gpi_dev->dev,
+ 			    "skipping processing event because ch @ %s state\n",
+ 			    TO_GPI_PM_STR(gchan->pm_state));
+@@ -1952,28 +1939,29 @@ static void gpi_queue_xfer(struct gpii *gpii, struct gchan *gchan,
  static void gpi_nop_tre(struct gpii *gpii, struct gchan *gchan)
  {
  	struct gpi_ring *ring = &gchan->ch_ring;
@@ -111,7 +113,7 @@ index 14cb11eb7d6b..f8ae78498d08 100644
  		local_rp += ring->el_size;
  		cntxt_rp += ring->el_size;
  		if (cntxt_rp >= (ring->base + ring->len)) {
-@@ -1920,6 +1907,17 @@ static void gpi_nop_tre(struct gpii *gpii, struct gchan *gchan)
+@@ -1981,6 +1969,17 @@ static void gpi_nop_tre(struct gpii *gpii, struct gchan *gchan)
  			local_rp = to_physical(ring, ring->base);
  		}
  	}
@@ -129,7 +131,7 @@ index 14cb11eb7d6b..f8ae78498d08 100644
  }
  
  /* reset and restart transfer channel */
-@@ -1929,6 +1927,7 @@ static int gpi_terminate_all(struct dma_chan *chan)
+@@ -1990,6 +1989,7 @@ static int gpi_terminate_all(struct dma_chan *chan)
  	struct gpii *gpii = gchan->gpii;
  	int schid, echid, i;
  	int ret = 0;
@@ -137,7 +139,7 @@ index 14cb11eb7d6b..f8ae78498d08 100644
  
  	mutex_lock(&gpii->ctrl_lock);
  
-@@ -1962,7 +1961,7 @@ static int gpi_terminate_all(struct dma_chan *chan)
+@@ -2023,7 +2023,7 @@ static int gpi_terminate_all(struct dma_chan *chan)
  		ret = gpi_stop_chan(gchan);
  	}
  
@@ -146,7 +148,7 @@ index 14cb11eb7d6b..f8ae78498d08 100644
  		for (i = schid; i < echid; i++) {
  			gchan = &gpii->gchan[i];
  			gpi_nop_tre(gpii, gchan);
-@@ -1991,7 +1990,14 @@ static int gpi_terminate_all(struct dma_chan *chan)
+@@ -2054,7 +2054,14 @@ static int gpi_terminate_all(struct dma_chan *chan)
  start_chan:
  	/* restart the channels */
  	for (i = schid; i < echid; i++) {
@@ -162,7 +164,7 @@ index 14cb11eb7d6b..f8ae78498d08 100644
  
  		ret = gpi_start_chan(gchan);
  		if (ret) {
-@@ -2006,7 +2012,7 @@ static int gpi_terminate_all(struct dma_chan *chan)
+@@ -2070,7 +2077,7 @@ static int gpi_terminate_all(struct dma_chan *chan)
  		if (ret) {
  			dev_err(gpii->gpi_dev->dev, "Error with cmd:%s ret:%d\n",
  				TO_GPI_CMD_STR(GPI_CH_CMD_SYNC_TRIGGER_EN), ret);
@@ -172,18 +174,19 @@ index 14cb11eb7d6b..f8ae78498d08 100644
  	}
  
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index 247c1139d2c2..26a13a10a21f 100644
+index 4461f4988be1..e6ff6b883bd5 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -313,6 +313,7 @@ static const struct geni_i2c_clk_fld geni_ccu_i2c_clk_map[] = {
+@@ -307,6 +307,8 @@ static const struct geni_i2c_clk_fld geni_ccu_i2c_clk_map[] = {
  static int setup_gpi_dma(struct geni_i2c_dev *gi2c, int idx);
  static void release_gpi_dma(struct geni_i2c_dev *gi2c);
  static void i2c_gpi_cb_result(void *cb, const struct dmaengine_result *result);
-+static void geni_i2c_gpi_release_ccu_frame(struct geni_i2c_dev *gi2c, struct ccu_frame_info *frame);
++static void geni_i2c_gpi_release_ccu_frame(struct geni_i2c_dev *gi2c,
++					   struct ccu_frame_info *frame);
  
- static int geni_i2c_clk_map_idx(struct geni_i2c_dev *gi2c)
- {
-@@ -612,7 +613,7 @@ static int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no,
+ static int log_level = -1;
+ static ssize_t log_level_show(struct device *dev,
+@@ -627,7 +629,7 @@ static int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no,
  	}
  	idx = (gpii_no % CCU_MAX_GPII);
  
@@ -192,7 +195,7 @@ index 247c1139d2c2..26a13a10a21f 100644
  		dev_err(gi2c->se.dev, "%s: Invalid request, ch_type:%d, mode:%d gpii_no:%d\n",
  			__func__, ch_type, mode, gpii_no);
  		return -EINVAL;
-@@ -634,7 +635,6 @@ static int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no,
+@@ -649,7 +651,6 @@ static int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no,
  		ccu_gpi_configure_mode(gi2c->tx_c[idx], mode, ch_type);
  		ccu_gpi_configure_mode(gi2c->rx_c[idx], mode, ch_type);
  		dmaengine_terminate_sync(gi2c->tx_c[idx]);
@@ -200,7 +203,7 @@ index 247c1139d2c2..26a13a10a21f 100644
  	}
  
  	gi2c->ccu.gpi[idx].gpii_mode_change = false;
-@@ -652,7 +652,7 @@ static int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no,
+@@ -667,7 +668,7 @@ static int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no,
   * Return 0 on success and error on failure.
   */
  static int geni_i2c_gpii_reset(struct i2c_adapter *adap, int gpii_no,
@@ -209,7 +212,7 @@ index 247c1139d2c2..26a13a10a21f 100644
  {
  	struct geni_i2c_dev *gi2c;
  	int idx = gpii_no % CCU_MAX_GPII;
-@@ -669,24 +669,28 @@ static int geni_i2c_gpii_reset(struct i2c_adapter *adap, int gpii_no,
+@@ -684,24 +685,28 @@ static int geni_i2c_gpii_reset(struct i2c_adapter *adap, int gpii_no,
  		}
  	}
  
@@ -249,7 +252,7 @@ index 247c1139d2c2..26a13a10a21f 100644
  		}
  	}
  
-@@ -1090,7 +1094,6 @@ static int geni_i2c_gpi_nop_tre(struct geni_i2c_dev *gi2c, struct dma_slave_conf
+@@ -1114,7 +1119,6 @@ static int geni_i2c_gpi_nop_tre(struct geni_i2c_dev *gi2c, struct dma_slave_conf
  
  err:
  	dev_err(gi2c->se.dev, "%s: GPI transfer failed: %d\n", __func__, ret);
@@ -257,7 +260,7 @@ index 247c1139d2c2..26a13a10a21f 100644
  	dmaengine_terminate_sync(gi2c->tx_c[idx]);
  
  err_submit:
-@@ -1143,19 +1146,16 @@ static int geni_i2c_tx_one_msg(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1167,19 +1171,16 @@ static int geni_i2c_tx_one_msg(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  }
  
  /*
@@ -281,7 +284,7 @@ index 247c1139d2c2..26a13a10a21f 100644
  	msgs = frame->msgs;
  
  	for (i = 0; i < msgs; i++) {
-@@ -1179,6 +1179,21 @@ static void  geni_i2c_release_buf(struct geni_i2c_dev *gi2c, int idx)
+@@ -1203,6 +1204,21 @@ static void  geni_i2c_release_buf(struct geni_i2c_dev *gi2c, int idx)
  		frame->msg[i].addr = 0;
  	}
  	memset(frame, 0, sizeof(*frame));
@@ -303,7 +306,7 @@ index 247c1139d2c2..26a13a10a21f 100644
  
  	if (frame_idx >= MAX_NUM_FRAMES -1)
  		gi2c->ccu.gpi[idx].released_cnt = 0;
-@@ -1237,12 +1252,19 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1263,12 +1279,19 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  {
  	if (tx_buf) {
  		dma_unmap_single(gi2c->se.dev->parent, tx_addr, msg->len, DMA_TO_DEVICE);
@@ -325,7 +328,7 @@ index 247c1139d2c2..26a13a10a21f 100644
  			i2c_put_dma_safe_msg_buf(rx_buf, msg, !gi2c->err);
  	}
  }
-@@ -1620,12 +1642,16 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+@@ -1649,12 +1672,16 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
  						msgs[i].len, DMA_FROM_DEVICE);
  		}
  
@@ -343,7 +346,7 @@ index 247c1139d2c2..26a13a10a21f 100644
  		}
  next_msg:
  		if (gi2c->is_ccu_qup) {
-@@ -1657,9 +1683,12 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+@@ -1686,9 +1713,12 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
  		kfree(gi2c->ccu.msg[i]);
  		gi2c->ccu.msg[i] = NULL;
  	}
