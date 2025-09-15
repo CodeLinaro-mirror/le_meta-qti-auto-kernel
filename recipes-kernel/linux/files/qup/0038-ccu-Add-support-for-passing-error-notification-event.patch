@@ -1,0 +1,274 @@
+From 7c26d546404e6f7a7253be4d9e5cce534ab30fc4 Mon Sep 17 00:00:00 2001
+From: Aniket Randive <arandive@qti.qualcomm.com>
+Date: Mon, 4 Aug 2025 14:46:33 +0530
+Subject: [PATCH] ccu: Add support for passing error notification event to
+ client
+
+Sometimes the client does not queue any packet on the sync channel,
+but if a sync trigger occurs on that channel, the hardware reports
+an error event with type I2C_CCU_SYNC_TRE_NOT_FOUND. The client
+needs this error event to identify which frame was missed.
+
+This commit adds support to pass such error events to the client.
+The driver now sends a poll notification to the client, which
+should then read the event using the read API. The event typically
+includes the QUP number, GPII number, and error code (0x37).
+
+Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
+---
+ drivers/dma/qcom/gpi.c                | 50 +++-----------------
+ drivers/soc/qcom/qcom_ccu_qup.c       | 66 +++++++++++++++++++++++----
+ include/linux/soc/qcom/qcom_ccu_qup.h |  6 ++-
+ include/uapi/linux/ccu_qup/ccu_qup.h  |  2 +
+ 4 files changed, 71 insertions(+), 53 deletions(-)
+
+diff --git a/drivers/dma/qcom/gpi.c b/drivers/dma/qcom/gpi.c
+index f0cae4f3d943..a90ffec2b49f 100644
+--- a/drivers/dma/qcom/gpi.c
++++ b/drivers/dma/qcom/gpi.c
+@@ -721,6 +721,7 @@ struct gpii {
+ 	u32 cntxt_type_irq_msk;
+ 	bool ieob_set;
+ 	bool premature_cancel;
++	u8 qup_id;
+ };
+ 
+ #define MAX_TRE 5
+@@ -1293,7 +1294,7 @@ static irqreturn_t gpi_handle_irq(int irq, void *data)
+ }
+ 
+ /* Handle IRQ for GPII */
+-static void ccu_gpi_handle_isr(struct platform_device *pdev, int idx)
++static void ccu_gpi_handle_isr(struct platform_device *pdev, int gpii_idx, int qup_idx)
+ {
+ 	struct gpi_dev *gpi;
+ 	struct gpii *gpii;
+@@ -1304,8 +1305,8 @@ static void ccu_gpi_handle_isr(struct platform_device *pdev, int idx)
+ 	}
+ 
+ 	gpi = platform_get_drvdata(pdev);
+-	gpii = &gpi->gpiis[idx];
+-
++	gpii = &gpi->gpiis[gpii_idx];
++	gpii->qup_id = qup_idx;
+ 	process_gpi_irq(gpii);
+ }
+ 
+@@ -1319,49 +1320,12 @@ static void gpi_process_ccu_error_event(struct gchan *gchan,
+ 	struct virt_dma_desc *vd;
+ 	unsigned long flags;
+ 
+-	if (gchan->pm_state != ACTIVE_STATE) {
+-		GPI_ERR_LOG(LOG_LVL_ERROR, gpii->gpi_dev->dev,
+-			    "skipping processing event because ch @ %s state\n",
+-			    TO_GPI_PM_STR(gchan->pm_state));
+-		return;
+-	}
+-
+-	spin_lock_irqsave(&gchan->vc.lock, flags);
+-	vd = vchan_next_desc(&gchan->vc);
+-	if (!vd) {
+-		struct gpi_ere *gpi_ere;
+-
+-		spin_unlock_irqrestore(&gchan->vc.lock, flags);
+-		GPI_ERR_LOG(LOG_LVL_ERROR, gpii->gpi_dev->dev,
+-			    "Event without a pending descriptor!\n");
+-		gpi_ere = (struct gpi_ere *)error_event;
+-		GPI_ERR_LOG(LOG_LVL_ERROR, gpii->gpi_dev->dev,
+-			    "Event: %08x %08x %08x %08x\n",
+-			    gpi_ere->dword[0], gpi_ere->dword[1],
+-			    gpi_ere->dword[2], gpi_ere->dword[3]);
+-		return;
+-	}
+-	gpi_desc = to_gpi_desc(vd);
+-	spin_unlock_irqrestore(&gchan->vc.lock, flags);
+-
+-	/* make sure rp updates are immediately visible to all cores */
+-	smp_wmb();
+-
+ 	if (error_event->code == MSM_GPI_TCE_UNEXP_ERR &&
+ 			error_event->type == CCU_ERROR_NOTIFICATION_EV_TYPE) {
+-		GPI_ERR_LOG(LOG_LVL_ERROR, gpii->gpi_dev->dev, "I2C CCU SYNC TRE Not Found\n");
+-		result.result = DMA_TRANS_ABORTED;
+-		result.gpii_id = gpii->gpii_id;
++		GPI_ERR_LOG(LOG_LVL_ERROR, gpii->gpi_dev->dev,
++			    "CCU QUP:%d GPII:%d I2C CCU SYNC TRE Not Found:%d\n", gpii->qup_id, gpii->gpii_id, error_event->type);
++		ccu_update_error_notification_event(gpii->qup_id, gpii->gpii_id, error_event->type);
+ 	}
+-
+-	dma_cookie_complete(&vd->tx);
+-	dmaengine_desc_get_callback_invoke(&vd->tx, &result);
+-
+-	spin_lock_irqsave(&gchan->vc.lock, flags);
+-	list_del(&vd->node);
+-	spin_unlock_irqrestore(&gchan->vc.lock, flags);
+-	kfree(gpi_desc);
+-	gpi_desc = NULL;
+ }
+ 
+ /* process DMA Immediate completion data events */
+diff --git a/drivers/soc/qcom/qcom_ccu_qup.c b/drivers/soc/qcom/qcom_ccu_qup.c
+index 5a5fe863b76e..7e9f28fb384b 100644
+--- a/drivers/soc/qcom/qcom_ccu_qup.c
++++ b/drivers/soc/qcom/qcom_ccu_qup.c
+@@ -151,6 +151,7 @@ static int ccu_copy_result_to_user_buf(struct ccu_qup *ccu, struct ccu_xfer_resu
+ 	/* Copy metadata */
+ 	if (put_user(result->gpii_no, &user_buf->gpii_no) ||
+ 	    put_user(result->adap_nr, &user_buf->adap_nr) ||
++	    put_user(result->adap_nr, &user_buf->qup_no) ||
+ 	    put_user(result->frame_cookie, &user_buf->frame_cookie) ||
+ 	    put_user(result->err_no, &user_buf->err_no) ||
+ 	    put_user(result->nr_async_read_msgs, &user_buf->nr_async_read_msgs))
+@@ -168,10 +169,12 @@ static int ccu_copy_result_to_user_buf(struct ccu_qup *ccu, struct ccu_xfer_resu
+ 			return -EFAULT;
+ 	}
+ 
+-	frame_no = atomic_read(result->released_cnt);
++	if (!result->released_cnt)
++		goto skip_frame_clear;
+ 
++	frame_no = atomic_read(result->released_cnt);
+ 	if (test_and_clear_bit(frame_no, result->frame_usage_bitmap)) {
+-		CCU_DBG_LOG(LOG_LVL_VERBOSE, ccu->dev,
++		CCU_ERR_LOG(LOG_LVL_VERBOSE, ccu->dev,
+ 			    "released frame_no:%d gpii_no:%d, bitmap:0x%x released_cnt:%d\n",
+ 			    frame_no, result->gpii_no, READ_ONCE(*result->frame_usage_bitmap),
+ 			    atomic_read(result->released_cnt));
+@@ -180,16 +183,16 @@ static int ccu_copy_result_to_user_buf(struct ccu_qup *ccu, struct ccu_xfer_resu
+ 		else
+ 			atomic_inc(result->released_cnt);
+ 	} else {
+-		CCU_DBG_LOG(LOG_LVL_VERBOSE, ccu->dev,
++		CCU_ERR_LOG(LOG_LVL_VERBOSE, ccu->dev,
+ 			    "Unexpected operation: clear was already performed frame_no:%d gpii_no:%d frame_usage_bitmap:0x%x released_cnt:%d\n",
+ 			    frame_no, result->gpii_no, READ_ONCE(*result->frame_usage_bitmap),
+ 			    atomic_read(result->released_cnt));
+ 	}
+-
+-	CCU_DBG_LOG(LOG_LVL_VERBOSE, ccu->dev,
+-		    "Copy Success gpii:%d adap_nr:%d cookie:%x err_no:%d async_read_msgs:%d\n",
+-		    result->gpii_no, result->adap_nr, result->frame_cookie, result->err_no,
+-		    result->nr_async_read_msgs);
++skip_frame_clear:
++	CCU_ERR_LOG(LOG_LVL_VERBOSE, ccu->dev,
++		    "Copy Success QUP:%d gpii:%d adap_nr:%d cookie:%x err_no:%d async_read_msgs:%d\n",
++		    result->qup_no, result->gpii_no, result->adap_nr, result->frame_cookie,
++		    result->err_no, result->nr_async_read_msgs);
+ 	return sizeof(struct ccu_qup_client_data);
+ }
+ 
+@@ -320,6 +323,51 @@ void ccu_update_xfer_result(struct ccu_xfer_result *result)
+ }
+ EXPORT_SYMBOL(ccu_update_xfer_result);
+ 
++void ccu_update_error_notification_event(int qup_no, int gpii_no, int err)
++{
++	struct ccu_qup *ccu = ccud;
++	struct ccu_xfer_result *result;
++	struct ccu_response_data *entry;
++	unsigned long flags;
++
++	CCU_DBG_LOG(LOG_LVL_VERBOSE, ccu->dev, "%s: start\n", __func__);
++	result = kzalloc(sizeof(*result), GFP_ATOMIC);
++	if (!result) {
++		CCU_ERR_LOG(LOG_LVL_ERROR, ccu->dev, "Memory allocation failed for result\n");
++		return;
++	}
++
++	result->gpii_no = gpii_no;
++	result->qup_no = qup_no;
++	result->err_no = err;
++
++	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
++	if (!entry) {
++		CCU_ERR_LOG(LOG_LVL_ERROR, ccu->dev, "Memory allocation failed for entry\n");
++		kfree(result);
++		return;
++	}
++
++	entry->res_buf = kmalloc(sizeof(*result), GFP_ATOMIC);
++	if (!entry->res_buf) {
++		CCU_ERR_LOG(LOG_LVL_ERROR, ccu->dev, "Memory allocation failed for buf\n");
++		kfree(entry);
++		kfree(result);
++		return;
++	}
++
++	spin_lock_irqsave(&ccu->lock, flags);
++	memcpy(entry->res_buf, result, sizeof(*result));
++	kfree(result);
++	INIT_LIST_HEAD(&entry->list);
++	/* Add received completion notification result in the list */
++	list_add(&entry->list, &ccu->response_list);
++	atomic_inc(&ccu->rx_avail);
++	spin_unlock_irqrestore(&ccu->lock, flags);
++	wake_up_interruptible(&ccu->readq);
++}
++EXPORT_SYMBOL(ccu_update_error_notification_event);
++
+ static int ccu_release(struct inode *inode, struct file *filp)
+ {
+ 	struct ccu_qup *ccu;
+@@ -750,7 +798,7 @@ static irqreturn_t ccu_irq_handler(int irq, void *dev_id)
+ 	for_each_set_bit(bit, &gpii_mask, GPII_IRQ_COUNT) {
+ 		CCU_DBG_LOG(LOG_LVL_VERBOSE, ccu->dev,
+ 			    "IRQ for CCU QUP%d - GPII%d IRQ_STATUS:%d\n", idx, bit, irq_stat);
+-		gpi_handle_irq(ccu->gpi_pdev[idx], bit);
++		gpi_handle_irq(ccu->gpi_pdev[idx], bit, idx);
+ 	}
+ 
+ 	spin_unlock_irqrestore(&ccu->irq_lock[idx], flag);
+diff --git a/include/linux/soc/qcom/qcom_ccu_qup.h b/include/linux/soc/qcom/qcom_ccu_qup.h
+index 2c112bf23097..f4962d15be0a 100644
+--- a/include/linux/soc/qcom/qcom_ccu_qup.h
++++ b/include/linux/soc/qcom/qcom_ccu_qup.h
+@@ -71,6 +71,7 @@ struct child_probe_status {
+  *                              mode of transfer.
+  * @gpii_no: GPII Number for which error is received.
+  * @adap_nr: represents the SE adapter.
++ * @qup_no: indicates the QUP number.
+  * @frame_cookie: Frame cookie to know which frame has error.
+  * @err_no: represents standard error code in case of transfer failure.
+  * @nr_async_read_msgs: number of valid async read messages
+@@ -81,6 +82,7 @@ struct child_probe_status {
+ struct ccu_xfer_result {
+ 	u8 gpii_no;
+ 	u8 adap_nr;
++	u8 qup_no;
+ 	u32 frame_cookie;
+ 	int err_no;
+ 	__u8 nr_async_read_msgs;
+@@ -199,7 +201,9 @@ void register_i2c_function(power_on_off_t geni_i2c_power_on_off,
+ 		gpii_reset_t geni_i2c_gpii_reset,
+ 		config_delay_t geni_i2c_configure_pre_delay);
+ 
+-typedef void (*ccu_gpi_handle_isr_t) (struct platform_device *dev, int idx);
++typedef void (*ccu_gpi_handle_isr_t) (struct platform_device *dev, int gpii_idx, int qup_idx);
+ 
+ void register_gpi_irq(ccu_gpi_handle_isr_t);
++
++void ccu_update_error_notification_event(int qup_no, int gpii_no, int err);
+ #endif /* _QCOM_CCU_QUP_H_ */
+diff --git a/include/uapi/linux/ccu_qup/ccu_qup.h b/include/uapi/linux/ccu_qup/ccu_qup.h
+index 985416e0c01a..1953f8d80d82 100644
+--- a/include/uapi/linux/ccu_qup/ccu_qup.h
++++ b/include/uapi/linux/ccu_qup/ccu_qup.h
+@@ -68,6 +68,7 @@ struct ccu_i2c_async_read_msg_info {
+  *                              will pass to client in asyncronous mode of transfer.
+  * @gpii_no: GPII Number for which error is received.
+  * @adap_nr: This number represents the /dev/i2c-%d number.
++ * @qup_no: indicate the QUP number in case of error notification event
+  * @frame_cookie: Frame cookie to know which frame has error.
+  * @err_no: This represents standard error code in case of transfer failure.
+  * @nr_async_read_msgs: Indicates the number of valid async read messages.
+@@ -77,6 +78,7 @@ struct ccu_i2c_async_read_msg_info {
+ struct ccu_qup_client_data {
+ 	__u8 gpii_no;
+ 	__u8 adap_nr;
++	__u8 qup_no;
+ 	__u32 frame_cookie;
+ 	int err_no;
+ 	__u8 nr_async_read_msgs;
+-- 
+2.34.1
+

@@ -96,6 +96,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0030-i2c-Add-validation-checks-and-fix-inter-frame-delay-.patch \
     file://qup/0031-dmaengine-qcom-gpi-Add-premature-cancel-support-for-.patch \
     file://qup/0032-PENDING-i2c-qcom-geni-Add-GSI-S2R-support-for-CCU-QU.patch \
+    file://pcie/0003-PCIe_RC_Patch-PCIe-Fix-Safety-Features-for-sa8797p.patch \
     file://pcie/0005-MHI_RC_bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
     file://pcie/0007-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-Nords.patch \
     file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
@@ -104,6 +105,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
     file://qup/0036-ccu-Optimize-interrupt-handling-and-improve-GSI-reso.patch \
     file://qup/0037-ccu-Refactor-response-list-handling-to-prevent-corru.patch \
+    file://qup/0038-ccu-Add-support-for-passing-error-notification-event.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
