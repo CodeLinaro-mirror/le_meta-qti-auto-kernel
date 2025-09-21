@@ -1,7 +1,8 @@
-From d11ae3fac4dd15a5e7b17d0568fbf2f6c2a1d67d Mon Sep 17 00:00:00 2001
+From 6bd16706322d4d47cd0c337c0a72885a2fcb03e6 Mon Sep 17 00:00:00 2001
 From: Aniket Randive <quic_arandive@quicinc.com>
 Date: Tue, 8 Apr 2025 11:00:07 +0530
-Subject: [PATCH] i2c: Fix I2C multi-message write and DMA buffer sync issues
+Subject: [PATCH 11/12] i2c: Fix I2C multi-message write and DMA buffer sync
+ issues
 
 Resolve bug in I2C code where multiple write message transfers fail
 due to incorrect GO TRE filling for the second write message. Clear
@@ -18,10 +19,10 @@ Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
  1 file changed, 8 insertions(+)
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index 9195cef2ca51..12063ffbe60d 100644
+index 7520536fae43..d8abd5c7ad2f 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -1419,6 +1419,9 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+@@ -1461,6 +1461,9 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
  
  		peripheral->addr = msgs[i].addr;
  
@@ -31,7 +32,7 @@ index 9195cef2ca51..12063ffbe60d 100644
  		if (gi2c->is_ccu_qup)
  			ret = geni_i2c_gpi(gi2c, &msgs[i], &config,
  					   &frame->msg[i].addr, &frame->msg[i].tx_buf,
-@@ -1472,6 +1475,11 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+@@ -1514,6 +1517,11 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
  			goto err;
  		}
  
@@ -44,5 +45,5 @@ index 9195cef2ca51..12063ffbe60d 100644
  		if (gi2c->is_ccu_qup) {
  			if (gi2c->ccu.gpi[idx].released_cnt >= MAX_NUM_FRAMES)
 -- 
-2.17.1
+2.34.1
 

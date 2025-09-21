@@ -1,7 +1,7 @@
-From bee9e134bb2b922e0eeab9ba9a114657d8abc5a5 Mon Sep 17 00:00:00 2001
-From: Aniket Randive <quic_arandive@quicinc.com>
-Date: Thu, 5 Sep 2024 16:01:39 +0530
-Subject: [PATCH 1/8] PENDING: dmaengine: gpi: Add new register offset to
+From 9d9778e28ee7b21bfc8a810798919c5f93ccba57 Mon Sep 17 00:00:00 2001
+From: Aniket Randive <arandive@qti.qualcomm.com>
+Date: Mon, 8 Sep 2025 14:35:08 +0530
+Subject: [PATCH 01/12] PENDING: dmaengine: gpi: Add new register offset to
  support CCU QUP
 
 A new FUSA fault register, along with ECC and SYNC timer
@@ -11,17 +11,17 @@ modified to reduce address space. However, the register
 offset within the sub-blocks remains unchanged.
 
 Change-Id: Id4436b98548cd089f5e517304bc5f9ea84cf5383
-Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
+Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
 ---
  drivers/dma/qcom/gpi.c           | 357 +++++++++++++++++++++++--------
  include/linux/soc/qcom/geni-se.h |  36 ++++
  2 files changed, 303 insertions(+), 90 deletions(-)
 
 diff --git a/drivers/dma/qcom/gpi.c b/drivers/dma/qcom/gpi.c
-index a4233e7c5f86..9acb9fd2854f 100644
+index 59a2b4a72f68..32d554ee7f56 100644
 --- a/drivers/dma/qcom/gpi.c
 +++ b/drivers/dma/qcom/gpi.c
-@@ -77,7 +77,9 @@
+@@ -91,7 +91,9 @@
  #define TRE_I2C_UNLOCK		BIT(8)
  
  /* Register offsets from gpi-top */
@@ -32,7 +32,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  #define GPII_n_CH_k_CNTXT_0_EL_SIZE	GENMASK(31, 24)
  #define GPII_n_CH_k_CNTXT_0_CHSTATE	GENMASK(23, 20)
  #define GPII_n_CH_k_CNTXT_0_ERIDX	GENMASK(18, 14)
-@@ -95,8 +97,12 @@
+@@ -109,8 +111,12 @@
  
  #define GPI_CHTYPE_PROTO_GPI	(0x2)
  
@@ -47,7 +47,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  #define GPII_n_CH_CMD_OPCODE			GENMASK(31, 24)
  #define GPII_n_CH_CMD_CHID			GENMASK(7, 0)
  #define GPII_n_CH_CMD(opcode, chid)				 \
-@@ -113,7 +119,9 @@
+@@ -127,7 +133,9 @@
  #define GPII_n_CH_CMD_UART_RFR_NOT_READY (34)
  
  /* EV Context Array */
@@ -58,7 +58,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  #define GPII_n_EV_k_CNTXT_0_EL_SIZE	GENMASK(31, 24)
  #define GPII_n_EV_k_CNTXT_0_CHSTATE	GENMASK(23, 20)
  #define GPII_n_EV_k_CNTXT_0_INTYPE	BIT(16)
-@@ -144,8 +152,12 @@ enum CNTXT_OFFS {
+@@ -158,8 +166,12 @@ enum CNTXT_OFFS {
  	CNTXT_13_RING_RP_UPDATE_MSB = 0x34,
  };
  
@@ -73,7 +73,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  #define GPII_n_EV_CMD_OPCODE			GENMASK(31, 24)
  #define GPII_n_EV_CMD_CHID			GENMASK(7, 0)
  #define GPII_n_EV_CMD(opcode, chid)				 \
-@@ -156,10 +168,14 @@ enum CNTXT_OFFS {
+@@ -170,10 +182,14 @@ enum CNTXT_OFFS {
  #define GPII_n_EV_CH_CMD_RESET			(0x09)
  #define GPII_n_EV_CH_CMD_DE_ALLOC		(0x0A)
  
@@ -90,7 +90,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  #define GPII_n_CNTXT_TYPE_IRQ_MSK_BMSK		GENMASK(6, 0)
  #define GPII_n_CNTXT_TYPE_IRQ_MSK_GENERAL	BIT(6)
  #define GPII_n_CNTXT_TYPE_IRQ_MSK_IEOB		BIT(3)
-@@ -167,65 +183,123 @@ enum CNTXT_OFFS {
+@@ -181,65 +197,123 @@ enum CNTXT_OFFS {
  #define GPII_n_CNTXT_TYPE_IRQ_MSK_EV_CTRL	BIT(1)
  #define GPII_n_CNTXT_TYPE_IRQ_MSK_CH_CTRL	BIT(0)
  
@@ -243,7 +243,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  
  struct __packed gpi_tre {
  	u32 dword[4];
-@@ -475,6 +549,15 @@ struct gpi_ring {
+@@ -489,6 +563,15 @@ struct gpi_ring {
  	bool configured;
  };
  
@@ -259,7 +259,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  struct gpi_dev {
  	struct dma_device dma_device;
  	struct device *dev;
-@@ -485,6 +568,7 @@ struct gpi_dev {
+@@ -499,6 +582,7 @@ struct gpi_dev {
  	u32 gpii_mask; /* gpii instances available for apps */
  	u32 ev_factor; /* ev ring length factor */
  	struct gpii *gpiis;
@@ -267,7 +267,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  };
  
  struct reg_info {
-@@ -507,6 +591,8 @@ struct gchan {
+@@ -521,6 +605,8 @@ struct gchan {
  	u32 dir;
  	struct gpi_ring ch_ring;
  	void *config;
@@ -276,7 +276,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  };
  
  struct gpii {
-@@ -609,19 +695,26 @@ gpi_update_reg(struct gpii *gpii, u32 offset, u32 mask, u32 val)
+@@ -644,19 +730,26 @@ gpi_update_reg(struct gpii *gpii, u32 offset, u32 mask, u32 val)
  
  static void gpi_disable_interrupts(struct gpii *gpii)
  {
@@ -310,7 +310,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  		       GPII_n_CNTXT_INTSET_BMSK, 0);
  
  	gpii->cntxt_type_irq_msk = 0;
-@@ -659,32 +752,52 @@ static int gpi_config_interrupts(struct gpii *gpii, enum gpii_irq_settings setti
+@@ -694,32 +787,52 @@ static int gpi_config_interrupts(struct gpii *gpii, enum gpii_irq_settings setti
  			gpii->cntxt_type_irq_msk |= GPII_n_CNTXT_TYPE_IRQ_MSK_IEOB;
  		else
  			gpii->cntxt_type_irq_msk &= ~(GPII_n_CNTXT_TYPE_IRQ_MSK_IEOB);
@@ -376,7 +376,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  
  		gpii->cntxt_type_irq_msk = enable;
  	}
-@@ -773,13 +886,13 @@ static void gpi_process_ieob(struct gpii *gpii)
+@@ -809,13 +922,13 @@ static void gpi_process_ieob(struct gpii *gpii)
  static void gpi_process_ch_ctrl_irq(struct gpii *gpii)
  {
  	u32 gpii_id = gpii->gpii_id;
@@ -392,7 +392,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  	gpi_write_reg(gpii, gpii->regs + offset, (u32)ch_irq);
  
  	for (chid = 0; chid < MAX_CHANNELS_PER_GPII; chid++) {
-@@ -814,14 +927,14 @@ static void gpi_process_ch_ctrl_irq(struct gpii *gpii)
+@@ -850,7 +963,7 @@ static void gpi_process_ch_ctrl_irq(struct gpii *gpii)
  static void gpi_process_gen_err_irq(struct gpii *gpii)
  {
  	u32 gpii_id = gpii->gpii_id;
@@ -401,7 +401,8 @@ index a4233e7c5f86..9acb9fd2854f 100644
  	u32 irq_stts = gpi_read_reg(gpii, gpii->regs + offset);
  
  	/* clear the status */
- 	dev_dbg(gpii->gpi_dev->dev, "irq_stts:0x%x\n", irq_stts);
+@@ -858,7 +971,7 @@ static void gpi_process_gen_err_irq(struct gpii *gpii)
+ 		    irq_stts);
  
  	/* Clear the register */
 -	offset = GPII_n_CNTXT_GPII_IRQ_CLR_OFFS(gpii_id);
@@ -409,7 +410,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  	gpi_write_reg(gpii, gpii->regs + offset, irq_stts);
  }
  
-@@ -829,10 +942,11 @@ static void gpi_process_gen_err_irq(struct gpii *gpii)
+@@ -866,10 +979,11 @@ static void gpi_process_gen_err_irq(struct gpii *gpii)
  static void gpi_process_glob_err_irq(struct gpii *gpii)
  {
  	u32 gpii_id = gpii->gpii_id;
@@ -423,7 +424,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  	gpi_write_reg(gpii, gpii->regs + offset, irq_stts);
  
  	/* only error interrupt should be set */
-@@ -841,7 +955,7 @@ static void gpi_process_glob_err_irq(struct gpii *gpii)
+@@ -879,7 +993,7 @@ static void gpi_process_glob_err_irq(struct gpii *gpii)
  		return;
  	}
  
@@ -432,7 +433,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  	gpi_write_reg(gpii, gpii->regs + offset, 0);
  }
  
-@@ -865,7 +979,7 @@ static irqreturn_t gpi_handle_irq(int irq, void *data)
+@@ -904,7 +1018,7 @@ static irqreturn_t gpi_handle_irq(int irq, void *data)
  		goto exit_irq;
  	}
  
@@ -441,10 +442,10 @@ index a4233e7c5f86..9acb9fd2854f 100644
  	type = gpi_read_reg(gpii, gpii->regs + offset);
  
  	do {
-@@ -888,11 +1002,12 @@ static irqreturn_t gpi_handle_irq(int irq, void *data)
+@@ -927,11 +1041,12 @@ static irqreturn_t gpi_handle_irq(int irq, void *data)
  
- 			dev_dbg(gpii->gpi_dev->dev,
- 				"processing EV CTRL interrupt\n");
+ 			GPI_DBG_LOG(LOG_LVL_INFO, gpii->gpi_dev->dev,
+ 				    "processing EV CTRL interrupt\n");
 -			offset = GPII_n_CNTXT_SRC_EV_CH_IRQ_OFFS(gpii_id);
 +			offset = GPII_n_CNTXT_SRC_EV_CH_IRQ_OFFS
 +				(gpii_id, gpii->gpi_dev->cfg->irq_off);
@@ -456,7 +457,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  			gpi_write_reg(gpii, gpii->regs + offset, ev_ch_irq);
  			ev_state = gpi_read_reg(gpii, gpii->ev_cntxt_base_reg +
  						CNTXT_0_CONFIG);
-@@ -926,7 +1041,7 @@ static irqreturn_t gpi_handle_irq(int irq, void *data)
+@@ -968,7 +1083,7 @@ static irqreturn_t gpi_handle_irq(int irq, void *data)
  			goto exit_irq;
  		}
  
@@ -465,7 +466,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  		type = gpi_read_reg(gpii, gpii->regs + offset);
  	} while (type);
  
-@@ -1311,12 +1426,22 @@ static int gpi_alloc_chan(struct gchan *chan, bool send_alloc_cmd)
+@@ -1368,12 +1483,22 @@ static int gpi_alloc_chan(struct gchan *chan, bool send_alloc_cmd)
  		      upper_32_bits(ring->phys_addr));
  	gpi_write_reg(gpii, chan->ch_cntxt_db_reg + CNTXT_5_RING_RP_MSB - CNTXT_4_RING_RP_LSB,
  		      upper_32_bits(ring->phys_addr));
@@ -494,7 +495,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  
  	/* flush all the writes */
  	wmb();
-@@ -2222,6 +2347,7 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2427,6 +2552,7 @@ static int gpi_probe(struct platform_device *pdev)
  	unsigned int i;
  	u32 ee_offset;
  	int ret;
@@ -502,7 +503,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  
  	gpi_dev = devm_kzalloc(&pdev->dev, sizeof(*gpi_dev), GFP_KERNEL);
  	if (!gpi_dev)
-@@ -2247,8 +2373,19 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2454,8 +2580,19 @@ static int gpi_probe(struct platform_device *pdev)
  		return ret;
  	}
  
@@ -524,7 +525,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  
  	gpi_dev->ev_factor = EV_FACTOR;
  
-@@ -2273,11 +2410,15 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2481,11 +2618,15 @@ static int gpi_probe(struct platform_device *pdev)
  			continue;
  
  		/* set up ev cntxt register map */
@@ -544,7 +545,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  
  		/* set up irq */
  		ret = platform_get_irq(pdev, i);
-@@ -2291,10 +2432,11 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2499,10 +2640,11 @@ static int gpi_probe(struct platform_device *pdev)
  
  			/* set up ch cntxt register map */
  			gchan->ch_cntxt_base_reg = gpi_dev->ee_base +
@@ -559,7 +560,7 @@ index a4233e7c5f86..9acb9fd2854f 100644
  
  			/* vchan setup */
  			vchan_init(&gchan->vc, &gpi_dev->dma_device);
-@@ -2352,19 +2494,54 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2566,19 +2708,54 @@ static int gpi_probe(struct platform_device *pdev)
  	return ret;
  }
  
@@ -622,10 +623,10 @@ index a4233e7c5f86..9acb9fd2854f 100644
  };
  MODULE_DEVICE_TABLE(of, gpi_of_match);
 diff --git a/include/linux/soc/qcom/geni-se.h b/include/linux/soc/qcom/geni-se.h
-index 1184df5537ee..5e75a06f58db 100644
+index d30b33e68469..a8b9deb2484d 100644
 --- a/include/linux/soc/qcom/geni-se.h
 +++ b/include/linux/soc/qcom/geni-se.h
-@@ -323,6 +323,42 @@ struct qup_se_rsc {
+@@ -344,6 +344,42 @@ struct geni_se {
  #define DOMAIN_IDX_POWER	0
  #define DOMAIN_IDX_PERF		1
  
@@ -669,5 +670,5 @@ index 1184df5537ee..5e75a06f58db 100644
  
  u32 geni_se_get_qup_hw_version(struct geni_se *se);
 -- 
-2.17.1
+2.34.1
 

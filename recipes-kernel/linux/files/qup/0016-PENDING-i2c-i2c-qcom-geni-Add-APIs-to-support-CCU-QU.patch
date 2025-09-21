@@ -1,7 +1,7 @@
-From 1bf382dd7d965a2ee1201d1b3bf0f463b493f6d9 Mon Sep 17 00:00:00 2001
+From 28125816a6e96fa046c46a90d32f55cbfec341df Mon Sep 17 00:00:00 2001
 From: Aniket Randive <arandive@qti.qualcomm.com>
-Date: Tue, 17 Jun 2025 16:42:04 +0530
-Subject: [PATCH] i2c: i2c-qcom-geni: Add APIs to support CCU QUP client
+Date: Mon, 8 Sep 2025 15:41:39 +0530
+Subject: [PATCH 04/12] i2c: i2c-qcom-geni: Add APIs to support CCU QUP client
 
 Add follwing new exported APIs to support CCU QUP client,
 - Bus recovery feature: Support recovery of IOS lines in both FIFO
@@ -16,16 +16,17 @@ Apart from this added support for priority data transfer on
 regular channel if priority bit is set.
 
 Change-Id: Id8c7c7b18a8f9d631f3b208346d6f126aded2116
+
 Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
 ---
  drivers/i2c/busses/i2c-qcom-geni.c | 458 +++++++++++++++++++++++++++--
  1 file changed, 441 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index 1ac1a3f0ad3c..7d9df0723da2 100644
+index f79428c1abd7..d7e8c842eda9 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -108,16 +108,16 @@ struct geni_i2c_desc {
+@@ -102,16 +102,16 @@ struct geni_i2c_desc {
  
  /* CCU FRAME */
  #define CCU_DATA_OFFSET		8
@@ -46,7 +47,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  #define MAX_NUM_MSGS		4096
  #define CCU_GET_GPII(val)	(val & CCU_GPII_MASK)
  #define CCU_GET_SYNC(val)	(val & BIT(5))
-@@ -125,8 +125,8 @@ struct geni_i2c_desc {
+@@ -119,8 +119,8 @@ struct geni_i2c_desc {
  #define CCU_GET_NOP_FRAME(val)	(val & BIT(7))
  #define CCU_GET_INSERT_DELAY_BEFORE(val)	(val & BIT(8))
  #define CCU_GET_INSERT_DELAY_AFTER(val)		(val & BIT(9))
@@ -57,7 +58,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  #define CCU_GET_ARB_LOST_CNT(val)	((val & CCU_ARB_LOST_MASK) >> CCU_ARB_LOST_SHFT)
  #define CCU_GET_PKT_LEN(val)		((val & CCU_PKT_LEN_MASK) >> CCU_PKT_LEN_SHFT)
  #define CCU_GET_FRAME_COOKIE(val)	((val & CCU_FRAME_COOKIE_MASK) >> CCU_FRAME_COOKIE_SHFT)
-@@ -210,6 +210,7 @@ struct geni_i2c_dev {
+@@ -204,6 +204,7 @@ struct geni_i2c_dev {
  	enum geni_se_xfer_mode xfer_mode;
  	bool is_ccu_qup;
  	struct ccu_i2c_config ccu;
@@ -65,7 +66,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  };
  
  struct geni_i2c_err_log {
-@@ -258,6 +259,10 @@ static const struct geni_i2c_clk_fld geni_i2c_clk_map[] = {
+@@ -252,6 +253,10 @@ static const struct geni_i2c_clk_fld geni_i2c_clk_map[] = {
  	{KHZ(1000), 1, 3,  9, 18},
  };
  
@@ -73,10 +74,10 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
 +static void release_gpi_dma(struct geni_i2c_dev *gi2c);
 +static void i2c_gpi_cb_result(void *cb, const struct dmaengine_result *result);
 +
- static int geni_i2c_clk_map_idx(struct geni_i2c_dev *gi2c)
- {
- 	int i;
-@@ -288,6 +293,375 @@ static void qcom_geni_i2c_conf(struct geni_i2c_dev *gi2c)
+ static int log_level = -1;
+ static ssize_t log_level_show(struct device *dev,
+ 			      struct device_attribute *attr, char *buf)
+@@ -303,6 +308,375 @@ static void qcom_geni_i2c_conf(struct geni_i2c_dev *gi2c)
  	writel_relaxed(val, gi2c->se.base + SE_I2C_SCL_COUNTERS);
  }
  
@@ -452,7 +453,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  static void geni_i2c_err_misc(struct geni_i2c_dev *gi2c)
  {
  	u32 m_cmd = readl_relaxed(gi2c->se.base + SE_GENI_M_CMD0);
-@@ -629,7 +1003,8 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -655,7 +1029,8 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  
  static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  			struct dma_slave_config *config, dma_addr_t *dma_addr_p,
@@ -462,7 +463,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  {
  	struct gpi_i2c_config *peripheral_cfg;
  	unsigned int flags;
-@@ -638,6 +1013,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -664,6 +1039,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  	enum dma_data_direction map_dirn;
  	enum dma_transfer_direction dma_dirn;
  	struct dma_async_tx_descriptor *desc;
@@ -470,7 +471,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  	int ret;
  
  	u16 len = gi2c->is_ccu_qup ? (msg->len - CCU_DATA_OFFSET) : msg->len;
-@@ -671,8 +1047,22 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -697,8 +1073,22 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  		return -ENOMEM;
  	}
  
@@ -494,7 +495,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  
  	ret = dmaengine_slave_config(dma_chan, config);
  	if (ret) {
-@@ -682,6 +1072,14 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -709,6 +1099,14 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  
  	peripheral_cfg->set_config = 0;
  	peripheral_cfg->multi_msg = true;
@@ -509,7 +510,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  
  	flags = DMA_PREP_INTERRUPT | DMA_CTRL_ACK;
  
-@@ -700,7 +1098,13 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -728,7 +1126,13 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  	desc->callback_result = i2c_gpi_cb_result;
  	desc->callback_param = peripheral_cfg;
  
@@ -524,7 +525,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  	*buf = dma_buf;
  	*dma_addr_p = addr;
  
-@@ -838,19 +1242,35 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+@@ -867,19 +1271,35 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
  		peripheral->addr = msgs[i].addr;
  
  		ret =  geni_i2c_gpi(gi2c, &msgs[i], &config,
@@ -562,7 +563,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  		dma_async_issue_pending(gi2c->tx_c[idx]);
  
  		time_left = wait_for_completion_timeout(&gi2c->done, XFER_TIMEOUT);
-@@ -1272,10 +1692,12 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -1281,10 +1701,12 @@ static int geni_i2c_probe(struct platform_device *pdev)
  	init_completion(&gi2c->done);
  	spin_lock_init(&gi2c->lock);
  	platform_set_drvdata(pdev, gi2c);
@@ -579,7 +580,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  
  	i2c_set_adapdata(&gi2c->adap, gi2c);
  	gi2c->adap.dev.parent = dev;
-@@ -1335,7 +1757,8 @@ static int __maybe_unused geni_i2c_runtime_suspend(struct device *dev)
+@@ -1350,7 +1772,8 @@ static int __maybe_unused geni_i2c_runtime_suspend(struct device *dev)
  	int ret = 0;
  	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
  
@@ -589,7 +590,7 @@ index 1ac1a3f0ad3c..7d9df0723da2 100644
  
  	if (gi2c->dev_data->geni_se_switch_state) {
  		ret = gi2c->dev_data->geni_se_switch_state(dev, false);
-@@ -1362,7 +1785,8 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
+@@ -1377,7 +1800,8 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
  		}
  	}
  

@@ -1,7 +1,7 @@
-From 21b971bc4de33780d87e9557d21c0469d260619a Mon Sep 17 00:00:00 2001
+From 6bc23c66aa0644691248d278047636a5bf10e508 Mon Sep 17 00:00:00 2001
 From: Aniket Randive <arandive@qti.qualcomm.com>
-Date: Tue, 17 Jun 2025 16:48:50 +0530
-Subject: [PATCH] i2c: Fix circular dependency between I2C and CCU driver
+Date: Mon, 8 Sep 2025 15:51:15 +0530
+Subject: [PATCH 09/12] i2c: Fix circular dependency between I2C and CCU driver
 
 Remove export symbol functions and use function pointers
 to resolve circular dependency between I2C and CCU drivers.
@@ -17,18 +17,18 @@ Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
  5 files changed, 232 insertions(+), 94 deletions(-)
 
 diff --git a/drivers/dma/qcom/gpi.c b/drivers/dma/qcom/gpi.c
-index 0203c00f9f85..4817fdebde15 100644
+index ea7e0020ea1c..1cc3d626248b 100644
 --- a/drivers/dma/qcom/gpi.c
 +++ b/drivers/dma/qcom/gpi.c
-@@ -15,6 +15,7 @@
- #include <linux/dma/qcom-gpi-dma.h>
+@@ -18,6 +18,7 @@
+ #include <linux/sysfs.h>
  #include <linux/scatterlist.h>
  #include <linux/slab.h>
 +#include <linux/soc/qcom/qcom_ccu_qup.h>
+ #include <linux/soc/qcom/geni-se.h>
  #include "../dmaengine.h"
  #include "../virt-dma.h"
- 
-@@ -314,10 +315,6 @@ enum CNTXT_OFFS {
+@@ -328,10 +329,6 @@ enum CNTXT_OFFS {
  	: (0x2005C + (0x4000 * (n)) + (0x80 * (k))))
  #define GPII_n_CH_k_QOS_PREFETCH_MODE		(0x400)
  
@@ -39,7 +39,7 @@ index 0203c00f9f85..4817fdebde15 100644
  /* Scratch registers */
  #define GPII_n_CH_k_SCRATCH_0_OFFS(n, k, ccu)\
  	((ccu) ? (0x20060 + (0x1000 * (n)) + (0x80 * (k)))\
-@@ -694,7 +691,6 @@ struct gpii {
+@@ -708,7 +705,6 @@ struct gpii {
  	bool configured_irq;
  	enum gpi_pm_state pm_state;
  	rwlock_t pm_lock;
@@ -47,7 +47,7 @@ index 0203c00f9f85..4817fdebde15 100644
  	struct gpi_ring ev_ring;
  	struct tasklet_struct ev_task; /* event processing tasklet */
  	struct completion cmd_completion;
-@@ -823,8 +819,9 @@ void ccu_gpi_configure_mode(struct dma_chan *chan, int mode, int type)
+@@ -858,8 +854,9 @@ void ccu_gpi_configure_mode(struct dma_chan *chan, int mode, int type)
  	gchan->ch_type = type;
  	if (mode) {
  		/* Enable the Global & IEOB IRQ of GPII in CDM mode */
@@ -59,7 +59,7 @@ index 0203c00f9f85..4817fdebde15 100644
  	}
  }
  EXPORT_SYMBOL(ccu_gpi_configure_mode);
-@@ -1236,14 +1233,24 @@ static irqreturn_t gpi_handle_irq(int irq, void *data)
+@@ -1278,14 +1275,24 @@ static irqreturn_t gpi_handle_irq(int irq, void *data)
  }
  
  /* Handle IRQ for GPII */
@@ -89,7 +89,7 @@ index 0203c00f9f85..4817fdebde15 100644
  
  /* process CCU Error notification event */
  static void gpi_process_ccu_error_event(struct gchan *gchan,
-@@ -2541,7 +2548,8 @@ static void gpi_free_chan_resources(struct dma_chan *chan)
+@@ -2744,7 +2751,8 @@ static void gpi_free_chan_resources(struct dma_chan *chan)
  	/* free all allocated memory */
  	gpi_free_ring(&gchan->ch_ring, gpii);
  	vchan_free_chan_resources(&gchan->vc);
@@ -99,7 +99,7 @@ index 0203c00f9f85..4817fdebde15 100644
  
  	write_lock_irq(&gpii->pm_lock);
  	gchan->pm_state = DISABLE_STATE;
-@@ -2743,8 +2751,10 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -2952,8 +2960,10 @@ static int gpi_probe(struct platform_device *pdev)
  	if (!data)
  		return -EINVAL;
  
@@ -111,7 +111,7 @@ index 0203c00f9f85..4817fdebde15 100644
  
  	gpi_dev->ee_base = gpi_dev->ee_base - data->ee_offset;
  
-@@ -2814,7 +2824,7 @@ static int gpi_probe(struct platform_device *pdev)
+@@ -3024,7 +3034,7 @@ static int gpi_probe(struct platform_device *pdev)
  			gchan->gpii = gpii;
  			gchan->dir = GPII_CHAN_DIR[chan];
  		}
@@ -121,10 +121,10 @@ index 0203c00f9f85..4817fdebde15 100644
  		rwlock_init(&gpii->pm_lock);
  
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index 0663adc35e93..84f91f78141b 100644
+index 3a1208672939..21317b93691f 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -365,7 +365,6 @@ void geni_i2c_register_callback(ccu_qup_notify_client cb)
+@@ -380,7 +380,6 @@ void geni_i2c_register_callback(ccu_qup_notify_client cb)
  {
  	ccu_qup_update_xfer_completion = cb;
  }
@@ -132,7 +132,7 @@ index 0663adc35e93..84f91f78141b 100644
  
  /*
   * geni_i2c_power_on_off - This function is used to turn on or off all the clock
-@@ -376,7 +375,7 @@ EXPORT_SYMBOL(geni_i2c_register_callback);
+@@ -391,7 +390,7 @@ EXPORT_SYMBOL(geni_i2c_register_callback);
   *
   * Return 0 on success or error on failure
   */
@@ -141,7 +141,7 @@ index 0663adc35e93..84f91f78141b 100644
  {
  	struct geni_i2c_dev *gi2c;
  	int ret, i;
-@@ -424,7 +423,6 @@ int geni_i2c_power_on_off(struct i2c_adapter *adap, bool suspend)
+@@ -439,7 +438,6 @@ int geni_i2c_power_on_off(struct i2c_adapter *adap, bool suspend)
  
  	return 0;
  }
@@ -149,7 +149,7 @@ index 0663adc35e93..84f91f78141b 100644
  
  /*
   * geni_i2c_send_cmd_gsi_mode - This function is used to send bus cmd
-@@ -613,7 +611,6 @@ int geni_i2c_check_recover_ios_line(struct i2c_adapter *adap)
+@@ -628,7 +626,6 @@ int geni_i2c_check_recover_ios_line(struct i2c_adapter *adap)
  
  	return ret;
  }
@@ -157,7 +157,7 @@ index 0663adc35e93..84f91f78141b 100644
  
  /*
   * geni_i2c_configure_ccu_mode : Configure the CCU mode and GPII channel type
-@@ -625,10 +622,12 @@ EXPORT_SYMBOL(geni_i2c_check_recover_ios_line);
+@@ -640,10 +637,12 @@ EXPORT_SYMBOL(geni_i2c_check_recover_ios_line);
   *
   * Return 0 on success and error on failure.
   */
@@ -171,7 +171,7 @@ index 0663adc35e93..84f91f78141b 100644
  
  	if (!adap) {
  		pr_err("%s: Adap is NULL\n", __func__);
-@@ -648,13 +647,22 @@ int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no, int ch_ty
+@@ -663,13 +662,22 @@ int geni_i2c_configure_ccu_mode(struct i2c_adapter *adap, int gpii_no, int ch_ty
  	ccu_gpi_configure_mode(gi2c->tx_c[idx], mode, ch_type);
  	ccu_gpi_configure_mode(gi2c->rx_c[idx], mode, ch_type);
  
@@ -197,7 +197,7 @@ index 0663adc35e93..84f91f78141b 100644
  
  /*
   * geni_i2c_gpii_reset : Reset the GPII channel.
-@@ -665,7 +673,7 @@ EXPORT_SYMBOL(geni_i2c_configure_ccu_mode);
+@@ -680,7 +688,7 @@ EXPORT_SYMBOL(geni_i2c_configure_ccu_mode);
   *
   * Return 0 on success and error on failure.
   */
@@ -206,7 +206,7 @@ index 0663adc35e93..84f91f78141b 100644
  			bool premature_cancel)
  {
  	struct geni_i2c_dev *gi2c;
-@@ -706,7 +714,6 @@ int geni_i2c_gpii_reset(struct i2c_adapter *adap, int gpii_no,
+@@ -721,7 +729,6 @@ int geni_i2c_gpii_reset(struct i2c_adapter *adap, int gpii_no,
  
  	return 0;
  }
@@ -214,7 +214,7 @@ index 0663adc35e93..84f91f78141b 100644
  
  /*
   * geni_i2c_configure_delay : Configure inter transfer delay.
-@@ -717,7 +724,7 @@ EXPORT_SYMBOL(geni_i2c_gpii_reset);
+@@ -732,7 +739,7 @@ EXPORT_SYMBOL(geni_i2c_gpii_reset);
   *
   * Return none.
   */
@@ -223,7 +223,7 @@ index 0663adc35e93..84f91f78141b 100644
  {
  	struct geni_i2c_dev *gi2c;
  
-@@ -734,7 +741,6 @@ void geni_i2c_configure_pre_delay(struct i2c_adapter *adap, unsigned long time)
+@@ -749,7 +756,6 @@ void geni_i2c_configure_pre_delay(struct i2c_adapter *adap, unsigned long time)
  
  	gi2c->ccu.inter_delay = time;
  }
@@ -231,7 +231,7 @@ index 0663adc35e93..84f91f78141b 100644
  
  static void geni_i2c_err_misc(struct geni_i2c_dev *gi2c)
  {
-@@ -781,7 +787,7 @@ static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
+@@ -801,7 +807,7 @@ static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
  	}
  }
  
@@ -240,7 +240,7 @@ index 0663adc35e93..84f91f78141b 100644
  {
  	struct geni_i2c_dev *gi2c = dev;
  	void __iomem *base = gi2c->se.base;
-@@ -877,10 +883,32 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
+@@ -898,10 +904,32 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
  		complete(&gi2c->done);
  
  	spin_unlock(&gi2c->lock);
@@ -273,7 +273,7 @@ index 0663adc35e93..84f91f78141b 100644
  static void geni_i2c_abort_xfer(struct geni_i2c_dev *gi2c)
  {
  	unsigned long time_left = ABORT_TIMEOUT;
-@@ -1095,7 +1123,9 @@ static void i2c_gpi_cb_result(void *cb, const struct dmaengine_result *result)
+@@ -1121,7 +1149,9 @@ static void i2c_gpi_cb_result(void *cb, const struct dmaengine_result *result)
  	}
  
  	gpii_idx = result->gpii_id % CCU_MAX_GPII;
@@ -284,7 +284,7 @@ index 0663adc35e93..84f91f78141b 100644
  	if (gi2c->is_ccu_qup && gi2c->ccu.gpi[gpii_idx].frame[frame_idx].async) {
  		gi2c->ccu.result.gpii_no = result->gpii_id;
  		gi2c->ccu.result.adap_nr = gi2c->adap.nr;
-@@ -1126,7 +1156,8 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1152,7 +1182,8 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  
  	if (rx_buf) {
  		dma_unmap_single(gi2c->se.dev->parent, rx_addr, len, DMA_FROM_DEVICE);
@@ -294,7 +294,7 @@ index 0663adc35e93..84f91f78141b 100644
  	}
  }
  
-@@ -1178,20 +1209,39 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1204,20 +1235,39 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  
  	if (op == I2C_WRITE && gi2c->is_ccu_qup) {
  		/* set the TX sub pkt_len */
@@ -343,15 +343,15 @@ index 0663adc35e93..84f91f78141b 100644
  
  	ret = dmaengine_slave_config(dma_chan, config);
  	if (ret) {
-@@ -1360,6 +1410,7 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
- 		      __func__, num, msgs[0].addr);
+@@ -1388,6 +1438,7 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+ 		    __func__, num, msgs[0].addr);
  	for (i = 0; i < num; i++) {
  		gi2c->cur = &msgs[i];
 +		gi2c->msgs = num;
  		gi2c->err = 0;
- 		i2c_trace_log(gi2c->se.dev, "msg[%d].len:%d\n", i, gi2c->cur->len);
- 
-@@ -1474,14 +1525,9 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+ 		I2C_DBG_LOG(LOG_LVL_INFO, gi2c->se.dev, "msg[%d].len:%d\n", i,
+ 			    gi2c->cur->len);
+@@ -1503,14 +1554,9 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
  			kfree(gi2c->ccu.msg[k]);
  			gi2c->ccu.msg[k] = NULL;
  		}
@@ -368,7 +368,7 @@ index 0663adc35e93..84f91f78141b 100644
  	geni_i2c_gpi_unmap(gi2c, &msgs[i], tx_buf, tx_addr, rx_buf, rx_addr);
  	return ret;
  }
-@@ -1590,6 +1636,16 @@ static void release_gpi_dma(struct geni_i2c_dev *gi2c)
+@@ -1623,6 +1669,16 @@ static void release_gpi_dma(struct geni_i2c_dev *gi2c)
  	}
  }
  
@@ -385,7 +385,7 @@ index 0663adc35e93..84f91f78141b 100644
  static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
  {
  	int ret;
-@@ -1608,22 +1664,26 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
+@@ -1641,22 +1697,26 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
  
  	geni_se_select_mode(&gi2c->se, GENI_GPI_DMA);
  	do {
@@ -426,7 +426,7 @@ index 0663adc35e93..84f91f78141b 100644
  		}
  	} while (++i < idx);
  
-@@ -1751,6 +1811,7 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
+@@ -1760,6 +1820,7 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
  		fifo_disable = readl_relaxed(gi2c->se.base + GENI_IF_DISABLE_RO) & FIFO_IF_DISABLE;
  
  	if (fifo_disable) {
@@ -434,7 +434,7 @@ index 0663adc35e93..84f91f78141b 100644
  		/* FIFO is disabled, so we can only use GPI DMA */
  		ret = setup_gpi_dma(gi2c);
  		if (ret) {
-@@ -1873,6 +1934,15 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -1882,6 +1943,15 @@ static int geni_i2c_probe(struct platform_device *pdev)
  		return dev_err_probe(dev, ret, "Invalid clk frequency %d Hz\n", gi2c->clk_freq_out);
  
  	gi2c->adap.algo = &geni_i2c_algo;
@@ -649,10 +649,10 @@ index f02773d047f0..fec39eccb659 100644
  	dev_dbg(&pdev->dev, "CCU QUP Probe completed\n");
  
 diff --git a/include/linux/dma/qcom-gpi-dma.h b/include/linux/dma/qcom-gpi-dma.h
-index e779339a7dae..6527c98b1510 100644
+index 2c3c6304c496..2d7af187511a 100644
 --- a/include/linux/dma/qcom-gpi-dma.h
 +++ b/include/linux/dma/qcom-gpi-dma.h
-@@ -127,6 +127,4 @@ void ccu_gpi_configure_mode(struct dma_chan *chan, int mode, int type);
+@@ -137,6 +137,4 @@ void ccu_gpi_configure_mode(struct dma_chan *chan, int mode, int type);
  
  int ccu_gpi_prioritize_chan(struct dma_chan *chan);
  

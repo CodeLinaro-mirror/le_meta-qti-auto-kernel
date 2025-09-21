@@ -1,7 +1,8 @@
-From 4bd74c4a46598a3fd759cf60afdc142aff1a8d13 Mon Sep 17 00:00:00 2001
+From f9c52de329811b936f346e634877b5a03c7ef4cd Mon Sep 17 00:00:00 2001
 From: Aniket Randive <quic_arandive@quicinc.com>
 Date: Mon, 21 Oct 2024 11:54:44 +0530
-Subject: [PATCH] PENDING: soc: qcom: ccu-qup: Add CCU QUP platform driver
+Subject: [PATCH 05/12] PENDING: soc: qcom: ccu-qup: Add CCU QUP platform
+ driver
 
 This patch adds the CCU QUP platform driver and implements
 the following APIs to support CCU QUP use cases:
@@ -31,10 +32,10 @@ Signed-off-by: Aniket Randive <quic_arandive@quicinc.com>
  create mode 100644 include/uapi/linux/ccu_qup/ccu_qup.h
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index 544f0f41fc9e..989da170871c 100644
+index d7e8c842eda9..e9c7664c302c 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -145,7 +145,7 @@ struct ccu_gpii_info {
+@@ -139,7 +139,7 @@ struct ccu_gpii_info {
   * @gpii_no: represents the GPII no on which transfer need to send
   * @sync: represents the synchronous or asynchornous transfer
   * @priority: represents high priority data transfer
@@ -43,7 +44,7 @@ index 544f0f41fc9e..989da170871c 100644
   * @pre_delay: insert predefined delay before I2C transaction
   * @post_delay: insert predefined delay after I2C transaction
   * @pkt_len: tx sub-packet length for multiple random write
-@@ -158,7 +158,7 @@ struct ccu_msg_config {
+@@ -152,7 +152,7 @@ struct ccu_msg_config {
  	int gpii_no;
  	bool sync;
  	bool priority;
@@ -52,7 +53,7 @@ index 544f0f41fc9e..989da170871c 100644
  	bool pre_delay;
  	bool post_delay;
  	int pkt_len;
-@@ -1059,7 +1059,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1085,7 +1085,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  	peripheral_cfg->delay = gi2c->ccu.inter_delay;
  	peripheral_cfg->ccu_cfg.ccu_last = gi2c->ccu.msg[idx]->ccu_last;
  	peripheral_cfg->ccu_cfg.ch_last = gi2c->ccu.msg[idx]->ch_last;
@@ -61,7 +62,7 @@ index 544f0f41fc9e..989da170871c 100644
  	peripheral_cfg->post_delay = gi2c->ccu.msg[idx]->post_delay;
  	peripheral_cfg->pre_delay = gi2c->ccu.msg[idx]->pre_delay;
  	peripheral_cfg->ccu_cfg.retry = gi2c->ccu.msg[idx]->arb_lost_retry;
-@@ -1074,7 +1074,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1101,7 +1101,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  	peripheral_cfg->multi_msg = true;
  	peripheral_cfg->ccu_cfg.ccu_last = 0;
  	peripheral_cfg->ccu_cfg.ch_last = 0;
@@ -70,7 +71,7 @@ index 544f0f41fc9e..989da170871c 100644
  	peripheral_cfg->post_delay = false;
  	peripheral_cfg->pre_delay = false;
  	peripheral_cfg->ccu_cfg.retry = 0;
-@@ -1112,10 +1112,12 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
+@@ -1140,10 +1140,12 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
  
  err_config:
  	dma_unmap_single(gi2c->se.dev->parent, addr, len, map_dirn);
@@ -85,7 +86,7 @@ index 544f0f41fc9e..989da170871c 100644
  
  	return ret;
  }
-@@ -1151,6 +1153,7 @@ static int geni_i2c_extract_frame_cfg(struct geni_i2c_dev *gi2c, struct i2c_msg
+@@ -1179,6 +1181,7 @@ static int geni_i2c_extract_frame_cfg(struct geni_i2c_dev *gi2c, struct i2c_msg
  		dev_err(gi2c->se.dev, "%s:  Memory allocation failed for msg[%d]\n",
  			__func__, msg_idx);
  		kfree(msg_buf);
@@ -93,7 +94,7 @@ index 544f0f41fc9e..989da170871c 100644
  		return -ENOMEM;
  	}
  	data = *msg_buf;
-@@ -1158,7 +1161,7 @@ static int geni_i2c_extract_frame_cfg(struct geni_i2c_dev *gi2c, struct i2c_msg
+@@ -1186,7 +1189,7 @@ static int geni_i2c_extract_frame_cfg(struct geni_i2c_dev *gi2c, struct i2c_msg
  	gi2c->ccu.msg[msg_idx]->gpii_no = CCU_GET_GPII(data);
  	gi2c->ccu.msg[msg_idx]->sync =  CCU_GET_SYNC(data);
  	gi2c->ccu.msg[msg_idx]->priority = CCU_GET_PRIO(data);
@@ -102,7 +103,7 @@ index 544f0f41fc9e..989da170871c 100644
  	gi2c->ccu.msg[msg_idx]->pre_delay = CCU_GET_INSERT_DELAY_BEFORE(data);
  	gi2c->ccu.msg[msg_idx]->post_delay = CCU_GET_INSERT_DELAY_AFTER(data);
  	gi2c->ccu.msg[msg_idx]->ch_last = CCU_GET_CH_LAST(data);
-@@ -1283,16 +1286,20 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+@@ -1312,16 +1315,20 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
  		}
  
  		geni_i2c_gpi_unmap(gi2c, &msgs[i], tx_buf, tx_addr, rx_buf, rx_addr);
@@ -125,7 +126,7 @@ index 544f0f41fc9e..989da170871c 100644
  		for (k = 0; k < CCU_MAX_GPII; k++) {
  			dmaengine_terminate_sync(gi2c->rx_c[k]);
  			dmaengine_terminate_sync(gi2c->tx_c[k]);
-@@ -1441,6 +1448,7 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
+@@ -1474,6 +1481,7 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
  			ret = dev_err_probe(gi2c->se.dev, PTR_ERR(gi2c->rx_c[i]),
  					    "Failed to get rx%d DMA ch\n", i);
  			dma_release_channel(gi2c->tx_c[i]);
@@ -133,7 +134,7 @@ index 544f0f41fc9e..989da170871c 100644
  			goto err;
  		}
  	} while (++i < idx);
-@@ -1451,7 +1459,9 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
+@@ -1484,7 +1492,9 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
  err:
  	for (idx = i; idx > 0; idx--) {
  		dma_release_channel(gi2c->tx_c[idx - 1]);
@@ -144,7 +145,7 @@ index 544f0f41fc9e..989da170871c 100644
  	return ret;
  }
 diff --git a/drivers/soc/qcom/Kconfig b/drivers/soc/qcom/Kconfig
-index 18dbfc8172f7..a215e22ca6af 100644
+index 71cacca99103..ecdd50ae53f9 100644
 --- a/drivers/soc/qcom/Kconfig
 +++ b/drivers/soc/qcom/Kconfig
 @@ -51,6 +51,17 @@ config QCOM_GENI_SE
@@ -166,7 +167,7 @@ index 18dbfc8172f7..a215e22ca6af 100644
  	tristate "QCOM General Serial Bus Interface"
  	depends on ARCH_QCOM || COMPILE_TEST
 diff --git a/drivers/soc/qcom/Makefile b/drivers/soc/qcom/Makefile
-index d1eebd9b3bf8..8483f60066f4 100644
+index 5df027b5a3c8..2fbc06d59b72 100644
 --- a/drivers/soc/qcom/Makefile
 +++ b/drivers/soc/qcom/Makefile
 @@ -4,6 +4,7 @@ CFLAGS_qcom_aoss.o := -I$(src)
@@ -1213,5 +1214,5 @@ index 000000000000..f9f91c654719
 +
 +#endif /*__UAPI_LINUX_CCU_QUP_H */
 -- 
-2.17.1
+2.34.1
 

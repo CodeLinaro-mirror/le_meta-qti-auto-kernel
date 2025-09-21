@@ -1,8 +1,8 @@
-From 6a692f2a356612084ff909ed28bdaf9b6c6e8e6a Mon Sep 17 00:00:00 2001
+From 6cf560ac148193e0aa08dcbd98b0fe7b1845a276 Mon Sep 17 00:00:00 2001
 From: Sriram Dash <quic_sriramd@quicinc.com>
 Date: Thu, 27 Feb 2025 21:32:11 +0530
-Subject: [PATCH 02/20] PENDING: usb: dwc3: qcom: Ensure PIPE_UTMI_CLK_SEL is
- proper after APPS Resume
+Subject: [PATCH] PENDING: usb: dwc3: qcom: Ensure PIPE_UTMI_CLK_SEL is proper
+ after APPS Resume
 
 During APPS Suspend, the clock controller unit disables all
 clocks to the CPU and subsystems, causing the controller to
@@ -29,13 +29,13 @@ Signed-off-by: Sriram Dash <quic_sriramd@quicinc.com>
  1 file changed, 23 insertions(+), 20 deletions(-)
 
 diff --git a/drivers/usb/dwc3/dwc3-qcom.c b/drivers/usb/dwc3/dwc3-qcom.c
-index 55cdfe7e8469c..2b5d516e116cb 100644
+index 9dc9684344ff..413a1a706ff9 100644
 --- a/drivers/usb/dwc3/dwc3-qcom.c
 +++ b/drivers/usb/dwc3/dwc3-qcom.c
 @@ -96,6 +96,7 @@ struct dwc3_qcom {
+ 	struct icc_path		*icc_path_ddr;
  	struct icc_path		*icc_path_apps;
  
- 	bool			enable_rt;
 +	bool			ignore_pipe_clk;
  	enum usb_role		current_role;
  	struct notifier_block	xhci_nb;
@@ -98,7 +98,7 @@ index 55cdfe7e8469c..2b5d516e116cb 100644
  static int dwc3_qcom_get_irq(struct platform_device *pdev,
  			     const char *name, int num)
  {
-@@ -1005,7 +1009,6 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1029,7 +1033,6 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	struct resource		*res, *parent_res = NULL;
  	struct resource		local_res;
  	int			ret, i;
@@ -106,7 +106,7 @@ index 55cdfe7e8469c..2b5d516e116cb 100644
  	bool			wakeup_source;
  	bool			legacy_binding;
  
-@@ -1099,9 +1102,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1121,9 +1124,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	 * Disable pipe_clk requirement if specified. Used when dwc3
  	 * operates without SSPHY and only HS/FS/LS modes are supported.
  	 */
@@ -117,7 +117,7 @@ index 55cdfe7e8469c..2b5d516e116cb 100644
 +	if (qcom->ignore_pipe_clk)
  		dwc3_qcom_select_utmi_clk(qcom);
  
- 	qcom->enable_rt = device_property_read_bool(dev,
+ 	if (!legacy_binding) {
 -- 
-2.17.1
+2.34.1
 
