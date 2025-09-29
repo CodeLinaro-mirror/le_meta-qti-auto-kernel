@@ -51,11 +51,8 @@ SRC_URI:append = "\
     file://scm_adci/0003-QCLINUX-arm64-dts-qcom-sa7255p-Modify-correct-dt-nam.patch \
     file://scm_adci/0004-BACKPORT-FROMLIST-firmware-qcom-scm-Support-multiple.patch \
     file://scm_adci/0005-PENDING-firmware-qcom-scm-Add-support-for-WAITQ_WAKE.patch \
-    file://scm_adci/0006-PENDING-firmware-qcom-scm-Selectively-skip-mutex-for.patch \
-    file://scm_adci/0007-UPSTREAM-firmware-qcom-scm-Remove-QCOM_SMC_WAITQ_FLA.patch \
-    file://scm_adci/0008-PENDING-firmware-qcom-scm-Introduce-new-locking-mech.patch \
-    file://scm_adci/0009-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
-    file://scm_adci/0010-PENDING-firmware-qcom-scm-Add-Mutex-locking-mechanis.patch \
+    file://scm_adci/0006-PENDING-firmware-qcom-scm-Add-new-lock-and-selective.patch \
+    file://scm_adci/0007-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
