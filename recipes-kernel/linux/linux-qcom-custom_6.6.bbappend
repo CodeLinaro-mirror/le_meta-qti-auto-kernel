@@ -108,6 +108,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0037-ccu-Refactor-response-list-handling-to-prevent-corru.patch \
     file://qup/0038-ccu-Add-support-for-passing-error-notification-event.patch \
     file://qup/0039-ccu-Initialize-CCU-QUP-core-during-firmware-load-and.patch \
+    file://qup/0040-i2c-Prevent-kernel-panic-by-handling-ERR_PTR-from-dm.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
