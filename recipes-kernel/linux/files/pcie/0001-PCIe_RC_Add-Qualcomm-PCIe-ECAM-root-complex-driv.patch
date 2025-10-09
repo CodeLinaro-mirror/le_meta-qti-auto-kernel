@@ -1,4 +1,4 @@
-From 32370502b5704981d8e84c33b78eb2f1527b2aff Mon Sep 17 00:00:00 2001
+From 0af1b66d955864edb98946629547c0f5afdd6854 Mon Sep 17 00:00:00 2001
 From: Nitesh Gupta <nitegupt@qti.qualcomm.com>
 Date: Wed, 25 Jun 2025 15:34:25 +0530
 Subject: [PATCH] PENDING: PCI: Add Qualcomm PCIe ECAM root complex driver
@@ -25,12 +25,12 @@ Signed-off-by: Nitesh Gupta <nitegupt@qti.qualcomm.com>
 ---
  drivers/pci/controller/Kconfig          |   12 +
  drivers/pci/controller/Makefile         |    1 +
- drivers/pci/controller/pcie-qcom-ecam.c | 1142 +++++++++++++++++++++++
- 3 files changed, 1155 insertions(+)
+ drivers/pci/controller/pcie-qcom-ecam.c | 1144 +++++++++++++++++++++++
+ 3 files changed, 1157 insertions(+)
  create mode 100644 drivers/pci/controller/pcie-qcom-ecam.c
 
 diff --git a/drivers/pci/controller/Kconfig b/drivers/pci/controller/Kconfig
-index d68e7012a39e..85c8705b8c50 100644
+index 81a2fb88125e..59c874263f9d 100644
 --- a/drivers/pci/controller/Kconfig
 +++ b/drivers/pci/controller/Kconfig
 @@ -342,6 +342,18 @@ config PCIE_XILINX_CPM
@@ -66,10 +66,10 @@ index 015f711b0433..44cfc592bfe6 100644
  obj-y				+= dwc/
 diff --git a/drivers/pci/controller/pcie-qcom-ecam.c b/drivers/pci/controller/pcie-qcom-ecam.c
 new file mode 100644
-index 000000000000..5c5af76e54ff
+index 000000000000..3b5130b22a04
 --- /dev/null
 +++ b/drivers/pci/controller/pcie-qcom-ecam.c
-@@ -0,0 +1,1142 @@
+@@ -0,0 +1,1144 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Qualcomm PCIe ECAM root host controller driver
@@ -96,6 +96,8 @@ index 000000000000..5c5af76e54ff
 +#include <linux/device.h>
 +#include <linux/types.h>
 +#include <linux/debugfs.h>
++
++#include "pci-host-common.h"
 +
 +#define PCIE_MSI_CTRL_BASE			(0x820)
 +#define PCIE_MSI_CTRL_SIZE			(0x68)
