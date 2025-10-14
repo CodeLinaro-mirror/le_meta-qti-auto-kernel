@@ -73,6 +73,7 @@ SRC_URI:append:sa8797 = " \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
     file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
     file://0017-QCLINUX-MPAM-Snapshot-of-QCOM-SLC-MPAM-Driver.patch \
+    file://0018-QCLINUX-MPAM-Add-CPU-map-partid-for-CPU-MPAM-Driver.patch \
     file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
     file://qup/0008-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
