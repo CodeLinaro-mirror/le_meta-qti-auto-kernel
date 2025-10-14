@@ -1,22 +1,24 @@
-From 501d65a127283dee425e2cf373262966d874ae9f Mon Sep 17 00:00:00 2001
+From 364115eca9c391d7e7cff66964397c38b4cd4e8f Mon Sep 17 00:00:00 2001
 From: Kaisheng Yang <kaisheng@qti.qualcomm.com>
 Date: Tue, 24 Jun 2025 15:03:26 +0800
 Subject: [PATCH 2/2] QCLINUX: MPAM: Snapshot of QCOM SLC MPAM Driver
 
 Snapshot for QCOM SLC MPAM driver from msm-kernel commit
-877c57af1572(" mpam: mpam_msc_slc: Removes additional copying of monitor data"). Align with SCMI SLC protocol.
+877c57af1572(" mpam: mpam_msc_slc: Removes additional copying of
+monitor data"). Align with SCMI SLC protocol.
 
 Change-Id: I1fc8c86ad9c5871800bc5a9508ea5ca5556a22cc
 Signed-off-by: Kaisheng Yang <kaisheng@qti.qualcomm.com>
 ---
- drivers/soc/qcom/mpam/mpam_msc.c     | 258 ++++----
+ drivers/soc/qcom/mpam/mpam_msc.c     | 259 ++++----
  drivers/soc/qcom/mpam/mpam_msc_slc.c | 867 +++++++++++++++++++++------
+ drivers/soc/qcom/mpam/slc_mpam.c     | 359 +++++++----
  include/soc/qcom/mpam_msc.h          |  42 +-
  include/soc/qcom/mpam_slc.h          | 282 +++++++--
- 4 files changed, 1078 insertions(+), 371 deletions(-)
+ 5 files changed, 1331 insertions(+), 478 deletions(-)
 
 diff --git a/drivers/soc/qcom/mpam/mpam_msc.c b/drivers/soc/qcom/mpam/mpam_msc.c
-index 598acdf747cd..02135f5a893e 100644
+index 598acdf747cd..e184d291bf4c 100644
 --- a/drivers/soc/qcom/mpam/mpam_msc.c
 +++ b/drivers/soc/qcom/mpam/mpam_msc.c
 @@ -11,6 +11,7 @@
@@ -53,7 +55,7 @@ index 598acdf747cd..02135f5a893e 100644
 +		break;
 +	}
 +
-+	return 0;
++	return -EINVAL;
 +}
 +EXPORT_SYMBOL_GPL(msc_system_get_mpam_version);
 +
@@ -88,7 +90,7 @@ index 598acdf747cd..02135f5a893e 100644
  	}
  
 -	return ret;
-+	return 0;
++	return -EINVAL;
  }
  EXPORT_SYMBOL_GPL(msc_system_get_partition);
  
@@ -124,7 +126,7 @@ index 598acdf747cd..02135f5a893e 100644
  	}
  
 -	return ret;
-+	return 0;
++	return -EINVAL;
  }
  EXPORT_SYMBOL_GPL(msc_system_get_device_capability);
  
@@ -159,7 +161,7 @@ index 598acdf747cd..02135f5a893e 100644
  	}
  
 -	return ret;
-+	return 0;
++	return -EINVAL;
  }
  EXPORT_SYMBOL_GPL(msc_system_set_partition);
  
@@ -194,7 +196,7 @@ index 598acdf747cd..02135f5a893e 100644
  	}
  
 -	return ret;
-+	return 0;
++	return -EINVAL;
  }
  EXPORT_SYMBOL_GPL(msc_system_mon_config);
  
@@ -229,7 +231,7 @@ index 598acdf747cd..02135f5a893e 100644
  	}
  
 -	return ret;
-+	return 0;
++	return -EINVAL;
  }
  EXPORT_SYMBOL_GPL(msc_system_reset_partition);
  
@@ -267,7 +269,7 @@ index 598acdf747cd..02135f5a893e 100644
 +		break;
 +	}
 +
-+	return 0;
++	return -EINVAL;
 +}
 +EXPORT_SYMBOL_GPL(msc_system_mon_fe_bw_info);
 +
@@ -301,7 +303,7 @@ index 598acdf747cd..02135f5a893e 100644
  
 -	if (ret)
 -		return ret;
-+	return 0;
++	return -EINVAL;
 +}
 +EXPORT_SYMBOL_GPL(msc_system_mon_be_bw_info);
  
@@ -317,8 +319,7 @@ index 598acdf747cd..02135f5a893e 100644
 +{
 +	struct qcom_mpam_msc *qcom_msc;
 +	union mon_values *mon_data;
- 
--	mon_data->capacity.last_capture_time = val.last_capture_time;
++
 +	if ((arg1 == NULL) || (arg2 == NULL))
 +		return -EINVAL;
 +
@@ -326,7 +327,7 @@ index 598acdf747cd..02135f5a893e 100644
 +	if (qcom_msc == NULL)
 +		return -EINVAL;
  
--	return ret;
+-	mon_data->capacity.last_capture_time = val.last_capture_time;
 +	mon_data = (union mon_values *)arg2;
 +	mon_data->ref.slc_mon_function = CACHE_CAPACITY_CONFIG;
 +	switch (qcom_msc->qcom_msc_id.qcom_msc_type) {
@@ -337,8 +338,9 @@ index 598acdf747cd..02135f5a893e 100644
 +	default:
 +		break;
 +	}
-+
-+	return 0;
+ 
+-	return ret;
++	return -EINVAL;
  }
  EXPORT_SYMBOL_GPL(msc_system_mon_alloc_info);
  
@@ -352,16 +354,16 @@ index 598acdf747cd..02135f5a893e 100644
 -	struct msc_query *query;
  	union mon_values *mon_data;
 -	struct qcom_slc_mon_data_val *data;
- 
+-
 -	query = (struct msc_query *) arg1;
 -	if (query == NULL)
-+	if ((arg1 == NULL) || (arg2 == NULL))
- 		return -EINVAL;
+-		return -EINVAL;
  
 -	mon_data = (union mon_values *) arg2;
 -	if (mon_data == NULL)
--		return -EINVAL;
--
++	if ((arg1 == NULL) || (arg2 == NULL))
+ 		return -EINVAL;
+ 
 -	qcom_msc = msc_param_verification(msc_id, query);
 +	qcom_msc = msc_param_verification(msc_id, (struct msc_query *)arg1);
  	if (qcom_msc == NULL)
@@ -384,9 +386,13 @@ index 598acdf747cd..02135f5a893e 100644
  
 -	if (ret)
 -		return ret;
-+	return 0;
++	return -EINVAL;
 +}
 +EXPORT_SYMBOL_GPL(msc_system_mon_read_miss_info);
++
++int msc_system_mon_read_all(uint32_t msc_id, void *arg1, void *arg2)
++{
++	struct qcom_mpam_msc *qcom_msc;
  
 -	for (part_id = 0; part_id < SLC_NUM_PARTIDS; part_id++) {
 -		data = &(val.data[part_id]);
@@ -395,10 +401,6 @@ index 598acdf747cd..02135f5a893e 100644
 -			mon_data->misses.num_rd_misses = data->rd_misses;
 -			break;
 -		}
-+int msc_system_mon_read_all(uint32_t msc_id, void *arg1, void *arg2)
-+{
-+	struct qcom_mpam_msc *qcom_msc;
-+
 +	if ((arg1 == NULL) || (arg2 == NULL))
 +		return -EINVAL;
 +
@@ -417,14 +419,22 @@ index 598acdf747cd..02135f5a893e 100644
  
 -	mon_data->misses.last_capture_time = val.last_capture_time;
 -	return ret;
-+	return 0;
++	return -EINVAL;
  }
 -EXPORT_SYMBOL_GPL(msc_system_mon_read_miss_info);
 +EXPORT_SYMBOL_GPL(msc_system_mon_read_all);
  
  int attach_mpam_msc(struct device *dev, struct qcom_mpam_msc *qcom_msc,
  		uint32_t msc_type)
-@@ -347,7 +379,7 @@ static int mpam_msc_probe(struct platform_device *pdev)
+@@ -317,7 +349,6 @@ int attach_mpam_msc(struct device *dev, struct qcom_mpam_msc *qcom_msc,
+ 		return ret;
+ 	}
+ 
+-
+ 	list_add_tail(&qcom_msc->node, &qcom_mpam_list);
+ 	return 0;
+ }
+@@ -347,7 +378,7 @@ static int mpam_msc_probe(struct platform_device *pdev)
  	return 0;
  }
  
@@ -434,7 +444,7 @@ index 598acdf747cd..02135f5a893e 100644
  	return 0;
  }
 diff --git a/drivers/soc/qcom/mpam/mpam_msc_slc.c b/drivers/soc/qcom/mpam/mpam_msc_slc.c
-index 800093c6fd2b..30640cd4c50c 100644
+index 800093c6fd2b..2eacf7a72130 100644
 --- a/drivers/soc/qcom/mpam/mpam_msc_slc.c
 +++ b/drivers/soc/qcom/mpam/mpam_msc_slc.c
 @@ -12,27 +12,15 @@
@@ -965,7 +975,7 @@ index 800093c6fd2b..30640cd4c50c 100644
 +	struct qcom_slc_mon_data_v1 *data_mem_v1;
 +	int mon_idx;
 +	uint32_t match_seq, retry_cnt, match_seq_cnt = 0;
-+	volatile uint32_t *match_seq_ptr;
++	uint32_t *match_seq_ptr;
 +	uint64_t *last_capture_time;
 +
 +	qcom_msc = (struct qcom_mpam_msc *)dev_get_drvdata(dev);
@@ -1074,7 +1084,7 @@ index 800093c6fd2b..30640cd4c50c 100644
  
 -static int slc_mon_stats_read(struct device *dev, void *msc_partid, void *mon_val)
 +static ssize_t slc_mon_stats_print_data_v1(void *buf, struct qcom_slc_capability *slc_capability,
-+		volatile struct qcom_slc_mon_data_v1 *data_v1,  uint64_t last_capture_time)
++		struct qcom_slc_mon_data_v1 *data_v1,  uint64_t last_capture_time)
  {
 -	struct qcom_mpam_msc *qcom_msc;
 -	void __iomem *mon_base;
@@ -1142,13 +1152,13 @@ index 800093c6fd2b..30640cd4c50c 100644
 +}
 +
 +static ssize_t slc_mon_stats_print_data(void *buf, struct qcom_slc_capability *slc_capability,
-+		volatile struct qcom_slc_mon_data *data,  uint64_t last_capture_time)
++		struct qcom_slc_mon_data *data,  uint64_t last_capture_time)
 +{
 +	ssize_t len;
 +	int client_idx, part_idx;
 +	struct slc_client_capability *slc_client_cap;
-+	volatile struct slc_capacity *cap_stats;
-+	volatile struct slc_read_miss_cntr *rd_miss_stats;
++	struct slc_capacity *cap_stats;
++	struct slc_read_miss_cntr *rd_miss_stats;
 +
 +	slc_client_cap = slc_capability->slc_client_cap;
 +	len = scnprintf(buf, PAGE_SIZE, "timestamp=%llu\n", last_capture_time);
@@ -1209,10 +1219,10 @@ index 800093c6fd2b..30640cd4c50c 100644
 +	struct qcom_mpam_msc *qcom_msc;
 +	struct qcom_slc_capability *slc_capability;
 +	union qcom_slc_monitor_memory *mon_mem;
-+	volatile struct qcom_slc_mon_data *data;
-+	volatile struct qcom_slc_mon_data_v1 *data_v1;
-+	volatile uint32_t *match_seq_ptr;
-+	volatile uint64_t *last_capture_time;
++	struct qcom_slc_mon_data *data;
++	struct qcom_slc_mon_data_v1 *data_v1;
++	uint32_t *match_seq_ptr;
++	uint64_t *last_capture_time;
  
  	qcom_msc = (struct qcom_mpam_msc *)dev_get_drvdata(dev);
 -	if (qcom_msc == NULL)
@@ -1608,6 +1618,461 @@ index 800093c6fd2b..30640cd4c50c 100644
  			dev_err(&pdev->dev, "Failed to stop SLC Monitor thread\n");
  
  		detach_mpam_msc(&pdev->dev, qcom_msc, SLC);
+diff --git a/drivers/soc/qcom/mpam/slc_mpam.c b/drivers/soc/qcom/mpam/slc_mpam.c
+index b284aa5fb7a8..ba00ef5a132c 100644
+--- a/drivers/soc/qcom/mpam/slc_mpam.c
++++ b/drivers/soc/qcom/mpam/slc_mpam.c
+@@ -12,12 +12,21 @@
+ #include <soc/qcom/mpam_msc.h>
+ #include <soc/qcom/mpam_slc.h>
+ 
++#define NO_PARTID		(-1)
++#define MAX_RETRY_CNT		500
++
+ struct slc_mpam_item {
+ 	struct config_group group;
+ 	int part_id;
+ 	int client_id;
++	bool cap_mon_support;
+ 	bool cap_mon_enabled;
++	bool miss_mon_support;
+ 	bool miss_mon_enabled;
++	bool fe_mon_support;
++	bool fe_mon_enabled;
++	bool be_mon_support;
++	bool be_mon_enabled;
+ };
+ 
+ static struct config_group *root_group;
+@@ -51,6 +60,51 @@ static inline int set_msc_query(struct msc_query *query,
+ 	return 0;
+ }
+ 
++static inline union slc_partid_capability_def *get_partid_cap(
++		struct slc_mpam_item *pm_item)
++{
++	struct qcom_mpam_msc *qcom_mpam_msc;
++	struct qcom_slc_capability *slc_capability;
++	struct slc_client_capability *client_cap;
++	union slc_partid_capability_def *partid_cap = NULL;
++	uint32_t slc_firmware_ver = 0;
++	int i;
++
++	qcom_mpam_msc = qcom_msc_lookup(SLC);
++	if (!qcom_mpam_msc)
++		return NULL;
++
++	msc_system_get_mpam_version(SLC, &slc_firmware_ver);
++	
++	slc_capability = (struct qcom_slc_capability *)qcom_mpam_msc->msc_capability;
++	if (!slc_capability)
++		return NULL;
++
++	for (i =0; i < slc_capability->num_clients; i++)
++	{
++		client_cap = &slc_capability->slc_client_cap[i];
++		if (client_cap->client_info.client_id == pm_item->client_id) {
++			partid_cap = client_cap->slc_partid_cap;
++			break;
++		}
++		client_cap = NULL;
++	}
++
++	if (client_cap && partid_cap) {
++		for (i = 0; i < client_cap->client_info.num_part_id; i++) {
++			if (slc_firmware_ver == SLC_MPAM_VERSION_0) {
++				if (partid_cap[i].v0_cap.part_id == pm_item->part_id)
++					return (union slc_partid_capability_def *)&partid_cap[i].v0_cap;
++			} else {
++				if(partid_cap[i].v1_cap.part_id == pm_item->part_id)
++					return (union slc_partid_capability_def *)&partid_cap[i].v1_cap;
++			}
++		}
++	}
++
++	return NULL;
++}
++
+ static ssize_t slc_mpam_schemata_show(struct config_item *item,
+ 		char *page)
+ {
+@@ -102,152 +156,211 @@ static ssize_t slc_mpam_schemata_store(struct config_item *item,
+ }
+ CONFIGFS_ATTR(slc_mpam_, schemata);
+ 
+-static ssize_t slc_mpam_enable_cap_monitor_show(struct config_item *item,
++static ssize_t slc_mpam_monitor_schemata_show(struct config_item *item,
+ 		char *page)
+ {
+-	return scnprintf(page, PAGE_SIZE, "%s\n",
+-		(get_pm_item(item)->cap_mon_enabled) ? "enabled" : "disabled");
++	size_t len = 0;
++	struct slc_mpam_item *pm_item = get_pm_item(item);
++
++	if (pm_item->cap_mon_support)
++		len += scnprintf(page + len, PAGE_SIZE - len,
++			"cap=%d,", pm_item->cap_mon_enabled);
++	if (pm_item->miss_mon_support)
++		len += scnprintf(page + len, PAGE_SIZE - len,
++			"miss=%d,", pm_item->miss_mon_enabled);
++	if (pm_item->fe_mon_support)
++		len += scnprintf(page + len, PAGE_SIZE - len,
++			"fe=%d,", pm_item->fe_mon_enabled);
++	if (pm_item->be_mon_support)
++		len += scnprintf(page + len, PAGE_SIZE - len,
++			"be=%d,", pm_item->be_mon_enabled);
++	if (len)
++		len += scnprintf(page + len - 1, PAGE_SIZE - len, "\n");
++
++	return len;
+ }
+ 
+-static ssize_t slc_mpam_enable_cap_monitor_store(struct config_item *item,
++static ssize_t slc_mpam_monitor_schemata_store(struct config_item *item,
+ 		const char *page, size_t count)
+ {
+-	int ret;
++	int ret, need_set;
+ 	bool input;
++	char *token, *param_name;
+ 	struct msc_query query;
+ 	struct slc_mon_config_val mon_cfg_val;
+ 	struct slc_mpam_item *pm_item = get_pm_item(item);
+ 
+ 	set_msc_query(&query, pm_item);
+ 
+-	ret = kstrtobool(page, &input);
+-	if (ret) {
+-		pr_err("invalid argument\n");
+-		return -EINVAL;
+-	}
++	while ((token = strsep((char **)&page, ",")) != NULL) {
++		need_set = 0;
++		param_name = strsep(&token, "=");
++		if (param_name == NULL || token == NULL)
++			continue;
+ 
+-	if (!input && pm_item->cap_mon_enabled)
+-		mon_cfg_val.enable = 0;
+-	else if (input && !pm_item->cap_mon_enabled)
+-		mon_cfg_val.enable = 1;
+-	else
+-		goto exit;
++		if (kstrtobool(token, &input) < 0) {
++			pr_err("invalid argument for %s\n", param_name);
++			return -EINVAL;
++		}
+ 
+-	mon_cfg_val.slc_mon_function = CACHE_CAPACITY_CONFIG;
+-	ret = msc_system_mon_config(SLC, &query, &mon_cfg_val);
+-	if (ret) {
+-		pr_err("monitor %s failed %d\n",
+-			(input) ? "enable" : "disable", ret);
+-		return -EBUSY;
++		if (!strcmp("cap", param_name) && pm_item->cap_mon_support &&
++				(pm_item->cap_mon_enabled != input)) {
++			mon_cfg_val.slc_mon_function = CACHE_CAPACITY_CONFIG;
++			mon_cfg_val.enable = input;
++			need_set = 1;
++		} else if (!strcmp("miss", param_name) && pm_item->miss_mon_support &&
++				(pm_item->miss_mon_enabled != input)) {
++			mon_cfg_val.slc_mon_function = CACHE_READ_MISS_CONFIG;
++			mon_cfg_val.enable = input;
++			need_set = 1;
++		} else if (!strcmp("fe", param_name) && pm_item->fe_mon_support  &&
++				(pm_item->fe_mon_enabled != input)) {
++			mon_cfg_val.slc_mon_function = CACHE_FE_MON_CONFIG;
++			mon_cfg_val.enable = input;
++			need_set = 1;
++		} else if (!strcmp("be", param_name)  && pm_item->be_mon_support  &&
++				(pm_item->be_mon_enabled != input)) {
++			mon_cfg_val.slc_mon_function = CACHE_BE_MON_CONFIG;
++			mon_cfg_val.enable = input;
++			need_set = 1;
++		}
++
++		if (need_set) {
++			ret = msc_system_mon_config(SLC, &query, &mon_cfg_val);
++			if (ret) {
++				pr_err("%s monitor %s failed %d\n", param_name,
++					(input) ? "enable" : "disable", ret);
++				return -EBUSY;
++			}
++
++			if (mon_cfg_val.slc_mon_function == CACHE_CAPACITY_CONFIG)
++				pm_item->cap_mon_enabled = input;
++			else if (mon_cfg_val.slc_mon_function == CACHE_READ_MISS_CONFIG)
++				pm_item->miss_mon_enabled = input;
++			else if (mon_cfg_val.slc_mon_function == CACHE_FE_MON_CONFIG)
++				pm_item->fe_mon_enabled = input;
++			else if (mon_cfg_val.slc_mon_function == CACHE_BE_MON_CONFIG)
++				pm_item->be_mon_enabled = input;
++		}
+ 	}
+-	pm_item->cap_mon_enabled = input;
+ 
+-exit:
+ 	return count;
+ }
+-CONFIGFS_ATTR(slc_mpam_, enable_cap_monitor);
++CONFIGFS_ATTR(slc_mpam_, monitor_schemata);
+ 
+-static ssize_t slc_mpam_cap_monitor_data_show(struct config_item *item,
++static ssize_t slc_mpam_monitor_data_show(struct config_item *item,
+ 		char *page)
+ {
++	ssize_t len = 0;
++	uint32_t retry_cnt = 0;
+ 	struct msc_query query;
+ 	union mon_values mon_data;
+-
+-	if (!get_pm_item(item)->cap_mon_enabled)
+-		return scnprintf(page, PAGE_SIZE, "monitor not enabled\n");
+-
+-	set_msc_query(&query, get_pm_item(item));
+-
+-	msc_system_mon_alloc_info(SLC, &query, &mon_data);
+-
+-	return scnprintf(page, PAGE_SIZE, "timestamp=%llu,cap_cnt=%u\n",
+-			mon_data.capacity.last_capture_time,
+-			mon_data.capacity.num_cache_lines);
+-}
+-CONFIGFS_ATTR_RO(slc_mpam_, cap_monitor_data);
+-
+-static ssize_t slc_mpam_enable_miss_monitor_show(struct config_item *item,
+-		char *page)
+-{
+-	return scnprintf(page, PAGE_SIZE, "%s\n",
+-		(get_pm_item(item)->miss_mon_enabled) ? "enabled" : "disabled");
+-}
+-
+-static ssize_t slc_mpam_enable_miss_monitor_store(struct config_item *item,
+-		const char *page, size_t count)
+-{
+-	int ret;
+-	bool input;
+-	struct msc_query query;
+-	struct slc_mon_config_val mon_cfg_val;
+ 	struct slc_mpam_item *pm_item = get_pm_item(item);
++	uint64_t last_capture_time;
++	uint32_t num_cache_lines;
++	uint64_t num_rd_misses, slc_fe_bytes, slc_be_bytes;
+ 
+-	set_msc_query(&query, pm_item);
++	set_msc_query(&query, get_pm_item(item));
+ 
+-	ret = kstrtobool(page, &input);
+-	if (ret) {
+-		pr_err("invalid argument\n");
+-		return -EINVAL;
+-	}
++	if (!pm_item->cap_mon_enabled && !pm_item->miss_mon_enabled &&
++			!pm_item->fe_mon_enabled && !pm_item->be_mon_enabled)
++		return 0;
+ 
+-	if (!input && pm_item->miss_mon_enabled)
+-		mon_cfg_val.enable = 0;
+-	else if (input && !pm_item->miss_mon_enabled)
+-		mon_cfg_val.enable = 1;
+-	else
+-		goto exit;
++	do {
++		last_capture_time = 0;
+ 
+-	mon_cfg_val.slc_mon_function = CACHE_READ_MISS_CONFIG;
+-	ret = msc_system_mon_config(SLC, &query, &mon_cfg_val);
+-	if (ret) {
+-		pr_err("monitor %s failed %d\n",
+-			(input) ? "enable" : "disable", ret);
+-		return -EBUSY;
+-	}
+-	pm_item->miss_mon_enabled = input;
++		if (pm_item->cap_mon_enabled) {
++			msc_system_mon_alloc_info(SLC, &query, &mon_data);
++			last_capture_time = mon_data.capacity.last_capture_time;
++			num_cache_lines = mon_data.capacity.num_cache_lines;
++		}
+ 
+-exit:
+-	return count;
+-}
+-CONFIGFS_ATTR(slc_mpam_, enable_miss_monitor);
++		if (pm_item->miss_mon_enabled) {
++			msc_system_mon_read_miss_info(SLC, &query, &mon_data);
++			if (!last_capture_time)
++				last_capture_time = mon_data.misses.last_capture_time;
++			else if (last_capture_time != mon_data.misses.last_capture_time)
++				continue;
++			num_rd_misses = mon_data.misses.num_rd_misses;
++		}
+ 
+-static ssize_t slc_mpam_miss_monitor_data_show(struct config_item *item,
+-		char *page)
+-{
+-	struct msc_query query;
+-	union mon_values mon_data;
++		if (pm_item->fe_mon_enabled) {
++			msc_system_mon_fe_bw_info(SLC, &query, &mon_data);
++			if (!last_capture_time)
++				last_capture_time = mon_data.fe_stats.last_capture_time;
++			else if (last_capture_time != mon_data.fe_stats.last_capture_time)
++				continue;
++			slc_fe_bytes = mon_data.fe_stats.slc_fe_bytes;
++		}
+ 
+-	if (!get_pm_item(item)->miss_mon_enabled)
+-		return scnprintf(page, PAGE_SIZE, "monitor not enabled\n");
++		if (pm_item->be_mon_enabled) {
++			msc_system_mon_be_bw_info(SLC, &query, &mon_data);
++			if (!last_capture_time)
++				last_capture_time = mon_data.be_stats.last_capture_time;
++			else if (last_capture_time != mon_data.be_stats.last_capture_time)
++				continue;
++			slc_be_bytes = mon_data.be_stats.slc_be_bytes;
++		}
++	} while (retry_cnt++ < MAX_RETRY_CNT);
+ 
+-	set_msc_query(&query, get_pm_item(item));
++	len = scnprintf(page, PAGE_SIZE,
++			"timestamp=%llu,", last_capture_time);
++	if (pm_item->cap_mon_enabled)
++		len += scnprintf(page + len, PAGE_SIZE - len,
++			"cap=%u,", num_cache_lines);
++	if (pm_item->miss_mon_enabled)
++		len += scnprintf(page + len, PAGE_SIZE - len,
++			"miss=%llu,", num_rd_misses);
++	if (pm_item->fe_mon_enabled)
++		len += scnprintf(page + len, PAGE_SIZE - len,
++			"fe=%llu,", slc_fe_bytes);
++	if (pm_item->be_mon_enabled)
++		len += scnprintf(page + len, PAGE_SIZE - len,
++			"be=%llu,", slc_be_bytes);
+ 
+-	msc_system_mon_read_miss_info(SLC, &query, &mon_data);
++	len -= 1;
++	len += scnprintf(page + len, PAGE_SIZE - len, "\n");
+ 
+-	return scnprintf(page, PAGE_SIZE, "timestamp=%llu,miss_cnt=%llu\n",
+-			mon_data.misses.last_capture_time, mon_data.misses.num_rd_misses);
++	return len;
+ }
+-CONFIGFS_ATTR_RO(slc_mpam_, miss_monitor_data);
++CONFIGFS_ATTR_RO(slc_mpam_, monitor_data);
+ 
+ static ssize_t slc_mpam_available_gear_show(struct config_item *item,
+ 		char *page)
+ {
+-	int i, ret, gear_num;
++	int i, gear_num;
+ 	ssize_t len = 0;
+-	struct msc_query query;
+-	struct slc_partid_capability slc_partid_cap;
++	union slc_partid_capability_def *partid_cap;
++	uint32_t slc_firmware_ver = 0;
++	struct slc_partid_capability *v0_cap = NULL;
++	struct slc_partid_capability_v1 *v1_cap = NULL;
+ 
+-	set_msc_query(&query, get_pm_item(item));
++	partid_cap = get_partid_cap(get_pm_item(item));
++	if(!partid_cap)
++		return -EINVAL;
+ 
+-	ret = msc_system_get_device_capability(SLC, &query, &slc_partid_cap);
+-	if (ret)
+-		return scnprintf(page, PAGE_SIZE,
+-			"failed to get available gear %d\n", ret);
++	msc_system_get_mpam_version(SLC, &slc_firmware_ver);
++	
++	if (slc_firmware_ver == SLC_MPAM_VERSION_0) {
++		v0_cap = &partid_cap->v0_cap;
++		for (i = 0; i < v0_cap->num_gears; i++) {
++			gear_num = v0_cap->part_id_gears[i];
++			len += scnprintf(page + len, PAGE_SIZE - len,
++				"%d - %s\n", gear_num, gear_index[gear_num]);
++		}
++	} else {
++		v1_cap = &partid_cap->v1_cap;
++		for (gear_num = 0, i = 0; gear_num < v1_cap->num_gears; gear_num++, i++) {
++			if (((1 << i) & v1_cap->cap_cfg.gear_flds_bitmap) == 0)
++				continue;
+ 
+-	for (i = 0; i < slc_partid_cap.num_gears; i++) {
+-		gear_num = slc_partid_cap.part_id_gears[i];
+-		len += scnprintf(page + len, PAGE_SIZE - len,
+-			"%d - %s\n", gear_num, gear_index[gear_num]);
++			if (gear_num >= v1_cap->num_gears)
++				break;
++
++			len += scnprintf(page + len, PAGE_SIZE - len,
++					"%d - %d\n", gear_num,
++					i * v1_cap->cap_cfg.slc_bitfield_capacity);
++		}
+ 	}
+ 
+ 	return len;
+@@ -256,10 +369,8 @@ CONFIGFS_ATTR_RO(slc_mpam_, available_gear);
+ 
+ static struct configfs_attribute *slc_mpam_attrs[] = {
+ 	&slc_mpam_attr_schemata,
+-	&slc_mpam_attr_enable_cap_monitor,
+-	&slc_mpam_attr_cap_monitor_data,
+-	&slc_mpam_attr_enable_miss_monitor,
+-	&slc_mpam_attr_miss_monitor_data,
++	&slc_mpam_attr_monitor_data,
++	&slc_mpam_attr_monitor_schemata,
+ 	&slc_mpam_attr_available_gear,
+ 	NULL,
+ };
+@@ -294,6 +405,9 @@ static int create_config_node(const char *name,
+ {
+ 	int ret;
+ 	struct slc_mpam_item *new_item;
++	struct device_node *np = dev->of_node;
++	uint32_t slc_firmware_ver = 0;
++	struct slc_partid_capability_v1 *v1_cap = NULL;
+ 
+ 	new_item = slc_mpam_make_group(dev, name);
+ 	if (IS_ERR(new_item)) {
+@@ -303,6 +417,39 @@ static int create_config_node(const char *name,
+ 	new_item->client_id = client_id;
+ 	new_item->part_id = part_id;
+ 
++	msc_system_get_mpam_version(SLC, &slc_firmware_ver);
++	if (slc_firmware_ver != SLC_MPAM_VERSION_0) {
++
++		if (part_id != NO_PARTID) {
++			v1_cap = (struct slc_partid_capability_v1 *)get_partid_cap(new_item);
++			if(!v1_cap)
++				return -EINVAL;
++
++			if (v1_cap->mon_support & (1 << cap_mon_support))
++				new_item->cap_mon_support = true;
++			if (v1_cap->mon_support & (1 << read_miss_mon_support))
++				new_item->miss_mon_support = true;
++			if (v1_cap->mon_support & (1 << fe_mon_support))
++				new_item->fe_mon_support = true;
++			if (v1_cap->mon_support & (1 << be_mon_support))
++				new_item->be_mon_support = true;
++		}
++	} else {
++		new_item->cap_mon_support = true;
++		new_item->miss_mon_support = true;
++	}
++
++	if (client_id == 0 && of_property_read_bool(np, "qcom,client-level-mon")) {
++		if (part_id == NO_PARTID) {
++			new_item->part_id = 0;
++			new_item->fe_mon_support = true;
++			new_item->be_mon_support = true;
++		} else {
++			new_item->fe_mon_support = false;
++			new_item->be_mon_support = false;
++		}
++	}
++
+ 	ret = configfs_register_group(parent_group, &new_item->group);
+ 	if (ret) {
+ 		pr_err("Error register group %s\n", name);
 diff --git a/include/soc/qcom/mpam_msc.h b/include/soc/qcom/mpam_msc.h
 index 356a6c817985..8b040d327bf8 100644
 --- a/include/soc/qcom/mpam_msc.h
