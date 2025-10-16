@@ -34,7 +34,7 @@ Signed-off-by: Kaisheng Yang <kaisheng@qti.qualcomm.com>
  drivers/soc/qcom/mpam/Kconfig         |  89 ++++
  drivers/soc/qcom/mpam/Makefile        |   8 +
  drivers/soc/qcom/mpam/cpu_mpam.c      | 713 +++++++++++++++++++++++++
- drivers/soc/qcom/mpam/mpam.c          | 190 +++++++
+ drivers/soc/qcom/mpam/mpam.c          | 191 +++++++
  drivers/soc/qcom/mpam/mpam_hook.c     |  54 ++
  drivers/soc/qcom/mpam/mpam_msc.c      | 374 ++++++++++++++
  drivers/soc/qcom/mpam/mpam_msc_slc.c  | 715 ++++++++++++++++++++++++++
@@ -43,7 +43,7 @@ Signed-off-by: Kaisheng Yang <kaisheng@qti.qualcomm.com>
  include/soc/qcom/mpam.h               | 234 +++++++++
  include/soc/qcom/mpam_msc.h           | 133 +++++
  include/soc/qcom/mpam_slc.h           | 168 ++++++
- 15 files changed, 3452 insertions(+)
+ 15 files changed, 3453 insertions(+)
  create mode 100644 drivers/soc/qcom/mpam/Kconfig
  create mode 100644 drivers/soc/qcom/mpam/Makefile
  create mode 100644 drivers/soc/qcom/mpam/cpu_mpam.c
@@ -928,7 +928,7 @@ new file mode 100644
 index 000000000000..c8c1004dfc8e
 --- /dev/null
 +++ b/drivers/soc/qcom/mpam/mpam.c
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,191 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -943,10 +943,11 @@ index 000000000000..c8c1004dfc8e
 +#include <linux/scmi_protocol.h>
 +#include <soc/qcom/mpam.h>
 +
++#define MAX(a,b)		((a) > (b) ? (a) : (b))
 +#define MPAM_ALGO_STR	0x4D50414D4558544E  /* "MPAMEXTN" */
-+#define CONFIG_VAL_LEN	max(sizeof(struct mpam_read_cache_portion), \
++#define CONFIG_VAL_LEN	MAX(sizeof(struct mpam_read_cache_portion), \
 +							sizeof(struct mpam_config_val))
-+#define BW_CTRL_LEN		max(sizeof(struct platform_mpam_read_bw_ctrl), \
++#define BW_CTRL_LEN		MAX(sizeof(struct platform_mpam_read_bw_ctrl), \
 +							sizeof(struct platform_mpam_bw_ctrl_config))
 +
 +
