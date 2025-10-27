@@ -16,6 +16,7 @@ SRC_URI:append = "\
     file://qup/0010-PENDING-i2c-qcom-geni-Add-support-for-S2R-feature.patch \
     file://qup/0011-PENDING-serial-qcom-geni-Add-support-for-S2R-feature.patch \
     file://qup/0012-PENDING-spi-spi-geni-qcom-Add-support-for-S2R-featur.patch \
+    file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
