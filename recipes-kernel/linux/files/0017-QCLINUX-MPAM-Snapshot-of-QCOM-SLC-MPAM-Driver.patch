@@ -1,4 +1,4 @@
-From 364115eca9c391d7e7cff66964397c38b4cd4e8f Mon Sep 17 00:00:00 2001
+From e432911ea2ad379e59cc41ea17c4d3dc8c0c2d08 Mon Sep 17 00:00:00 2001
 From: Kaisheng Yang <kaisheng@qti.qualcomm.com>
 Date: Tue, 24 Jun 2025 15:03:26 +0800
 Subject: [PATCH 2/2] QCLINUX: MPAM: Snapshot of QCOM SLC MPAM Driver
@@ -12,10 +12,10 @@ Signed-off-by: Kaisheng Yang <kaisheng@qti.qualcomm.com>
 ---
  drivers/soc/qcom/mpam/mpam_msc.c     | 259 ++++----
  drivers/soc/qcom/mpam/mpam_msc_slc.c | 867 +++++++++++++++++++++------
- drivers/soc/qcom/mpam/slc_mpam.c     | 359 +++++++----
+ drivers/soc/qcom/mpam/slc_mpam.c     | 357 +++++++----
  include/soc/qcom/mpam_msc.h          |  42 +-
  include/soc/qcom/mpam_slc.h          | 282 +++++++--
- 5 files changed, 1331 insertions(+), 478 deletions(-)
+ 5 files changed, 1329 insertions(+), 478 deletions(-)
 
 diff --git a/drivers/soc/qcom/mpam/mpam_msc.c b/drivers/soc/qcom/mpam/mpam_msc.c
 index 598acdf747cd..e184d291bf4c 100644
@@ -1619,7 +1619,7 @@ index 800093c6fd2b..2eacf7a72130 100644
  
  		detach_mpam_msc(&pdev->dev, qcom_msc, SLC);
 diff --git a/drivers/soc/qcom/mpam/slc_mpam.c b/drivers/soc/qcom/mpam/slc_mpam.c
-index b284aa5fb7a8..ba00ef5a132c 100644
+index b284aa5fb7a8..3344c3e7a871 100644
 --- a/drivers/soc/qcom/mpam/slc_mpam.c
 +++ b/drivers/soc/qcom/mpam/slc_mpam.c
 @@ -12,12 +12,21 @@
@@ -1696,7 +1696,7 @@ index b284aa5fb7a8..ba00ef5a132c 100644
  static ssize_t slc_mpam_schemata_show(struct config_item *item,
  		char *page)
  {
-@@ -102,152 +156,211 @@ static ssize_t slc_mpam_schemata_store(struct config_item *item,
+@@ -102,152 +156,209 @@ static ssize_t slc_mpam_schemata_store(struct config_item *item,
  }
  CONFIGFS_ATTR(slc_mpam_, schemata);
  
@@ -1992,25 +1992,23 @@ index b284aa5fb7a8..ba00ef5a132c 100644
 +		}
 +	} else {
 +		v1_cap = &partid_cap->v1_cap;
-+		for (gear_num = 0, i = 0; gear_num < v1_cap->num_gears; gear_num++, i++) {
-+			if (((1 << i) & v1_cap->cap_cfg.gear_flds_bitmap) == 0)
++		for (gear_num = 0, i = 0; gear_num < v1_cap->num_gears &&
++				i < sizeof(v1_cap->cap_cfg.gear_flds_bitmap) * 8; i++) {
++			if ((BIT(i) & v1_cap->cap_cfg.gear_flds_bitmap) == 0)
 +				continue;
  
 -	for (i = 0; i < slc_partid_cap.num_gears; i++) {
 -		gear_num = slc_partid_cap.part_id_gears[i];
 -		len += scnprintf(page + len, PAGE_SIZE - len,
 -			"%d - %s\n", gear_num, gear_index[gear_num]);
-+			if (gear_num >= v1_cap->num_gears)
-+				break;
-+
 +			len += scnprintf(page + len, PAGE_SIZE - len,
-+					"%d - %d\n", gear_num,
++					"%d - %d\n", gear_num++,
 +					i * v1_cap->cap_cfg.slc_bitfield_capacity);
 +		}
  	}
  
  	return len;
-@@ -256,10 +369,8 @@ CONFIGFS_ATTR_RO(slc_mpam_, available_gear);
+@@ -256,10 +367,8 @@ CONFIGFS_ATTR_RO(slc_mpam_, available_gear);
  
  static struct configfs_attribute *slc_mpam_attrs[] = {
  	&slc_mpam_attr_schemata,
@@ -2023,7 +2021,7 @@ index b284aa5fb7a8..ba00ef5a132c 100644
  	&slc_mpam_attr_available_gear,
  	NULL,
  };
-@@ -294,6 +405,9 @@ static int create_config_node(const char *name,
+@@ -294,6 +403,9 @@ static int create_config_node(const char *name,
  {
  	int ret;
  	struct slc_mpam_item *new_item;
@@ -2033,7 +2031,7 @@ index b284aa5fb7a8..ba00ef5a132c 100644
  
  	new_item = slc_mpam_make_group(dev, name);
  	if (IS_ERR(new_item)) {
-@@ -303,6 +417,39 @@ static int create_config_node(const char *name,
+@@ -303,6 +415,39 @@ static int create_config_node(const char *name,
  	new_item->client_id = client_id;
  	new_item->part_id = part_id;
  
