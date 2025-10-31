@@ -107,6 +107,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0039-ccu-Initialize-CCU-QUP-core-during-firmware-load-and.patch \
     file://qup/0040-i2c-Prevent-kernel-panic-by-handling-ERR_PTR-from-dm.patch \
     file://qup/0041-i2c-Update-clock-cycle-formula-per-latest-HPG-specif.patch \
+    file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
