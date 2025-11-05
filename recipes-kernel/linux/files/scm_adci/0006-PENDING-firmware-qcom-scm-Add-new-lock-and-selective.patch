@@ -151,9 +151,9 @@ index 57b9d05f9aa4..0676299d6713 100644
  
 +DEFINE_SEMAPHORE(qcom_scm_sem_lock, 1);
 +
- #define SHMBRIDGE_RESULT_NOTSUPP		4
- 
- /* Each bit configures cold/warm boot address for one of the 4 CPUs */
+ enum qcom_scm_rsctable_resp_type {
+ 	RSCTABLE_BUFFER_NOT_SUFFICIENT		= 20,
+ };
 @@ -1769,6 +1773,37 @@ bool qcom_scm_is_available(void)
  }
  EXPORT_SYMBOL_GPL(qcom_scm_is_available);

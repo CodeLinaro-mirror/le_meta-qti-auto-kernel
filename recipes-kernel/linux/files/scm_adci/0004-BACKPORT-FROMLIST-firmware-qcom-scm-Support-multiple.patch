@@ -49,7 +49,7 @@ index d5b8d91dde28..7e2af5163149 100644
 --- a/drivers/firmware/qcom_scm.c
 +++ b/drivers/firmware/qcom_scm.c
 @@ -27,6 +27,7 @@
- #include <linux/reset-controller.h>
+ #include <linux/remoteproc.h>
  #include <linux/sizes.h>
  #include <linux/arm-smccc.h>
 +#include <linux/xarray.h>
