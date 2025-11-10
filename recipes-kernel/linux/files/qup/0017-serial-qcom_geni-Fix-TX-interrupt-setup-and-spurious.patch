@@ -1,6 +1,6 @@
-From f0ab940f7427a65de09ff7bf7cd61cbc77cb7a30 Mon Sep 17 00:00:00 2001
-From: Aniket Randive <aniket.randive@oss.qualcomm.com>
-Date: Tue, 14 Oct 2025 14:50:04 +0530
+From 55f0d9cd4eb8a4071ed7a27ae1a5f6656f506396 Mon Sep 17 00:00:00 2001
+From: Aniket Randive <arandive@qti.qualcomm.com>
+Date: Mon, 10 Nov 2025 14:12:34 +0530
 Subject: [PATCH] serial: qcom_geni: Fix TX interrupt setup and spurious IRQs
  during suspend/resume
 
@@ -24,29 +24,37 @@ to avoid spurious interrupts during power transitions.
 Change-Id: I3f1e8647a8117d066dac2c57a49c7407e50f591b
 Signed-off-by: Aniket Randive <aniket.randive@oss.qualcomm.com>
 ---
- drivers/tty/serial/qcom_geni_serial.c | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ drivers/tty/serial/qcom_geni_serial.c | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/tty/serial/qcom_geni_serial.c b/drivers/tty/serial/qcom_geni_serial.c
-index 61e203973b88..39ff6285e227 100644
+index dba3c9b34dfc..687af976ad25 100644
 --- a/drivers/tty/serial/qcom_geni_serial.c
 +++ b/drivers/tty/serial/qcom_geni_serial.c
-@@ -701,8 +701,12 @@ static void qcom_geni_serial_start_tx_fifo(struct uart_port *uport)
+@@ -706,15 +706,19 @@ static void qcom_geni_serial_start_tx_dma(struct uart_port *uport)
+ static void qcom_geni_serial_start_tx_fifo(struct uart_port *uport)
  {
  	u32 irq_en;
- 
--	if (qcom_geni_serial_main_active(uport) ||
--	    !qcom_geni_serial_tx_empty(uport))
-+	if (qcom_geni_serial_main_active(uport)) {
+-
+ 	unsigned char c;
++
++	if (!qcom_geni_serial_main_active(uport)) {
 +		if (!uart_console(uport) || console_suspend_enabled)
 +			return;
 +	}
 +
-+	if (!qcom_geni_serial_tx_empty(uport))
- 		return;
- 
- 	irq_en = readl(uport->membase +	SE_GENI_M_IRQ_EN);
-@@ -721,6 +725,11 @@ static void qcom_geni_serial_stop_tx_fifo(struct uart_port *uport)
+ 	/*
+ 	 * Start a new transfer in case the previous command was cancelled and
+ 	 * left data in the FIFO which may prevent the watermark interrupt
+ 	 * from triggering. Note that the stale data is discarded.
+ 	 */
+-	if (!qcom_geni_serial_main_active(uport) &&
+-	    !qcom_geni_serial_tx_empty(uport)) {
++	if (!qcom_geni_serial_tx_empty(uport)) {
+ 		if (uart_fifo_out(uport, &c, 1) == 1) {
+ 			writel(M_CMD_DONE_EN, uport->membase + SE_GENI_M_IRQ_CLEAR);
+ 			qcom_geni_serial_setup_tx(uport, 1);
+@@ -737,6 +741,10 @@ static void qcom_geni_serial_stop_tx_fifo(struct uart_port *uport)
  	irq_en &= ~(M_CMD_DONE_EN | M_TX_FIFO_WATERMARK_EN);
  	writel(0, uport->membase + SE_GENI_TX_WATERMARK_REG);
  	writel(irq_en, uport->membase + SE_GENI_M_IRQ_EN);
@@ -54,11 +62,10 @@ index 61e203973b88..39ff6285e227 100644
 +	/* Clear any pending TX interrupts that might cause storms */
 +	writel(M_CMD_DONE_EN | M_TX_FIFO_WATERMARK_EN | M_CMD_CANCEL_EN | M_CMD_ABORT_EN,
 +			uport->membase + SE_GENI_M_IRQ_CLEAR);
-+
- 	/* Possible stop tx is called multiple times. */
- 	if (!qcom_geni_serial_main_active(uport))
- 		return;
-@@ -774,6 +783,13 @@ static void qcom_geni_serial_stop_rx_fifo(struct uart_port *uport)
+ }
+ 
+ static void __qcom_geni_serial_cancel_tx_cmd(struct uart_port *uport)
+@@ -805,6 +813,13 @@ static void qcom_geni_serial_stop_rx_fifo(struct uart_port *uport)
  	irq_en &= ~(M_RX_FIFO_WATERMARK_EN | M_RX_FIFO_LAST_EN);
  	writel(irq_en, uport->membase + SE_GENI_M_IRQ_EN);
  
