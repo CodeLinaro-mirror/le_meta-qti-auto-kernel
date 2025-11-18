@@ -7,6 +7,7 @@ SRC_URI:append = "\
     ${@bb.utils.contains_any('VARIANT', 'perf user', '', 'file://devmem.cfg', d)} \
     ${@bb.utils.contains_any('VARIANT', 'perf user', 'file://perf.cfg', '', d)} \
     file://0001-QCLINUX-vfio-Disable-iommu_group_claim_dma_owner-tem.patch \
+    file://0001-PENDING-pinctrl-qcom-Enable-read-after-write-feature.patch \
     file://qup/0001-PENDING-soc-qcom-geni-se-Enable-QUPs-on-SA8255p-Qual.patch \
     file://qup/0002-PENDING-serial-qcom-geni-Enable-Serial-on-SA8255p-pl.patch \
     file://qup/0003-PENDING-i2c-qcom-geni-Enable-I2C-on-SA8255p-Qualcomm.patch \
