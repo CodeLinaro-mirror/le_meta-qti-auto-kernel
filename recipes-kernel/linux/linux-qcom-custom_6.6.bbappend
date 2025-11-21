@@ -7,6 +7,22 @@ SRC_URI:append = "\
     ${@bb.utils.contains_any('VARIANT', 'perf user', '', 'file://devmem.cfg', d)} \
     ${@bb.utils.contains_any('VARIANT', 'perf user', 'file://perf.cfg', '', d)} \
     file://0001-QCLINUX-vfio-Disable-iommu_group_claim_dma_owner-tem.patch \
+    file://qup/0001-UPSTREAM-soc-qcom-geni-se-Add-M_TX_FIFO_NOT_EMPTY-bi.patch \
+    file://qup/0002-UPSTREAM-soc-qcom-geni-se-add-GP_LENGTH-IRQ_EN_SET-I.patch \
+    file://qup/0003-UPSTREAM-kfifo-introduce-and-use-kfifo_skip_count.patch \
+    file://qup/0004-UPSTREAM-kfifo-add-kfifo_out_linear-_ptr.patch \
+    file://qup/0007-UPSTREAM-serial-qcom-geni-Don-t-cancel-abort-if-we-c.patch \
+    file://qup/0008-BACKPORT-tty-serial-switch-from-circ_buf-to-kfifo.patch \
+    file://qup/0009-UPSTREAM-serial-meson-qcom-don-t-advance-the-kfifo-t.patch \
+    file://qup/0010-UPSTREAM-serial-qcom-geni-fix-soft-lockup-on-sw-flow.patch \
+    file://qup/0011-UPSTREAM-serial-qcom-geni-fix-hard-lockup-on-buffer-.patch \
+    file://qup/0012-UPSTREAM-serial-qcom-geni-do-not-kill-the-machine-on.patch \
+    file://qup/0014-UPSTREAM-serial-qcom-geni-fix-arg-types-for-qcom_gen.patch \
+    file://qup/0015-UPSTREAM-serial-qcom-geni-introduce-qcom_geni_serial.patch \
+    file://qup/0016-UPSTREAM-serial-qcom-geni-fix-console-corruption.patch \
+    file://qup/0017-UPSTREAM-serial-qcom-geni-disable-interrupts-during-.patch \
+    file://qup/0018-UPSTREAM-serial-qcom-geni-fix-polled-console-corrupt.patch \
+    file://qup/0019-UPSTREAM-serial-qcom-geni-fix-shutdown-race.patch \
     file://qup/0001-PENDING-soc-qcom-geni-se-Enable-QUPs-on-SA8255p-Qual.patch \
     file://qup/0002-PENDING-serial-qcom-geni-Enable-Serial-on-SA8255p-pl.patch \
     file://qup/0003-PENDING-i2c-qcom-geni-Enable-I2C-on-SA8255p-Qualcomm.patch \
