@@ -21,6 +21,7 @@ SRC_URI:append = "\
     file://qup/0015-PENDING-spi-qcom-geni-Allow-SPI-mode-reconfiguration.patch \
     file://qup/0016-PENDING-serial-Ensure-DMA-buffer-is-synced-before-CP.patch \
     file://qup/0017-PENDING-dmaengine-qcom-gpi-Handle-GPII-channel-recon.patch \
+    file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
@@ -70,6 +71,7 @@ SRC_URI:append:sa8797 = " \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
     file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
     file://0017-QCLINUX-MPAM-Snapshot-of-QCOM-SLC-MPAM-Driver.patch \
+    file://0018-QCLINUX-MPAM-Add-CPU-map-partid-for-CPU-MPAM-Driver.patch \
     file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
     file://qup/0008-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
@@ -106,6 +108,7 @@ SRC_URI:append:sa8797 = " \
     file://qup/0039-ccu-Initialize-CCU-QUP-core-during-firmware-load-and.patch \
     file://qup/0040-i2c-Prevent-kernel-panic-by-handling-ERR_PTR-from-dm.patch \
     file://qup/0041-i2c-Update-clock-cycle-formula-per-latest-HPG-specif.patch \
+    file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
 "
 
 SRC_URI:remove:sa8797 = " \
