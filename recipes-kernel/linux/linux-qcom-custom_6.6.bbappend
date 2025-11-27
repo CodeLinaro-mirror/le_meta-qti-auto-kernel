@@ -66,7 +66,6 @@ SRC_URI:append = "\
 
 SRC_URI:append:gen5 = " \
     file://sa8797p-generic.cfg \
-    file://0003-scsi-ufs-Disable-auto-hibern8-feature.patch \
     file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
     file://usb/0017-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
