@@ -117,18 +117,6 @@ SRC_URI:remove:gen5 = " \
     file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
 "
 
-SRC_URI:append:sa8775 = " \
-    file://0001-QCLINUX-Revert-of-commit-3359fb13eebc-QCLINUX-Enable.patch \
-    file://0002-Revert-QCLINUX-firmware-Remove-qtee_shmbridge-driver.patch \
-    file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
-"
-
-SRC_URI:append:sa7255 = " \
-    file://0001-QCLINUX-Revert-of-commit-3359fb13eebc-QCLINUX-Enable.patch \
-    file://0002-Revert-QCLINUX-firmware-Remove-qtee_shmbridge-driver.patch \
-    file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
-"
-
 SRC_URI:append:auto-fts = " \
     file://auto-fts.cfg \
     file://pcie/0002-PCIe_RC_Add-pcie-module-dependency.patch \
