@@ -59,7 +59,7 @@ SRC_URI:append = "\
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
 "
 
-SRC_URI:append:sa8797 = " \
+SRC_URI:append:gen5 = " \
     file://sa8797p-generic.cfg \
     file://0003-scsi-ufs-Disable-auto-hibern8-feature.patch \
     file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
@@ -111,22 +111,10 @@ SRC_URI:append:sa8797 = " \
     file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
 "
 
-SRC_URI:remove:sa8797 = " \
+SRC_URI:remove:gen5 = " \
     file://earlyboot.cfg \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
-"
-
-SRC_URI:append:sa8775 = " \
-    file://0001-QCLINUX-Revert-of-commit-3359fb13eebc-QCLINUX-Enable.patch \
-    file://0002-Revert-QCLINUX-firmware-Remove-qtee_shmbridge-driver.patch \
-    file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
-"
-
-SRC_URI:append:sa7255 = " \
-    file://0001-QCLINUX-Revert-of-commit-3359fb13eebc-QCLINUX-Enable.patch \
-    file://0002-Revert-QCLINUX-firmware-Remove-qtee_shmbridge-driver.patch \
-    file://0001-Revert-QCLINUX-firmware-qcom-si-core-Switch-to-tzmem.patch \
 "
 
 SRC_URI:append:auto-fts = " \
@@ -134,7 +122,7 @@ SRC_URI:append:auto-fts = " \
     file://pcie/0002-PCIe_RC_Add-pcie-module-dependency.patch \
 "
 
-KERNEL_CONFIG_FRAGMENTS:append:sa8797 = " ${WORKDIR}/sa8797p-generic.cfg"
+KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${WORKDIR}/sa8797p-generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa8775 = " ${WORKDIR}/earlyboot.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa7255 = " ${WORKDIR}/earlyboot.cfg"
