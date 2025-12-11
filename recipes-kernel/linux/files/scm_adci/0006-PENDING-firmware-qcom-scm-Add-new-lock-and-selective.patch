@@ -70,14 +70,6 @@ index bccf417b895c..1674dde1e349 100644
  {
  	int ret;
  	u32 wq_ctx, smc_call_ctx;
-@@ -126,6 +126,7 @@ static int __scm_smc_do_quirk_handle_waitq(struct device *dev, struct arm_smccc_
- 			}
- 
- 			if (res->a0 == QCOM_SCM_WAITQ_SLEEP) {
-+
- 				ret = qcom_scm_wait_for_wq_completion(dev_get_drvdata(dev), wq_ctx);
- 				if (ret)
- 					return ret;
 @@ -144,9 +145,10 @@ static int __scm_smc_do_quirk_handle_waitq(struct device *dev, struct arm_smccc_
  }
  
@@ -126,8 +118,8 @@ index bccf417b895c..1674dde1e349 100644
 -	ret = __scm_smc_do(dev, &smc, &smc_res, atomic);
 +	ret = __scm_smc_do(dev, &smc, &smc_res, atomic, desc_skip_mutex);
  
- 	if (ret)
- 		return ret;
+ 	if (ret) {
+ 		trace_scm_smc_done(ret, smc.args[0], &smc_res);
 diff --git a/drivers/firmware/qcom_scm.c b/drivers/firmware/qcom_scm.c
 index 57b9d05f9aa4..0676299d6713 100644
 --- a/drivers/firmware/qcom_scm.c
