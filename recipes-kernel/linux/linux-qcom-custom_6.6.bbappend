@@ -120,6 +120,7 @@ SRC_URI:append:gen5 = " \
     file://qup/0041-i2c-Update-clock-cycle-formula-per-latest-HPG-specif.patch \
     file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
     file://qup/0043-i2c-Update-the-I2C-clock-counter-values-for-37.5MHz-.patch \
+    file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
 "
 
 SRC_URI:remove:gen5 = " \
