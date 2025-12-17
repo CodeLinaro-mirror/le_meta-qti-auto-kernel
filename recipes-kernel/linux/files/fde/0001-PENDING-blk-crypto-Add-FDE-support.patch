@@ -1,0 +1,745 @@
+From b438ad4ef5a76d24fd1c0eda7eebc81edb9a289b Mon Sep 17 00:00:00 2001
+From: linlzhan <linlzhan@qti.qualcomm.com>
+Date: Sat, 6 Dec 2025 19:49:07 +0800
+Subject: [PATCH] PENDING: blk-crypto: Add FDE support
+
+Extend block crypto and its profile to support HWKM based FDE.
+1. Add ioctls to program and evict hardware-wrapped key.
+2. Add hash table mapping between the partition name and its block
+   crypto key.
+3. Find the block crypto key for the partition enabling FDE, and
+   program this key to corresponding key slot before submitting BIO.
+4. Caculate DUN based on the start sectors of the request.
+
+Test:
+1. The data in the FDE partition is encrypted.
+2. FDE partition can only be mounted after enabling FDE.
+3. FDE enablement hasn't impact on files with FBE enabled.
+
+Change-Id: I3ba54d3567c62509321ac21a2991529ff331a27b
+Signed-off-by: linlzhan <linlzhan@qti.qualcomm.com>
+---
+ arch/arm64/configs/qcom_defconfig  |   1 +
+ block/Kconfig                      |   7 +
+ block/bdev.c                       |   3 +
+ block/blk-crypto-internal.h        |  27 +++-
+ block/blk-crypto-profile.c         |  86 +++++++++++
+ block/blk-crypto.c                 | 240 ++++++++++++++++++++++++++++-
+ block/ioctl.c                      |   4 +
+ drivers/mmc/core/crypto.c          |  17 +-
+ drivers/mmc/host/cqhci-crypto.h    |   9 +-
+ drivers/ufs/core/ufshcd-crypto.h   |  14 ++
+ include/linux/blk-crypto-profile.h |  10 ++
+ include/linux/blk-crypto.h         |   3 +
+ include/linux/blk_types.h          |   6 +
+ include/linux/mmc/core.h           |   5 +-
+ include/uapi/linux/blk-crypto.h    |  19 +++
+ 15 files changed, 445 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm64/configs/qcom_defconfig b/arch/arm64/configs/qcom_defconfig
+index 4b4219051522..17a1683e26d0 100644
+--- a/arch/arm64/configs/qcom_defconfig
++++ b/arch/arm64/configs/qcom_defconfig
+@@ -836,6 +836,7 @@ CONFIG_CRYPTO_AES_ARM64_CE_CCM=y
+ CONFIG_CRYPTO_DEV_QCE=m
+ CONFIG_CRYPTO_DEV_QCOM_RNG=m
+ CONFIG_CRYPTO_DEV_CCREE=m
++CONFIG_QCOM_CRYPTO_FDE=y
+ # CONFIG_HW_RANDOM_ARM_SMCCC_TRNG is not set
+ CONFIG_INDIRECT_PIO=y
+ CONFIG_TRACE_MMIO_ACCESS=y
+diff --git a/block/Kconfig b/block/Kconfig
+index f1364d1c0d93..e3494ee592af 100644
+--- a/block/Kconfig
++++ b/block/Kconfig
+@@ -208,6 +208,13 @@ config BLK_INLINE_ENCRYPTION_FALLBACK
+ 	  by falling back to the kernel crypto API when inline
+ 	  encryption hardware is not present.
+ 
++config QCOM_CRYPTO_FDE
++	bool "Enable full disk encryption support in block layer"
++	depends on BLK_INLINE_ENCRYPTION
++	help
++	  Enabling this lets the block layer handle full disk encryption
++	  for a partition when inline encryption hardware is present.
++
+ source "block/partitions/Kconfig"
+ 
+ config BLK_MQ_PCI
+diff --git a/block/bdev.c b/block/bdev.c
+index 5a54977518ee..8b729af1faa8 100644
+--- a/block/bdev.c
++++ b/block/bdev.c
+@@ -412,6 +412,9 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
+ 		return NULL;
+ 	}
+ 	bdev->bd_disk = disk;
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	atomic_set(&bdev->crypto_enabled, 0);
++#endif
+ 	return bdev;
+ }
+ 
+diff --git a/block/blk-crypto-internal.h b/block/blk-crypto-internal.h
+index ccf6dff6ff6b..91b6e33f3e82 100644
+--- a/block/blk-crypto-internal.h
++++ b/block/blk-crypto-internal.h
+@@ -61,9 +61,10 @@ static inline void blk_crypto_rq_set_defaults(struct request *rq)
+ 	rq->crypt_keyslot = NULL;
+ }
+ 
++static inline int is_full_crypto_enabled(struct request *rq);
+ static inline bool blk_crypto_rq_is_encrypted(struct request *rq)
+ {
+-	return rq->crypt_ctx;
++	return rq->crypt_ctx || is_full_crypto_enabled(rq);
+ }
+ 
+ static inline bool blk_crypto_rq_has_keyslot(struct request *rq)
+@@ -86,6 +87,30 @@ bool __blk_crypto_cfg_supported(struct blk_crypto_profile *profile,
+ int blk_crypto_ioctl(struct block_device *bdev, unsigned int cmd,
+ 		     void __user *argp);
+ 
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++int blk_crypto_add_blk_key(struct blk_crypto_profile *profile,
++		const struct blk_crypto_key *key, const u8 *id, const u32 id_size);
++
++int blk_crypto_remove_blk_key(struct blk_crypto_profile *profile,
++			const struct blk_crypto_key *key);
++
++struct blk_crypto_key *blk_crypto_find_blk_key(
++					struct blk_crypto_profile *profile,
++					const u8 *id, const u32 id_size);
++
++static inline int is_full_crypto_enabled(struct request *rq)
++{
++	if (!rq || !rq->part)
++		return false;
++
++	return atomic_read(&rq->part->crypto_enabled) != 0;
++}
++#else /* CONFIG_QCOM_CRYPTO_FDE */
++static inline int is_full_crypto_enabled(struct request *rq)
++{
++	return false;
++}
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
+ #else /* CONFIG_BLK_INLINE_ENCRYPTION */
+ 
+ static inline int blk_crypto_sysfs_register(struct gendisk *disk)
+diff --git a/block/blk-crypto-profile.c b/block/blk-crypto-profile.c
+index 170858af4ea2..0772e3556a88 100644
+--- a/block/blk-crypto-profile.c
++++ b/block/blk-crypto-profile.c
+@@ -27,6 +27,9 @@
+ #include <linux/blk-crypto-profile.h>
+ #include <linux/device.h>
+ #include <linux/atomic.h>
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++#include <linux/crc32.h>
++#endif
+ #include <linux/mutex.h>
+ #include <linux/pm_runtime.h>
+ #include <linux/wait.h>
+@@ -127,6 +130,20 @@ int blk_crypto_profile_init(struct blk_crypto_profile *profile,
+ 		goto err_destroy;
+ 	for (i = 0; i < slot_hashtable_size; i++)
+ 		INIT_HLIST_HEAD(&profile->slot_hashtable[i]);
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	mutex_init(&profile->key_mutex);
++	/*
++	 * The number of keys shouldn't exceed that of the keyslot. So
++	 * use slot_hashtable_size to initialize key_hashtable here.
++	 */
++	profile->key_hashtable =
++		kvmalloc_array(slot_hashtable_size,
++				sizeof(profile->key_hashtable[0]), GFP_KERNEL);
++	if (!profile->key_hashtable)
++		goto err_destroy;
++	for (i = 0; i < slot_hashtable_size; i++)
++		INIT_HLIST_HEAD(&profile->key_hashtable[i]);
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
+ 
+ 	return 0;
+ 
+@@ -167,6 +184,18 @@ int devm_blk_crypto_profile_init(struct device *dev,
+ }
+ EXPORT_SYMBOL_GPL(devm_blk_crypto_profile_init);
+ 
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++static inline struct hlist_head *
++blk_crypto_hash_bucket_for_id(struct blk_crypto_profile *profile,
++			       const u8 *key_id, const u32 id_size)
++{
++	u32 hash_index = crc32(~0L, (char *)key_id, id_size);
++
++	return &profile->key_hashtable[
++			hash_long(hash_index, profile->log_slot_ht_size)];
++}
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
++
+ static inline struct hlist_head *
+ blk_crypto_hash_bucket_for_key(struct blk_crypto_profile *profile,
+ 			       const struct blk_crypto_key *key)
+@@ -217,6 +246,60 @@ blk_crypto_find_and_grab_keyslot(struct blk_crypto_profile *profile,
+ 	return slot;
+ }
+ 
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++int blk_crypto_add_blk_key(struct blk_crypto_profile *profile,
++			const struct blk_crypto_key *key, const u8 *id, const u32 id_size)
++{
++	if (!profile || !key || !id || !id_size)
++		return -EINVAL;
++
++	down_write(&profile->lock);
++	hlist_add_head(&key->hash_node,
++			blk_crypto_hash_bucket_for_id(profile, id, id_size));
++	up_write(&profile->lock);
++
++	return 0;
++}
++
++int blk_crypto_remove_blk_key(struct blk_crypto_profile *profile,
++			const struct blk_crypto_key *key)
++{
++	if (!profile || !key)
++		return -EINVAL;
++
++	down_write(&profile->lock);
++	hlist_del(&key->hash_node);
++	up_write(&profile->lock);
++
++	return 0;
++}
++
++struct blk_crypto_key *
++blk_crypto_find_blk_key(struct blk_crypto_profile *profile,
++						 const u8 *id, const u32 id_size)
++{
++	const struct hlist_head *head;
++	struct blk_crypto_key *key;
++
++	down_read(&profile->lock);
++	head = blk_crypto_hash_bucket_for_id(profile, id, id_size);
++	if (hlist_empty(head)) {
++		pr_err("%s: failed to find the list_head for id: %.*s, id_size: %u.\n",
++			    __func__, id_size, (char *)id, id_size);
++		goto out;
++	}
++
++	hlist_for_each_entry(key, head, hash_node) {
++		up_read(&profile->lock);
++		return key;
++	}
++
++out:
++	up_read(&profile->lock);
++	return NULL;
++}
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
++
+ /**
+  * blk_crypto_keyslot_index() - Get the index of a keyslot
+  * @slot: a keyslot that blk_crypto_get_keyslot() returned
+@@ -446,6 +529,9 @@ void blk_crypto_profile_destroy(struct blk_crypto_profile *profile)
+ 		return;
+ 	lockdep_unregister_key(&profile->lockdep_key);
+ 	kvfree(profile->slot_hashtable);
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	kvfree(profile->key_hashtable);
++#endif
+ 	kvfree_sensitive(profile->slots,
+ 			 sizeof(profile->slots[0]) * profile->num_slots);
+ 	memzero_explicit(profile, sizeof(*profile));
+diff --git a/block/blk-crypto.c b/block/blk-crypto.c
+index 2270a88e2e4d..d4f006566bb8 100644
+--- a/block/blk-crypto.c
++++ b/block/blk-crypto.c
+@@ -237,9 +237,40 @@ static bool bio_crypt_check_alignment(struct bio *bio)
+ 
+ blk_status_t __blk_crypto_rq_get_keyslot(struct request *rq)
+ {
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	if (rq->crypt_ctx)
++#endif
+ 	return blk_crypto_get_keyslot(rq->q->crypto_profile,
+ 				      rq->crypt_ctx->bc_key,
+ 				      &rq->crypt_keyslot);
++
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	blk_status_t ret = BLK_STS_OK;
++	if (is_full_crypto_enabled(rq)) {
++		if (!rq->part->bd_meta_info || !rq->part->bd_meta_info->volname[0])
++			return BLK_STS_NOTSUPP;
++
++		const u32 volname_len = strnlen(rq->part->bd_meta_info->volname,
++										PARTITION_META_INFO_VOLNAMELTH);
++		const struct blk_crypto_key *key =
++						blk_crypto_find_blk_key(rq->q->crypto_profile,
++									rq->part->bd_meta_info->volname,
++									volname_len);
++		if (!key) {
++			pr_err("blk-crypto: Failed to find key for partition %.*s\n",
++					volname_len, rq->part->bd_meta_info->volname);
++			return BLK_STS_NOTSUPP;
++		}
++
++		mutex_lock(&rq->q->crypto_profile->key_mutex);
++		ret = blk_crypto_get_keyslot(rq->q->crypto_profile,
++									  key,
++									  &rq->crypt_keyslot);
++		mutex_unlock(&rq->q->crypto_profile->key_mutex);
++	}
++
++	return ret;
++#endif
+ }
+ 
+ void __blk_crypto_rq_put_keyslot(struct request *rq)
+@@ -254,8 +285,14 @@ void __blk_crypto_free_request(struct request *rq)
+ 	if (WARN_ON_ONCE(rq->crypt_keyslot))
+ 		__blk_crypto_rq_put_keyslot(rq);
+ 
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	if (rq->crypt_ctx) {
++#endif
+ 	mempool_free(rq->crypt_ctx, bio_crypt_ctx_pool);
+ 	rq->crypt_ctx = NULL;
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	}
++#endif
+ }
+ 
+ /**
+@@ -590,11 +627,181 @@ static int blk_crypto_ioctl_prepare_key(struct blk_crypto_profile *profile,
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++static int blk_crypto_ioctl_set_key(struct blk_crypto_profile *profile,
++					  void __user *argp, const unsigned int block_size,
++					  const unsigned int dun_bytes)
++{
++	struct blk_crypto_program_key_arg arg;
++	u8 eph_key[BLK_CRYPTO_MAX_HW_WRAPPED_KEY_SIZE];
++	u8 p_name[PARTITION_META_INFO_VOLNAMELTH];
++	struct blk_crypto_key *bkey = NULL;
++	int ret = 0;
++
++	if (copy_from_user(&arg, argp, sizeof(arg)))
++		return -EFAULT;
++
++	if (memchr_inv(arg.reserved, 0, sizeof(arg.reserved)))
++		return -EINVAL;
++
++	if (arg.eph_key_size > sizeof(eph_key))
++		return -EINVAL;
++
++	if (arg.par_name_len > sizeof(p_name))
++		return -EINVAL;
++
++	if (copy_from_user(eph_key, u64_to_user_ptr(arg.eph_key_ptr),
++			   arg.eph_key_size)) {
++		ret = -EFAULT;
++		goto out;
++	}
++
++	if (copy_from_user(p_name, u64_to_user_ptr(arg.par_name_ptr),
++			arg.par_name_len)) {
++		ret = -EFAULT;
++		goto out;
++	}
++
++	bkey = blk_crypto_find_blk_key(profile, p_name, arg.par_name_len);
++	if (bkey) {
++		pr_warn("%s: The key was already set for %.*s.\n", __func__,
++					 arg.par_name_len, (char *)p_name);
++		ret = -EEXIST;
++		goto out;
++	}
++
++	bkey = kmalloc(sizeof(struct blk_crypto_key), GFP_KERNEL);
++	if (!bkey) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	ret = blk_crypto_init_key(bkey, eph_key, arg.eph_key_size,
++							BLK_CRYPTO_KEY_TYPE_HW_WRAPPED,
++							BLK_ENCRYPTION_MODE_AES_256_XTS,
++							dun_bytes, block_size);
++	if (ret) {
++		pr_err("%s: Init block crypto key failed - ret=%d.\n",
++				__func__, ret);
++		goto fail;
++	}
++
++	if (!__blk_crypto_cfg_supported(profile, &bkey->crypto_cfg)) {
++		ret = -EOPNOTSUPP;
++		goto fail;
++	}
++
++	ret = blk_crypto_add_blk_key(profile, bkey, p_name, arg.par_name_len);
++	if (!ret) {
++		/**
++		 * Once the key is added to the hash table, it can only be removed
++		 * when evicting this key is called.
++		 */
++		goto out;
++	}
++
++fail:
++	kfree_sensitive(bkey);
++	bkey = NULL;
++out:
++	memzero_explicit(eph_key, sizeof(eph_key));
++	memzero_explicit(p_name, sizeof(p_name));
++	return ret;
++}
++
++static int blk_crypto_ioctl_evict_key(struct blk_crypto_profile *profile,
++					  void __user *argp)
++{
++	struct blk_crypto_key *key = NULL;
++	struct blk_crypto_evict_key_arg arg;
++	u8 par_name[PARTITION_META_INFO_VOLNAMELTH];
++	int ret = 0;
++
++	if (copy_from_user(&arg, argp, sizeof(arg)))
++		return -EFAULT;
++
++	if (memchr_inv(arg.reserved, 0, sizeof(arg.reserved)))
++		return -EINVAL;
++
++	if (arg.par_name_len > sizeof(par_name))
++		return -EINVAL;
++
++	if (copy_from_user(par_name, u64_to_user_ptr(arg.par_name_ptr),
++			   arg.par_name_len)) {
++		ret = -EFAULT;
++		goto out;
++	}
++
++	key = blk_crypto_find_blk_key(profile, par_name, arg.par_name_len);
++	if (!key) {
++		/**
++		 * The error only occurs when the key of a given partition is not added
++		 * to the hash table. In this situation, assume the key is never linked
++		 * to the keyslot management structures. So just log it as it should be
++		 * treated as successful.
++		 */
++		pr_warn("%s: Don't find the key for the partition %.*s.\n",
++			    __func__, arg.par_name_len, (char *)par_name);
++		goto out;
++	}
++
++	if (!__blk_crypto_cfg_supported(profile, &key->crypto_cfg)) {
++		ret = -EOPNOTSUPP;
++		goto err;
++	}
++
++	/*
++	 * Even if the key failed to be evicted from a keyslot, the key is still
++	 * unlinked from the keyslot management structures, and the caller is
++	 * allowed and expected to free it right away. There's nothing callers can
++	 * do to handle errors, so just log them and remove the key from the key
++	 * hash table.
++	 */
++	ret = __blk_crypto_evict_key(profile, key);
++	if (ret)
++		pr_warn_ratelimited("%s: error %d evicting key\n", __func__, ret);
++
++err:
++	mutex_lock(&profile->key_mutex);
++	ret = blk_crypto_remove_blk_key(profile, key);
++	if (ret) {
++		pr_err("%s: Failed to remove the key from key hash table.\n",
++				__func__);
++		mutex_unlock(&profile->key_mutex);
++		goto out;
++	}
++	kfree_sensitive(key);
++	key = NULL;
++	mutex_unlock(&profile->key_mutex);
++
++out:
++	memzero_explicit(par_name, sizeof(par_name));
++	return ret;
++}
++
++static unsigned int get_dun_bytes(struct block_device *bdev)
++{
++	unsigned int dun_bytes = 0;
++
++	if (!bdev || !bdev->bd_disk)
++		return dun_bytes;
++
++	if (!strncasecmp(bdev->bd_disk->disk_name, "sd", 2)) {
++		dun_bytes = sizeof(__le64);
++	} else if (!strncasecmp(bdev->bd_disk->disk_name, "mmc", 3) ||
++			   !strncasecmp(bdev->bd_disk->disk_name, "sdhc", 4)) {
++		dun_bytes = sizeof(__le32);
++	}
++
++	return dun_bytes;
++}
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
++
+ int blk_crypto_ioctl(struct block_device *bdev, unsigned int cmd,
+ 		     void __user *argp)
+ {
+-	struct blk_crypto_profile *profile =
+-		bdev_get_queue(bdev)->crypto_profile;
++	struct request_queue *q = bdev_get_queue(bdev);
++	struct blk_crypto_profile *profile = q->crypto_profile;
+ 
+ 	if (!profile)
+ 		return -EOPNOTSUPP;
+@@ -606,6 +813,35 @@ int blk_crypto_ioctl(struct block_device *bdev, unsigned int cmd,
+ 		return blk_crypto_ioctl_generate_key(profile, argp);
+ 	case BLKCRYPTOPREPAREKEY:
+ 		return blk_crypto_ioctl_prepare_key(profile, argp);
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	case BLKCRYPTOPROGRAMKEY:
++		{
++			int ret = -1;
++			const unsigned int blk_size = queue_logical_block_size(q);
++			const unsigned int dun_bytes = get_dun_bytes(bdev);
++
++			if (!dun_bytes) {
++					pr_err("%s: the device (%pg) doesn't support encryption.\n",
++								__func__, bdev);
++					return -EOPNOTSUPP;
++			}
++
++			ret = blk_crypto_ioctl_set_key(profile, argp, blk_size, dun_bytes);
++			if(!ret) {
++				atomic_set(&bdev->crypto_enabled, 1);
++			}
++			return ret;
++		}
++	case BLKCRYPTOEVICTKEY:
++		{
++			int ret = -1;
++			ret = blk_crypto_ioctl_evict_key(profile, argp);
++			if (!ret) {
++				atomic_set(&bdev->crypto_enabled, 0);
++			}
++			return ret;
++		}
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
+ 	default:
+ 		return -ENOTTY;
+ 	}
+diff --git a/block/ioctl.c b/block/ioctl.c
+index c2a271009da1..1c4eb7a5299b 100644
+--- a/block/ioctl.c
++++ b/block/ioctl.c
+@@ -563,6 +563,10 @@ static int blkdev_common_ioctl(struct block_device *bdev, blk_mode_t mode,
+ 	case BLKCRYPTOIMPORTKEY:
+ 	case BLKCRYPTOGENERATEKEY:
+ 	case BLKCRYPTOPREPAREKEY:
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	case BLKCRYPTOPROGRAMKEY:
++	case BLKCRYPTOEVICTKEY:
++#endif
+ 		return blk_crypto_ioctl(bdev, cmd, argp);
+ 	case IOC_PR_REGISTER:
+ 		return blkdev_pr_register(bdev, mode, argp);
+diff --git a/drivers/mmc/core/crypto.c b/drivers/mmc/core/crypto.c
+index fec4fbf16a5b..68ca239c7d9d 100644
+--- a/drivers/mmc/core/crypto.c
++++ b/drivers/mmc/core/crypto.c
+@@ -12,6 +12,13 @@
+ #include "crypto.h"
+ #include "queue.h"
+ 
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++/**
++ * Logic block size is 4096 bytes, and 512-byte per sector.
++ */
++#define SECTORS_PER_BLOCK 3
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
++
+ void mmc_crypto_set_initial_state(struct mmc_host *host)
+ {
+ 	/* Reset might clear all keys, so reprogram all the keys. */
+@@ -32,8 +39,16 @@ void mmc_crypto_prepare_req(struct mmc_queue_req *mqrq)
+ 	struct mmc_request *mrq = &mqrq->brq.mrq;
+ 	struct blk_crypto_keyslot *keyslot;
+ 
+-	if (!req->crypt_ctx)
++	if (!req->crypt_ctx) {
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++		keyslot = req->crypt_keyslot;
++		if (keyslot) {
++			mrq->crypto_key_slot = blk_crypto_keyslot_index(keyslot);
++			mrq->data_unit_num = blk_rq_pos(req) >> SECTORS_PER_BLOCK;
++		}
++#endif
+ 		return;
++	}
+ 
+ 	mrq->crypto_ctx = req->crypt_ctx;
+ 
+diff --git a/drivers/mmc/host/cqhci-crypto.h b/drivers/mmc/host/cqhci-crypto.h
+index d7fb084f563b..f2d4ba8e4b4b 100644
+--- a/drivers/mmc/host/cqhci-crypto.h
++++ b/drivers/mmc/host/cqhci-crypto.h
+@@ -22,8 +22,15 @@ int cqhci_crypto_init(struct cqhci_host *host);
+  */
+ static inline u64 cqhci_crypto_prep_task_desc(struct mmc_request *mrq)
+ {
+-	if (!mrq->crypto_ctx)
++	if (!mrq->crypto_ctx) {
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++			if (mrq->crypto_key_slot != -1)
++				return CQHCI_CRYPTO_ENABLE_BIT |
++					CQHCI_CRYPTO_KEYSLOT(mrq->crypto_key_slot) |
++					mrq->data_unit_num;
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
+ 		return 0;
++	}
+ 
+ 	/* We set max_dun_bytes_supported=4, so all DUNs should be 32-bit. */
+ 	WARN_ON_ONCE(mrq->crypto_ctx->bc_dun[0] > U32_MAX);
+diff --git a/drivers/ufs/core/ufshcd-crypto.h b/drivers/ufs/core/ufshcd-crypto.h
+index be8596f20ba2..9796006890eb 100644
+--- a/drivers/ufs/core/ufshcd-crypto.h
++++ b/drivers/ufs/core/ufshcd-crypto.h
+@@ -13,6 +13,13 @@
+ 
+ #ifdef CONFIG_SCSI_UFS_CRYPTO
+ 
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++/**
++ * Logic block size is 4096 bytes, and 512-byte per sector.
++ */
++#define SECTORS_PER_BLOCK 3
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
++
+ static inline void ufshcd_prepare_lrbp_crypto(struct request *rq,
+ 					      struct ufshcd_lrb *lrbp)
+ {
+@@ -20,6 +27,13 @@ static inline void ufshcd_prepare_lrbp_crypto(struct request *rq,
+ 		lrbp->crypto_key_slot = -1;
+ 		return;
+ 	}
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	if (!rq->crypt_ctx) {
++		lrbp->crypto_key_slot = blk_crypto_keyslot_index(rq->crypt_keyslot);
++		lrbp->data_unit_num = blk_rq_pos(rq) >> SECTORS_PER_BLOCK;
++		return;
++	}
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
+ 
+ 	lrbp->crypto_key_slot = blk_crypto_keyslot_index(rq->crypt_keyslot);
+ 	lrbp->data_unit_num = rq->crypt_ctx->bc_dun[0];
+diff --git a/include/linux/blk-crypto-profile.h b/include/linux/blk-crypto-profile.h
+index a3eef098f3c3..de57c7e4b2df 100644
+--- a/include/linux/blk-crypto-profile.h
++++ b/include/linux/blk-crypto-profile.h
+@@ -188,6 +188,16 @@ struct blk_crypto_profile {
+ 	struct hlist_head *slot_hashtable;
+ 	unsigned int log_slot_ht_size;
+ 
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	struct mutex key_mutex;
++	/*
++	 * Hash table which maps u8 *id to struct *blk_crypto_key, so that we
++	 * can find a key in O(1) time.
++	 * Protected by 'lock'.
++	 */
++	struct hlist_head *key_hashtable;
++#endif
++
+ 	/* Per-keyslot data */
+ 	struct blk_crypto_keyslot *slots;
+ };
+diff --git a/include/linux/blk-crypto.h b/include/linux/blk-crypto.h
+index 2e319a198348..9d3d70c71a57 100644
+--- a/include/linux/blk-crypto.h
++++ b/include/linux/blk-crypto.h
+@@ -105,6 +105,9 @@ struct blk_crypto_key {
+ 	unsigned int data_unit_size_bits;
+ 	unsigned int size;
+ 	u8 raw[BLK_CRYPTO_MAX_ANY_KEY_SIZE];
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	struct hlist_node hash_node;
++#endif
+ };
+ 
+ #define BLK_CRYPTO_MAX_IV_SIZE		32
+diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
+index 92c8997b1938..d16890ca99ef 100644
+--- a/include/linux/blk_types.h
++++ b/include/linux/blk_types.h
+@@ -70,6 +70,12 @@ struct block_device {
+ 	bool			bd_make_it_fail;
+ #endif
+ 	bool			bd_ro_warned;
++
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	/* Enable encryption for the whole partition. */
++	atomic_t crypto_enabled;
++#endif
++
+ 	/*
+ 	 * keep this out-of-line as it's both big and not needed in the fast
+ 	 * path
+diff --git a/include/linux/mmc/core.h b/include/linux/mmc/core.h
+index 6efec0b9820c..590a173df2e4 100644
+--- a/include/linux/mmc/core.h
++++ b/include/linux/mmc/core.h
+@@ -166,7 +166,10 @@ struct mmc_request {
+ #ifdef CONFIG_MMC_CRYPTO
+ 	const struct bio_crypt_ctx *crypto_ctx;
+ 	int			crypto_key_slot;
+-#endif
++#ifdef CONFIG_QCOM_CRYPTO_FDE
++	u32         data_unit_num;
++#endif /* CONFIG_QCOM_CRYPTO_FDE */
++#endif /* CONFIG_MMC_CRYPTO */
+ };
+ 
+ struct mmc_card;
+diff --git a/include/uapi/linux/blk-crypto.h b/include/uapi/linux/blk-crypto.h
+index 97302c6eb6af..97a03af4aa69 100644
+--- a/include/uapi/linux/blk-crypto.h
++++ b/include/uapi/linux/blk-crypto.h
+@@ -32,6 +32,23 @@ struct blk_crypto_prepare_key_arg {
+ 	__u64 reserved[4];
+ };
+ 
++struct blk_crypto_program_key_arg {
++	/* Ephemerally-wrapped key blob (input) */
++	__u64 eph_key_ptr;
++	__u64 eph_key_size;
++	/* Partition name protected by key (input) */
++	__u64 par_name_ptr;
++	__u64 par_name_len;
++	__u64 reserved[2];
++};
++
++struct blk_crypto_evict_key_arg {
++	/* Partition name which key is evicted for (input) */
++	__u64 par_name_ptr;
++	__u64 par_name_len;
++	__u64 reserved[2];
++};
++
+ /*
+  * These ioctls share the block device ioctl space; see uapi/linux/fs.h.
+  * 140-141 are reserved for future blk-crypto ioctls; any more than that would
+@@ -40,5 +57,7 @@ struct blk_crypto_prepare_key_arg {
+ #define BLKCRYPTOIMPORTKEY _IOWR(0x12, 137, struct blk_crypto_import_key_arg)
+ #define BLKCRYPTOGENERATEKEY _IOWR(0x12, 138, struct blk_crypto_generate_key_arg)
+ #define BLKCRYPTOPREPAREKEY _IOWR(0x12, 139, struct blk_crypto_prepare_key_arg)
++#define BLKCRYPTOPROGRAMKEY _IOWR(0x12, 140, struct blk_crypto_program_key_arg)
++#define BLKCRYPTOEVICTKEY _IOWR(0x12, 141, struct blk_crypto_evict_key_arg)
+ 
+ #endif /* _UAPI_LINUX_BLK_CRYPTO_H */
+-- 
+2.34.1
+

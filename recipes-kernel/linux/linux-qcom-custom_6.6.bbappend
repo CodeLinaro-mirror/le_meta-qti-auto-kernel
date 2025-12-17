@@ -55,6 +55,7 @@ SRC_URI:append = "\
     file://scm_adci/0008-PENDING-firmware-qcom-scm-Introduce-new-locking-mech.patch \
     file://scm_adci/0009-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
+    file://fde/0001-PENDING-blk-crypto-Add-FDE-support.patch \
 "
 
 SRC_URI:append:sa8797 = " \
