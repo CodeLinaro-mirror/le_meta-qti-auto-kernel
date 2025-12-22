@@ -1,29 +1,29 @@
-From 0e83da21c90b21aa870166d23c2b39514f9fa602 Mon Sep 17 00:00:00 2001
-From: Sriram Dash <quic_sriramd@quicinc.com>
-Date: Fri, 28 Feb 2025 11:13:01 +0530
-Subject: [PATCH] PENDING: usb: dwc3: qcom: Trivial code cleanup
+From 9f8702d3554c28e64368d08c9a1552823ca1b9f0 Mon Sep 17 00:00:00 2001
+From: Sriram Dash <sriram.dash@oss.qualcomm.com>
+Date: Mon, 22 Dec 2025 14:34:27 +0530
+Subject: [PATCH 4/4] PENDING: usb: dwc3: qcom: Trivial code cleanup
 
 Trivial code cleanup for supporting cyclomatic complexity.
 
 Change-Id: I4238b893efbadb16772be6a25111fdc892b9672c
-Signed-off-by: Sriram Dash <quic_sriramd@quicinc.com>
+Signed-off-by: Sriram Dash <sriram.dash@oss.qualcomm.com>
 Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
 ---
- drivers/usb/dwc3/dwc3-qcom.c | 47 +++++++++++++++++++++++-------------
- 1 file changed, 30 insertions(+), 17 deletions(-)
+ drivers/usb/dwc3/dwc3-qcom.c | 51 ++++++++++++++++++++++--------------
+ 1 file changed, 32 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/usb/dwc3/dwc3-qcom.c b/drivers/usb/dwc3/dwc3-qcom.c
-index 8b8277167427..234b6ca079b5 100644
+index c6367dd563dd..f5dea1e8798a 100644
 --- a/drivers/usb/dwc3/dwc3-qcom.c
 +++ b/drivers/usb/dwc3/dwc3-qcom.c
-@@ -1020,6 +1020,33 @@ static void dwc3_qcom_vbus_regulator_get(struct dwc3_qcom *qcom)
+@@ -1034,6 +1034,35 @@ static void dwc3_qcom_vbus_regulator_get(struct dwc3_qcom *qcom)
  	}
  }
  
 +static int dwc3_qcom_acpi_register_core(struct platform_device *pdev,
 +					struct dwc3_qcom *qcom)
 +{
-+	struct device	*dev = &pdev->dev;
++	struct device   *dev = &pdev->dev;
 +	int		ret;
 +
 +	qcom->acpi_pdata = acpi_device_get_match_data(dev);
@@ -38,19 +38,21 @@ index 8b8277167427..234b6ca079b5 100644
 +		return ret;
 +	}
 +
++#ifdef CONFIG_ACPI
 +	if (qcom->acpi_pdata->is_urs) {
 +		ret = dwc3_qcom_acpi_merge_urs_resources(pdev);
 +		if (ret < 0)
 +			return ret;
 +	}
++#endif
 +
-+	return ret;
++	return 0;
 +}
 +
  static int dwc3_qcom_probe(struct platform_device *pdev)
  {
  	struct device_node	*np = pdev->dev.of_node;
-@@ -1046,23 +1073,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
+@@ -1060,25 +1089,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
  	qcom->dwc.dev = qcom->dev;
  
  	if (has_acpi_companion(dev)) {
@@ -66,11 +68,13 @@ index 8b8277167427..234b6ca079b5 100644
 -			return ret;
 -		}
 -
+-#ifdef CONFIG_ACPI
 -		if (qcom->acpi_pdata->is_urs) {
 -			ret = dwc3_qcom_acpi_merge_urs_resources(pdev);
 -			if (ret < 0)
 -				goto clk_disable;
 -		}
+-#endif
 +		ret = dwc3_qcom_acpi_register_core(pdev, qcom);
 +		if (ret < 0)
 +			goto clk_disable;
