@@ -25,6 +25,8 @@ SRC_URI:append = "\
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
+    file://0004-PENDING-ufs-ufs-qcom-Remove-reset-GPIO-Dependency-an.patch \
+    file://0005-PENDING-ufs-ufs-qcom-Don-t-skip-link-startup-for-QB-.patch \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
     file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
@@ -46,6 +48,7 @@ SRC_URI:append = "\
     file://0001-FROMLIST-of-of_reserved_mem-Increase-limit-for-reser.patch \
     file://0013-net-stmmac-dwmac-qcom-ethqos-Enable-SCMI-ETH.patch \
     file://0014-PENDING-qcom-Add-sa7255p-compatibles-for-core-driver.patch \
+    file://usb/0015-PENDING-qcom-Add-sa7255p-compatibles-for-usb-drivers.patch \
     file://0016-PENDING-ice-Enable-ICE-on-SA8255p-Qualcomm-platforms.patch \
     file://scm_adci/0001-QCLINUX-arm64-dts-qcom-sa8255p-Modify-correct-dt-nam.patch \
     file://scm_adci/0002-QCLINUX-arm64-dts-qcom-sa8775p-Modify-correct-dt-nam.patch \
@@ -67,6 +70,9 @@ SRC_URI:append:gen5 = " \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
     file://usb/0018-phy-qcom-phy-qcom-snps-eusb2-Add-support-for-SA8797P.patch \
     file://usb/0019-usb-phy-qmp-combo-Add-scmi-related-changes-for-SA879.patch \
+    file://usb/0020-PENDING-phy-core-Introduce-PHY-type-and-helper-API.patch \
+    file://usb/0021-PENDING-phy-snps-eusb2-Set-PHY-type-for-Synopsys-eUS.patch \
+    file://usb/0022-PENDING-usb-dwc3-Program-eUSB2-UTMI-opmode-in-host-m.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
     file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
