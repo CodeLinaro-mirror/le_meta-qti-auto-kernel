@@ -70,6 +70,8 @@ SRC_URI:append:gen5 = " \
     file://usb/0020-PENDING-phy-core-Introduce-PHY-type-and-helper-API.patch \
     file://usb/0021-PENDING-phy-snps-eusb2-Set-PHY-type-for-Synopsys-eUS.patch \
     file://usb/0022-PENDING-usb-dwc3-Program-eUSB2-UTMI-opmode-in-host-m.patch \
+    file://usb/0023-phy-phy-qcom-snps-eusb2-Add-register-sequence-to-fix.patch \
+    file://usb/0024-dwc3-gadget-Fix-compliance-TD-9.23-compliance-issue.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
     file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
