@@ -1,4 +1,4 @@
-From 484f8b7e6f6d29f386a66a5c238d64640e835540 Mon Sep 17 00:00:00 2001
+From b37b703b649f6c2986404470c47d1c5acdf69953 Mon Sep 17 00:00:00 2001
 From: Kaisheng Yang <kaisheng@qti.qualcomm.com>
 Date: Tue, 21 Jan 2025 15:03:29 +0800
 Subject: [PATCH] QCLINUX: MPAM: Snapshot of QCOM MPAM Driver
@@ -33,17 +33,17 @@ Signed-off-by: Kaisheng Yang <kaisheng@qti.qualcomm.com>
  drivers/soc/qcom/Makefile             |   1 +
  drivers/soc/qcom/mpam/Kconfig         |  89 ++++
  drivers/soc/qcom/mpam/Makefile        |   8 +
- drivers/soc/qcom/mpam/cpu_mpam.c      | 713 +++++++++++++++++++++++++
+ drivers/soc/qcom/mpam/cpu_mpam.c      | 718 ++++++++++++++++++++++++++
  drivers/soc/qcom/mpam/mpam.c          | 191 +++++++
  drivers/soc/qcom/mpam/mpam_hook.c     |  54 ++
  drivers/soc/qcom/mpam/mpam_msc.c      | 374 ++++++++++++++
- drivers/soc/qcom/mpam/mpam_msc_slc.c  | 715 ++++++++++++++++++++++++++
+ drivers/soc/qcom/mpam/mpam_msc_slc.c  | 715 +++++++++++++++++++++++++
  drivers/soc/qcom/mpam/platform_mpam.c | 366 +++++++++++++
- drivers/soc/qcom/mpam/slc_mpam.c      | 401 +++++++++++++++
+ drivers/soc/qcom/mpam/slc_mpam.c      | 401 ++++++++++++++
  include/soc/qcom/mpam.h               | 234 +++++++++
  include/soc/qcom/mpam_msc.h           | 133 +++++
  include/soc/qcom/mpam_slc.h           | 168 ++++++
- 15 files changed, 3453 insertions(+)
+ 15 files changed, 3458 insertions(+)
  create mode 100644 drivers/soc/qcom/mpam/Kconfig
  create mode 100644 drivers/soc/qcom/mpam/Makefile
  create mode 100644 drivers/soc/qcom/mpam/cpu_mpam.c
@@ -206,10 +206,10 @@ index 000000000000..62fa553204a8
 +obj-$(CONFIG_QTI_SLC_MPAM_INTERFACE) += slc_mpam.o
 diff --git a/drivers/soc/qcom/mpam/cpu_mpam.c b/drivers/soc/qcom/mpam/cpu_mpam.c
 new file mode 100644
-index 000000000000..1a565abc7838
+index 000000000000..0e93d11fddaa
 --- /dev/null
 +++ b/drivers/soc/qcom/mpam/cpu_mpam.c
-@@ -0,0 +1,713 @@
+@@ -0,0 +1,718 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
@@ -223,6 +223,7 @@ index 000000000000..1a565abc7838
 +#include <linux/string.h>
 +#include <linux/bitmap.h>
 +#include <soc/qcom/mpam.h>
++#include <linux/percpu.h>
 +
 +struct cpu_mpam_partition {
 +	struct list_head list;
@@ -745,15 +746,19 @@ index 000000000000..1a565abc7838
 +	},
 +};
 +
++static DEFINE_PER_CPU(u8, active_partid);
++
 +static void cpu_mpam_write_partid(u8 part_id)
 +{
 +	u64 reg;
 +	static u8 old_part_id;
 +
++	old_part_id = this_cpu_read(active_partid);
++
 +	if (old_part_id == part_id)
 +		return;
 +
-+	old_part_id = part_id;
++	this_cpu_write(active_partid, part_id);
 +	part_id += PARTID_RESERVED;
 +	reg = (part_id << PARTID_I_SHIFT) | (part_id << PARTID_D_SHIFT);
 +
@@ -925,7 +930,7 @@ index 000000000000..1a565abc7838
 +MODULE_LICENSE("GPL");
 diff --git a/drivers/soc/qcom/mpam/mpam.c b/drivers/soc/qcom/mpam/mpam.c
 new file mode 100644
-index 000000000000..c8c1004dfc8e
+index 000000000000..20ef51b0e91b
 --- /dev/null
 +++ b/drivers/soc/qcom/mpam/mpam.c
 @@ -0,0 +1,191 @@
