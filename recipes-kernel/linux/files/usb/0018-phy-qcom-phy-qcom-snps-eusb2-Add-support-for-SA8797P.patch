@@ -1,4 +1,4 @@
-From d26e9aace5de3b4cbdff4a23f9aabca0034b6ba8 Mon Sep 17 00:00:00 2001
+From 6608636dd3dfcacd28257b6ab49cf56ef435da19 Mon Sep 17 00:00:00 2001
 From: Faisal Hassan <quic_faisalh@quicinc.com>
 Date: Fri, 1 Nov 2024 20:24:53 +0530
 Subject: [PATCH] phy: qcom: phy-qcom-snps-eusb2: Add support for SA8797P
@@ -26,15 +26,16 @@ Patch set details :
 
 Patch set 6 : Basic eUSB phy enablement, merged as .patch
 Patch set 7 onwards : Add EUD check
+Patch set 19  : merged .patch with repeater enabled
 
 Change-Id: I1b7c0362fd42cd71ee6f7ad069ca5a92cce3270f
 Signed-off-by: Faisal Hassan <quic_faisalh@quicinc.com>
 ---
- drivers/phy/qualcomm/phy-qcom-snps-eusb2.c | 248 +++++++++++++++++----
- 1 file changed, 199 insertions(+), 49 deletions(-)
+ drivers/phy/qualcomm/phy-qcom-snps-eusb2.c | 245 +++++++++++++++++----
+ 1 file changed, 200 insertions(+), 45 deletions(-)
 
 diff --git a/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c b/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
-index 1484691a41d5..1eb8e9162630 100644
+index 1484691a41d5..2c6f91d7f3a2 100644
 --- a/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
 +++ b/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
 @@ -10,6 +10,7 @@
@@ -63,7 +64,7 @@ index 1484691a41d5..1eb8e9162630 100644
  	struct clk *ref_clk;
  	struct reset_control *phy_reset;
  
-@@ -133,15 +138,73 @@ struct qcom_snps_eusb2_hsphy {
+@@ -133,8 +138,63 @@ struct qcom_snps_eusb2_hsphy {
  	enum phy_mode mode;
  
  	struct phy *repeater;
@@ -127,33 +128,22 @@ index 1484691a41d5..1eb8e9162630 100644
  static int qcom_snps_eusb2_hsphy_set_mode(struct phy *p, enum phy_mode mode, int submode)
  {
  	struct qcom_snps_eusb2_hsphy *phy = phy_get_drvdata(p);
- 
- 	phy->mode = mode;
- 
--	return phy_set_mode_ext(phy->repeater, mode, submode);
-+	if (!phy->fw_managed)
-+		return phy_set_mode_ext(phy->repeater, mode, submode);
-+	else
-+		return 0;
- }
- 
- static void qcom_snps_eusb2_hsphy_write_mask(void __iomem *base, u32 offset,
-@@ -235,36 +298,46 @@ static int qcom_snps_eusb2_hsphy_init(struct phy *p)
+@@ -235,36 +295,53 @@ static int qcom_snps_eusb2_hsphy_init(struct phy *p)
  	struct qcom_snps_eusb2_hsphy *phy = phy_get_drvdata(p);
  	int ret;
  
 -	ret = regulator_bulk_enable(ARRAY_SIZE(phy->vregs), phy->vregs);
 -	if (ret)
 -		return ret;
--
++	if(phy->eud_enable)
++		return 0;
+ 
 -	ret = phy_init(phy->repeater);
 -	if (ret) {
 -		dev_err(&p->dev, "repeater init failed. %d\n", ret);
 -		goto disable_vreg;
 -	}
-+	if(phy->eud_enable)
-+		return 0;
- 
+-
 -	ret = clk_prepare_enable(phy->ref_clk);
 -	if (ret) {
 -		dev_err(&p->dev, "failed to enable ref clock, %d\n", ret);
@@ -206,12 +196,19 @@ index 1484691a41d5..1eb8e9162630 100644
 +			dev_err(&p->dev, "failed to de-assert phy_reset, %d\n", ret);
 +			goto disable_ref_clk;
 +		}
++	} else {
++		ret = phy_init(phy->repeater);
++		if (ret) {
++			dev_err(&p->dev, "repeater init failed. %d\n", ret);
++			qcom_snps_d0_to_d3(phy);
++			return ret;
++		}
  	}
 -
  	qcom_snps_eusb2_hsphy_write_mask(phy->base, USB_PHY_CFG0,
  					 CMN_CTRL_OVERRIDE_EN, CMN_CTRL_OVERRIDE_EN);
  
-@@ -281,10 +354,30 @@ static int qcom_snps_eusb2_hsphy_init(struct phy *p)
+@@ -281,10 +358,30 @@ static int qcom_snps_eusb2_hsphy_init(struct phy *p)
  	qcom_snps_eusb2_hsphy_write_mask(phy->base, USB_PHY_FSEL_SEL,
  					 FSEL_SEL, FSEL_SEL);
  
@@ -246,7 +243,7 @@ index 1484691a41d5..1eb8e9162630 100644
  
  	qcom_snps_eusb2_hsphy_write_mask(phy->base, USB_PHY_CFG_CTRL_1,
  					 PHY_CFG_PLL_CPBIAS_CNTRL_MASK,
-@@ -348,11 +441,15 @@ static int qcom_snps_eusb2_hsphy_exit(struct phy *p)
+@@ -348,12 +445,15 @@ static int qcom_snps_eusb2_hsphy_exit(struct phy *p)
  {
  	struct qcom_snps_eusb2_hsphy *phy = phy_get_drvdata(p);
  
@@ -259,13 +256,13 @@ index 1484691a41d5..1eb8e9162630 100644
  
 -	phy_exit(phy->repeater);
 +		regulator_bulk_disable(ARRAY_SIZE(phy->vregs), phy->vregs);
-+
-+		phy_exit(phy->repeater);
-+	}
  
++	}
++	phy_exit(phy->repeater);
  	return 0;
  }
-@@ -364,6 +461,24 @@ static const struct phy_ops qcom_snps_eusb2_hsphy_ops = {
+ 
+@@ -364,6 +464,24 @@ static const struct phy_ops qcom_snps_eusb2_hsphy_ops = {
  	.owner		= THIS_MODULE,
  };
  
@@ -290,7 +287,7 @@ index 1484691a41d5..1eb8e9162630 100644
  static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
  {
  	struct device *dev = &pdev->dev;
-@@ -378,32 +493,55 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
+@@ -378,32 +496,57 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
  	if (!phy)
  		return -ENOMEM;
  
@@ -342,26 +339,25 @@ index 1484691a41d5..1eb8e9162630 100644
 -	if (ret)
 -		return dev_err_probe(dev, ret,
 -				     "failed to get regulator supplies\n");
- 
--	phy->repeater = devm_of_phy_get_by_index(dev, np, 0);
--	if (IS_ERR(phy->repeater))
--		return dev_err_probe(dev, PTR_ERR(phy->repeater),
--				     "failed to get repeater\n");
++
 +	if (!phy->fw_managed) {
 +		ret = devm_regulator_bulk_get(dev, num, phy->vregs);
 +		if (ret)
 +			return dev_err_probe(dev, ret,
 +					     "failed to get regulator supplies\n");
-+
-+		phy->repeater = devm_of_phy_get_by_index(dev, np, 0);
-+		if (IS_ERR(phy->repeater))
-+			return dev_err_probe(dev, PTR_ERR(phy->repeater),
-+					     "failed to get repeater\n");
++	}
+ 
+ 	phy->repeater = devm_of_phy_get_by_index(dev, np, 0);
+-	if (IS_ERR(phy->repeater))
++	if (IS_ERR(phy->repeater)) {
++		qcom_snps_domain_detach(phy);
+ 		return dev_err_probe(dev, PTR_ERR(phy->repeater),
+ 				     "failed to get repeater\n");
 +	}
  
  	generic_phy = devm_phy_create(dev, NULL, &qcom_snps_eusb2_hsphy_ops);
  	if (IS_ERR(generic_phy)) {
-@@ -423,14 +561,26 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
+@@ -423,14 +566,26 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
  	return 0;
  }
  
@@ -389,5 +385,5 @@ index 1484691a41d5..1eb8e9162630 100644
  		.name	= "qcom-snps-eusb2-hsphy",
  		.of_match_table = qcom_snps_eusb2_hsphy_of_match_table,
 -- 
-2.25.1
+2.34.1
 
