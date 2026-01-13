@@ -1,0 +1,98 @@
+From fe12acac07b87c64141718e119478732b44b0eea Mon Sep 17 00:00:00 2001
+From: Aniket Randive <arandive@qti.qualcomm.com>
+Date: Fri, 9 Jan 2026 15:13:01 +0530
+Subject: [PATCH] PENDING: serial: qcom_geni: Fix character loss in FIFO mode
+ by proper TX state management
+
+Fix character loss issue in QCOM GENI serial console when using FIFO
+mode by correcting improper TX state handling in qcom_geni_serial_start_tx_fifo().
+
+The original implementation incorrectly consumed data from the kfifo
+without properly updating transmission state variables when handling
+cases where the TX FIFO contained data but no transmission was active.
+This created a mismatch between the driver's perception of available
+data and the actual kfifo state.
+
+Replace the problematic single-byte transmission logic with proper
+chunk-based processing that:
+- Correctly calculates available data in kfifo and space in TX FIFO
+- Properly sets tx_remaining to reflect the actual number of bytes being
+  sent
+- Maintains consistency between kfifo state and transmission tracking
+  variables
+- Processes multiple bytes at once rather than individual bytes
+
+This fix preserves the intended functionality of handling residual data
+in the TX FIFO after command cancellation while eliminating the race condition
+that caused character loss, particularly noticeable in console output like
+ifconfig results where characters would randomly disappear from the output
+stream.
+
+Change-Id: I957ef66660f44effffe2281b721a87b4a351a31e
+Signed-off-by: Aniket Randive <arandive@qti.qualcomm.com>
+---
+ drivers/tty/serial/qcom_geni_serial.c | 41 +++++++++++++++++++--------
+ 1 file changed, 29 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/tty/serial/qcom_geni_serial.c b/drivers/tty/serial/qcom_geni_serial.c
+index 4b8876369aaa..e5d5c6268645 100644
+--- a/drivers/tty/serial/qcom_geni_serial.c
++++ b/drivers/tty/serial/qcom_geni_serial.c
+@@ -713,18 +713,34 @@ static void qcom_geni_serial_start_tx_fifo(struct uart_port *uport)
+ 			return;
+ 	}
+ 
+-	/*
+-	 * Start a new transfer in case the previous command was cancelled and
+-	 * left data in the FIFO which may prevent the watermark interrupt
+-	 * from triggering. Note that the stale data is discarded.
+-	 */
+-	if (!qcom_geni_serial_tx_empty(uport)) {
+-		if (uart_fifo_out(uport, &c, 1) == 1) {
+-			writel(M_CMD_DONE_EN, uport->membase + SE_GENI_M_IRQ_CLEAR);
+-			qcom_geni_serial_setup_tx(uport, 1);
+-			writel(c, uport->membase + SE_GENI_TX_FIFOn);
+-		}
+-	}
++/*
++     * Handle case where previous command was cancelled and left data in the FIFO.
++     * Properly queue available data and update transmission state.
++     */
++    if (!qcom_geni_serial_main_active(uport) && !qcom_geni_serial_tx_empty(uport)) {
++        struct qcom_geni_serial_port *port = to_dev_port(uport);
++        struct tty_port *tport = &uport->state->port;
++        size_t kfifo_len = kfifo_len(&tport->xmit_fifo);
++        
++        if (kfifo_len > 0) {
++            u32 status = readl(uport->membase + SE_GENI_TX_FIFO_STATUS);
++            u32 fifo_space = port->tx_fifo_depth - (status & TX_FIFO_WC);
++            unsigned int chunk = min(kfifo_len, (size_t)(fifo_space * BYTES_PER_FIFO_WORD));
++            
++            if (chunk > 0) {
++                /* Start transmission with available data */
++                qcom_geni_serial_setup_tx(uport, chunk);
++                port->tx_remaining = chunk;
++                port->tx_queued = 0;
++                
++                /* Ensure watermark interrupt is enabled */
++                irq_en = readl(uport->membase + SE_GENI_M_IRQ_EN);
++            	if (!(irq_en & M_TX_FIFO_WATERMARK_EN))
++                    writel(irq_en | M_TX_FIFO_WATERMARK_EN,
++                           uport->membase + SE_GENI_M_IRQ_EN);
++            }
++        }
++    }
+ 
+ 	irq_en = readl(uport->membase +	SE_GENI_M_IRQ_EN);
+ 	irq_en |= M_TX_FIFO_WATERMARK_EN | M_CMD_DONE_EN;
+@@ -1011,6 +1027,7 @@ static void qcom_geni_serial_handle_tx_fifo(struct uart_port *uport,
+ 		avail = port->tx_fifo_depth - (status & TX_FIFO_WC);
+ 	else
+ 		avail = port->tx_fifo_depth;
++
+ 	avail *= BYTES_PER_FIFO_WORD;
+ 
+ 	chunk = min(avail, pending);
+-- 
+2.34.1
+
