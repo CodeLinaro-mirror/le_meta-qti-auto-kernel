@@ -7,6 +7,7 @@ SRC_URI:append = "\
     ${@bb.utils.contains_any('VARIANT', 'perf user', '', 'file://devmem.cfg', d)} \
     ${@bb.utils.contains_any('VARIANT', 'perf user', 'file://perf.cfg', '', d)} \
     file://0001-QCLINUX-vfio-Disable-iommu_group_claim_dma_owner-tem.patch \
+    file://0001-PENDING-pinctrl-qcom-Enable-read-after-write-feature.patch \
     file://qup/0001-PENDING-soc-qcom-geni-se-Enable-QUPs-on-SA8255p-Qual.patch \
     file://qup/0002-PENDING-serial-qcom-geni-Enable-Serial-on-SA8255p-pl.patch \
     file://qup/0003-PENDING-i2c-qcom-geni-Enable-I2C-on-SA8255p-Qualcomm.patch \
@@ -28,6 +29,8 @@ SRC_URI:append = "\
     file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
     file://0004-PENDING-ufs-ufs-qcom-Remove-reset-GPIO-Dependency-an.patch \
     file://0005-PENDING-ufs-ufs-qcom-Don-t-skip-link-startup-for-QB-.patch \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-Revert-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in.patch', '', d)} \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-QCLINUX-ufs-UFS-bringup-on-Seca-RUMI.patch', '', d)} \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
     file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
@@ -65,7 +68,6 @@ SRC_URI:append = "\
 
 SRC_URI:append:gen5 = " \
     file://sa8797p-generic.cfg \
-    file://0003-scsi-ufs-Disable-auto-hibern8-feature.patch \
     file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
     file://usb/0017-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
@@ -76,6 +78,7 @@ SRC_URI:append:gen5 = " \
     file://usb/0022-PENDING-usb-dwc3-Program-eUSB2-UTMI-opmode-in-host-m.patch \
     file://usb/0023-phy-phy-qcom-snps-eusb2-Add-register-sequence-to-fix.patch \
     file://usb/0024-dwc3-gadget-Fix-compliance-TD-9.23-compliance-issue.patch \
+    file://usb/0025-PENDING-usb-phy-qmp-combo-Update-PHY-init-sequence.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
     file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
