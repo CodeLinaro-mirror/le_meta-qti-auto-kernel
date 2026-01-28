@@ -1,25 +1,28 @@
-From 0aa46f9e6689af070161f3a5855150e7d9be63fd Mon Sep 17 00:00:00 2001
+From bfa7763058539361df63045d13540cecbc69d1e2 Mon Sep 17 00:00:00 2001
 From: ziqic <ziqic@qti.qualcomm.com>
-Date: Mon, 24 Mar 2025 17:38:46 +0800
+Date: Wed, 3 Dec 2025 14:56:19 +0800
 Subject: [PATCH] PENDING: defer no-map memory init process
 
 Defer no-map memory init process and run it parallelly
 later to optimize bootkpi.
 
-Change-Id: I25d0f50c83abb9cf3ccc92fc2e45d2dff15c1d07
+Fix the crash issue appears when enable
+CONFIG_DEFERRED_STRUCT_PAGE_INIT.
+
+Change-Id: I7b059bd7943f8be02d629600d55c21cbfcde566b
 Signed-off-by: ziqic <ziqic@qti.qualcomm.com>
 ---
  arch/arm64/Kconfig |  1 +
  mm/Kconfig         |  3 +++
  mm/memblock.c      |  5 +++++
- mm/mm_init.c       | 49 ++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 58 insertions(+)
+ mm/mm_init.c       | 51 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 60 insertions(+)
 
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 658c6a61ab6f..7e9a816f0284 100644
+index f6924eaa5146..b85fcea70fc4 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -256,6 +256,7 @@ config ARM64
+@@ -257,6 +257,7 @@ config ARM64
  	select TRACE_IRQFLAGS_SUPPORT
  	select TRACE_IRQFLAGS_NMI_SUPPORT
  	select HAVE_SOFTIRQ_ON_OWN_STACK
@@ -28,7 +31,7 @@ index 658c6a61ab6f..7e9a816f0284 100644
  	  ARM 64-bit (AArch64) Linux support.
  
 diff --git a/mm/Kconfig b/mm/Kconfig
-index c11cd01169e8..774d499e5b9d 100644
+index 046c32686fc4..c2296bd6f6ff 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
 @@ -1007,6 +1007,9 @@ config DEFERRED_STRUCT_PAGE_INIT
@@ -42,10 +45,10 @@ index c11cd01169e8..774d499e5b9d 100644
  	bool
  	select PAGE_EXTENSION if !64BIT
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 047dce35cf6e..9358a8a06408 100644
+index cf47d70c3f7a..cd5c3ec9e1f0 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -2122,14 +2122,18 @@ static void __init memmap_init_reserved_pages(void)
+@@ -2130,14 +2130,18 @@ static void __init memmap_init_reserved_pages(void)
  	struct memblock_region *region;
  	phys_addr_t start, end;
  	int nid;
@@ -64,7 +67,7 @@ index 047dce35cf6e..9358a8a06408 100644
  	for_each_mem_region(region) {
  		nid = memblock_get_region_node(region);
  		start = region->base;
-@@ -2147,6 +2151,7 @@ static void __init memmap_init_reserved_pages(void)
+@@ -2155,6 +2159,7 @@ static void __init memmap_init_reserved_pages(void)
  	 */
  	if (max_reserved != memblock.reserved.max)
  		goto repeat;
@@ -73,10 +76,21 @@ index 047dce35cf6e..9358a8a06408 100644
  	/* initialize struct pages for the reserved regions */
  	for_each_reserved_mem_region(region) {
 diff --git a/mm/mm_init.c b/mm/mm_init.c
-index 77fd04c83d04..83c458d86462 100644
+index 77fd04c83d04..7576b106a870 100644
 --- a/mm/mm_init.c
 +++ b/mm/mm_init.c
-@@ -2378,6 +2378,46 @@ void set_zone_contiguous(struct zone *zone)
+@@ -708,8 +708,10 @@ static void __meminit init_reserved_page(unsigned long pfn, int nid)
+ 	pg_data_t *pgdat;
+ 	int zid;
+ 
++#ifndef CONFIG_DEFER_NO_MAP_MEM_PAGE_INIT
+ 	if (early_page_initialised(pfn, nid))
+ 		return;
++#endif
+ 
+ 	pgdat = NODE_DATA(nid);
+ 
+@@ -2378,6 +2380,46 @@ void set_zone_contiguous(struct zone *zone)
  	zone->contiguous = true;
  }
  
@@ -123,7 +137,7 @@ index 77fd04c83d04..83c458d86462 100644
  void __init page_alloc_init_late(void)
  {
  	struct zone *zone;
-@@ -2404,6 +2444,15 @@ void __init page_alloc_init_late(void)
+@@ -2404,6 +2446,15 @@ void __init page_alloc_init_late(void)
  	files_maxfiles_init();
  #endif
  
