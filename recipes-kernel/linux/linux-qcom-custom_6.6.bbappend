@@ -73,7 +73,8 @@ SRC_URI:append = "\
     file://scm_adci/0009-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://fde/0001-PENDING-blk-crypto-Add-FDE-support.patch \
-    file://0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
 "
 
 SRC_URI:append:sa8797 = " \

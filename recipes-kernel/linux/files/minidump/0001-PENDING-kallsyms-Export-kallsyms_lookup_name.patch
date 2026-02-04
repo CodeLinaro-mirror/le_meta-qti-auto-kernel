@@ -1,7 +1,7 @@
-From 75c05ead83f1ce1f17659bf9a3611c6cf4e60f84 Mon Sep 17 00:00:00 2001
+From d4fc56c8dbf9f75a21345075305a17438443e1ed Mon Sep 17 00:00:00 2001
 From: Sankalp Negi <snegi@qti.qualcomm.com>
 Date: Thu, 22 Jan 2026 21:50:32 -0800
-Subject: [PATCH] PENDING: kallsyms: Export kallsyms_lookup_name
+Subject: [PATCH 1/2] PENDING: kallsyms: Export kallsyms_lookup_name
 
 Export kallsyms_lookup_name() to allow legitimate in-kernel users
 (such as minidump and debug infrastructure) to resolve core kernel
