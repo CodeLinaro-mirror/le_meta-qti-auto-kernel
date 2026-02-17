@@ -1,7 +1,7 @@
-From 01ff5a65c8de01ad498119393a4ac3e2c7e09a41 Mon Sep 17 00:00:00 2001
+From ce56daca2a9561bd0bfb7faf727775ea0052c2a6 Mon Sep 17 00:00:00 2001
 From: Praveen Talari <quic_ptalari@quicinc.com>
 Date: Mon, 10 Mar 2025 14:19:49 +0530
-Subject: [PATCH 2/2] PENDING: i2c: qcom-geni: cleanup in probe function
+Subject: [PATCH 2/3] PENDING: i2c: qcom-geni: cleanup in probe function
 
 Move serial engine configuration from probe to new
 function that is geni_i2c_init().
@@ -9,15 +9,16 @@ function that is geni_i2c_init().
 Change-Id: I2720e92c4d17078e9916a95610a3cef6e21a8e2f
 Signed-off-by: Praveen Talari <quic_ptalari@quicinc.com>
 Signed-off-by: Shazad Hussain <quic_shazhuss@quicinc.com>
+Signed-off-by: Maramaina Naresh <mnaresh@qti.qualcomm.com>
 ---
- drivers/i2c/busses/i2c-qcom-geni.c | 150 ++++++++++++++++-------------
- 1 file changed, 83 insertions(+), 67 deletions(-)
+ drivers/i2c/busses/i2c-qcom-geni.c | 152 ++++++++++++++++-------------
+ 1 file changed, 83 insertions(+), 69 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
-index d885d85006fb..c70ad4ba0099 100644
+index fede45c6f76f..bef8c5c2b920 100644
 --- a/drivers/i2c/busses/i2c-qcom-geni.c
 +++ b/drivers/i2c/busses/i2c-qcom-geni.c
-@@ -898,10 +898,88 @@ static int geni_i2c_switch_resource_state(struct device *dev, bool state)
+@@ -899,10 +899,88 @@ static int geni_i2c_switch_resource_state(struct device *dev, bool state)
  	return ret;
  }
  
@@ -107,7 +108,7 @@ index d885d85006fb..c70ad4ba0099 100644
  	int ret;
  	struct device *dev = &pdev->dev;
  	const struct geni_i2c_desc *desc = NULL;
-@@ -990,78 +1068,22 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -991,80 +1069,22 @@ static int geni_i2c_probe(struct platform_device *pdev)
  	pm_runtime_use_autosuspend(gi2c->se.dev);
  	pm_runtime_enable(gi2c->se.dev);
  
@@ -129,10 +130,12 @@ index d885d85006fb..c70ad4ba0099 100644
 -		goto err;
 -	}
 -
--	if (desc && desc->no_dma_support)
+-	if (desc && desc->no_dma_support) {
 -		fifo_disable = false;
--	else
+-		gi2c->no_dma = true;
+-	} else {
 -		fifo_disable = readl_relaxed(gi2c->se.base + GENI_IF_DISABLE_RO) & FIFO_IF_DISABLE;
+-	}
 -
 -	if (fifo_disable) {
 -		/* FIFO is disabled, so we can only use GPI DMA */
@@ -190,7 +193,7 @@ index d885d85006fb..c70ad4ba0099 100644
  	}
  
  	ret = device_create_file(gi2c->se.dev, &dev_attr_log_level);
-@@ -1071,13 +1093,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
+@@ -1074,13 +1094,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
  
  	I2C_DBG_LOG(LOG_LVL_INFO, dev, "Geni-I2C adaptor successfully added\n");
  
