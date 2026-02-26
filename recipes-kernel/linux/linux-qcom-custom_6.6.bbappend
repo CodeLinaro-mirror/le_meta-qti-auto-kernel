@@ -82,7 +82,8 @@ SRC_URI:append = "\
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
-    file://0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
 "
 
 SRC_URI:append:gen5 = " \
