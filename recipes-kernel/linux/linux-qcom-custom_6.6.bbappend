@@ -42,6 +42,7 @@ SRC_URI:append = "\
     file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
     file://qup/0043-spi-spi-geni-qcom-Add-target-mode-abort-support.patch \
     file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
+    file://qup/0044-spi-qcom-geni-Abort-active-transfer-during-system-su.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
