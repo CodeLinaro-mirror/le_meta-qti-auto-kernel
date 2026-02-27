@@ -61,6 +61,7 @@ SRC_URI:append = "\
 
 SRC_URI:append:gen5 = " \
     file://sa8797p-generic.cfg \
+    file://iqx.cfg \
     file://0003-scsi-ufs-Disable-auto-hibern8-feature.patch \
     file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
     file://usb/0017-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
@@ -123,6 +124,7 @@ SRC_URI:append:auto-fts = " \
 "
 
 KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${WORKDIR}/sa8797p-generic.cfg"
+KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${WORKDIR}/iqx.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${WORKDIR}/generic.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa8775 = " ${WORKDIR}/earlyboot.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:sa7255 = " ${WORKDIR}/earlyboot.cfg"
