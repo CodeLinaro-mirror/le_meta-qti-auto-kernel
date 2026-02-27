@@ -1,4 +1,4 @@
-From b438ad4ef5a76d24fd1c0eda7eebc81edb9a289b Mon Sep 17 00:00:00 2001
+From 1596f9f6761b3b11ffa6653b0bfc3d16fb9465d8 Mon Sep 17 00:00:00 2001
 From: linlzhan <linlzhan@qti.qualcomm.com>
 Date: Sat, 6 Dec 2025 19:49:07 +0800
 Subject: [PATCH] PENDING: blk-crypto: Add FDE support
@@ -128,7 +128,7 @@ index ccf6dff6ff6b..91b6e33f3e82 100644
  
  static inline int blk_crypto_sysfs_register(struct gendisk *disk)
 diff --git a/block/blk-crypto-profile.c b/block/blk-crypto-profile.c
-index 170858af4ea2..0772e3556a88 100644
+index 170858af4ea2..910c1b245997 100644
 --- a/block/blk-crypto-profile.c
 +++ b/block/blk-crypto-profile.c
 @@ -27,6 +27,9 @@
@@ -136,7 +136,7 @@ index 170858af4ea2..0772e3556a88 100644
  #include <linux/device.h>
  #include <linux/atomic.h>
 +#ifdef CONFIG_QCOM_CRYPTO_FDE
-+#include <linux/crc32.h>
++#include <linux/jhash.h>
 +#endif
  #include <linux/mutex.h>
  #include <linux/pm_runtime.h>
@@ -171,10 +171,10 @@ index 170858af4ea2..0772e3556a88 100644
 +blk_crypto_hash_bucket_for_id(struct blk_crypto_profile *profile,
 +			       const u8 *key_id, const u32 id_size)
 +{
-+	u32 hash_index = crc32(~0L, (char *)key_id, id_size);
++	u32 hash_value = jhash(key_id, id_size, id_size);
 +
 +	return &profile->key_hashtable[
-+			hash_long(hash_index, profile->log_slot_ht_size)];
++			hash_long(hash_value, profile->log_slot_ht_size)];
 +}
 +#endif /* CONFIG_QCOM_CRYPTO_FDE */
 +
