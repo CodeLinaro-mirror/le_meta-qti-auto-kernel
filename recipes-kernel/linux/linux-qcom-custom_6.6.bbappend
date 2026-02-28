@@ -8,6 +8,22 @@ SRC_URI:append = "\
     ${@bb.utils.contains_any('VARIANT', 'perf user', 'file://perf.cfg', '', d)} \
     file://0001-QCLINUX-vfio-Disable-iommu_group_claim_dma_owner-tem.patch \
     file://0001-PENDING-pinctrl-qcom-Enable-read-after-write-feature.patch \
+    file://qup/0001-UPSTREAM-soc-qcom-geni-se-Add-M_TX_FIFO_NOT_EMPTY-bi.patch \
+    file://qup/0002-UPSTREAM-soc-qcom-geni-se-add-GP_LENGTH-IRQ_EN_SET-I.patch \
+    file://qup/0003-UPSTREAM-kfifo-introduce-and-use-kfifo_skip_count.patch \
+    file://qup/0004-UPSTREAM-kfifo-add-kfifo_out_linear-_ptr.patch \
+    file://qup/0007-UPSTREAM-serial-qcom-geni-Don-t-cancel-abort-if-we-c.patch \
+    file://qup/0008-BACKPORT-tty-serial-switch-from-circ_buf-to-kfifo.patch \
+    file://qup/0009-UPSTREAM-serial-meson-qcom-don-t-advance-the-kfifo-t.patch \
+    file://qup/0010-UPSTREAM-serial-qcom-geni-fix-soft-lockup-on-sw-flow.patch \
+    file://qup/0011-UPSTREAM-serial-qcom-geni-fix-hard-lockup-on-buffer-.patch \
+    file://qup/0012-UPSTREAM-serial-qcom-geni-do-not-kill-the-machine-on.patch \
+    file://qup/0014-UPSTREAM-serial-qcom-geni-fix-arg-types-for-qcom_gen.patch \
+    file://qup/0015-UPSTREAM-serial-qcom-geni-introduce-qcom_geni_serial.patch \
+    file://qup/0016-UPSTREAM-serial-qcom-geni-fix-console-corruption.patch \
+    file://qup/0017-UPSTREAM-serial-qcom-geni-disable-interrupts-during-.patch \
+    file://qup/0018-UPSTREAM-serial-qcom-geni-fix-polled-console-corrupt.patch \
+    file://qup/0019-UPSTREAM-serial-qcom-geni-fix-shutdown-race.patch \
     file://qup/0001-PENDING-soc-qcom-geni-se-Enable-QUPs-on-SA8255p-Qual.patch \
     file://qup/0002-PENDING-serial-qcom-geni-Enable-Serial-on-SA8255p-pl.patch \
     file://qup/0003-PENDING-i2c-qcom-geni-Enable-I2C-on-SA8255p-Qualcomm.patch \
@@ -23,7 +39,9 @@ SRC_URI:append = "\
     file://qup/0016-PENDING-serial-Ensure-DMA-buffer-is-synced-before-CP.patch \
     file://qup/0017-PENDING-dmaengine-qcom-gpi-Handle-GPII-channel-recon.patch \
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
+    file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
     file://qup/0043-spi-spi-geni-qcom-Add-target-mode-abort-support.patch \
+    file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
@@ -64,6 +82,7 @@ SRC_URI:append = "\
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
+    file://0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
 "
 
 SRC_URI:append:gen5 = " \
@@ -79,6 +98,7 @@ SRC_URI:append:gen5 = " \
     file://usb/0023-phy-phy-qcom-snps-eusb2-Add-register-sequence-to-fix.patch \
     file://usb/0024-dwc3-gadget-Fix-compliance-TD-9.23-compliance-issue.patch \
     file://usb/0025-PENDING-usb-phy-qmp-combo-Update-PHY-init-sequence.patch \
+    file://usb/0026-PENDING-phy-ptn3222-Add-support-to-parse-the-param-f.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
     file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
@@ -121,6 +141,8 @@ SRC_URI:append:gen5 = " \
     file://qup/0040-i2c-Prevent-kernel-panic-by-handling-ERR_PTR-from-dm.patch \
     file://qup/0041-i2c-Update-clock-cycle-formula-per-latest-HPG-specif.patch \
     file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
+    file://qup/0043-i2c-Update-the-I2C-clock-counter-values-for-37.5MHz-.patch \
+    file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
 "
 
@@ -143,3 +165,4 @@ KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains('DISTRO_FEATURES', 'seli
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '', '${WORKDIR}/devmem.cfg', d)}"
 KERNEL_CONFIG_FRAGMENTS:append:auto-fts = " ${WORKDIR}/auto-fts.cfg"
 KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', '${WORKDIR}/rumi.cfg', '', d)}"
+KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '${WORKDIR}/perf.cfg', '', d)}"
