@@ -40,6 +40,7 @@ SRC_URI:append = "\
     file://qup/0017-PENDING-dmaengine-qcom-gpi-Handle-GPII-channel-recon.patch \
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
     file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
+    file://qup/0019-tty-qcom-geni-Prevent-startup-when-device-is-runtime.patch \
     file://qup/0043-spi-spi-geni-qcom-Add-target-mode-abort-support.patch \
     file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
     file://qup/0044-spi-qcom-geni-Abort-active-transfer-during-system-su.patch \
