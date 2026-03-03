@@ -1,4 +1,4 @@
-From 32213e5c9e29cc746feb2f409b55ea2cb1a4bf85 Mon Sep 17 00:00:00 2001
+From 96019dd027d94c5f500f525181d25d8a4187bb68 Mon Sep 17 00:00:00 2001
 From: Sankalp Negi <snegi@qti.qualcomm.com>
 Date: Wed, 4 Feb 2026 03:56:52 -0800
 Subject: [PATCH 2/2] PENDING: printk, sched: Export internal symbols required
@@ -38,7 +38,7 @@ index 51c43e0f9b29..b2086178b64c 100644
  /*
   * printk rate limiting, lifted from the networking subsystem.
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 69cd0d6af8d6..18c45055c6c6 100644
+index e6a05c0594e8..ced767ce5ab9 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
 @@ -114,8 +114,10 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_overutilized_tp);
@@ -48,10 +48,10 @@ index 69cd0d6af8d6..18c45055c6c6 100644
 +EXPORT_TRACEPOINT_SYMBOL_GPL(sched_switch);
  
  DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
-+EXPORT_SYMBOL_GPL(runqueues);
++EXPORT_PER_CPU_SYMBOL_GPL(runqueues);
+ DEFINE_PER_CPU(struct rnd_state, sched_rnd_state);
  
  #ifdef CONFIG_SCHED_DEBUG
- /*
 -- 
 2.34.1
 
