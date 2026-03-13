@@ -42,6 +42,7 @@ SRC_URI:append = "\
     file://qup/0043-spi-spi-geni-qcom-Add-target-mode-abort-support.patch \
     file://qup/0044-spi-qcom-geni-Abort-active-transfer-during-system-su.patch \
     file://qup/0045-spi-spi-geni-qcom-Check-DMA-interrupts-early-in-ISR.patch \
+    file://qup/0046-PENDING-spi-geni-msm-Reconfigure-SPI-mode-after-resu.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
