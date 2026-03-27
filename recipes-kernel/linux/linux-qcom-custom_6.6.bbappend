@@ -70,6 +70,7 @@ SRC_URI:append = "\
     file://scm_adci/0006-PENDING-firmware-qcom-scm-Add-new-lock-and-selective.patch \
     file://scm_adci/0007-UPSTREAM-firmware-qcom-scm-Remove-QCOM_SMC_WAITQ_FLA.patch \
     file://scm_adci/0008-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
+    file://scm_adci/0009-PENDING-firmware-qcom-scm-Fix-race-in-qcom_scm_get_c.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
