@@ -156,6 +156,7 @@ SRC_URI:append:gen5 = " \
     file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
     file://0001-PENDING-iommu-arm-smmu-v3-Support-inter-device-SID-s.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
+    file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \
 "
 
 SRC_URI:remove:gen5 = " \
