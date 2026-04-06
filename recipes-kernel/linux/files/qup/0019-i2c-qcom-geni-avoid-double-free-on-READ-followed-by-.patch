@@ -1,0 +1,46 @@
+From 12250e3b30a8d802644d47fe44c18956c1dd01ec Mon Sep 17 00:00:00 2001
+From: Chiluka Harish <chiluka.harish@oss.qualcomm.com>
+Date: Mon, 6 Apr 2026 15:01:15 +0530
+Subject: [PATCH] i2c: qcom-geni: avoid double free on READ followed by WRITE
+
+Allocate rx_buf for a READ message during a READ followed by WRITE
+transfer, but do not clear it after freeing. In the subsequent WRITE
+iteration, the common cleanup path calls geni_i2c_gpi_unmap(), which
+attempts to unmap and free the stale rx_buf again, resulting in a
+double free.
+
+Fix this by setting rx_buf to NULL immediately after calling
+geni_i2c_gpi_unmap(), so later iterations see a NULL pointer and safely
+skip unmapping and freeing the buffer.
+
+Change-Id: I842b7d4188ee4043dfd4dab5bf9503ecb08efb82
+Signed-off-by: Chiluka Harish <chiluka.harish@oss.qualcomm.com>
+---
+ drivers/i2c/busses/i2c-qcom-geni.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
+index a915b7d1a2ae..9bef3a6eb7a5 100644
+--- a/drivers/i2c/busses/i2c-qcom-geni.c
++++ b/drivers/i2c/busses/i2c-qcom-geni.c
+@@ -684,6 +684,8 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+ 		}
+ 
+ 		geni_i2c_gpi_unmap(gi2c, &msgs[i], tx_buf, tx_addr, rx_buf, rx_addr);
++		tx_buf = NULL;
++		rx_buf = NULL;
+ 	}
+ 
+ 	return num;
+@@ -693,6 +695,8 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
+ 	dmaengine_terminate_sync(gi2c->rx_c);
+ 	dmaengine_terminate_sync(gi2c->tx_c);
+ 	geni_i2c_gpi_unmap(gi2c, &msgs[i], tx_buf, tx_addr, rx_buf, rx_addr);
++	tx_buf = NULL;
++	rx_buf = NULL;
+ 	return ret;
+ }
+ 
+-- 
+2.34.1
+
