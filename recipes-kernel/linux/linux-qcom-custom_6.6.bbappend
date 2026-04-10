@@ -110,6 +110,7 @@ SRC_URI:append:gen5 = " \
     file://qup/0040-i2c-Prevent-kernel-panic-by-handling-ERR_PTR-from-dm.patch \
     file://qup/0041-i2c-Update-clock-cycle-formula-per-latest-HPG-specif.patch \
     file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
+    file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \
 "
 
 SRC_URI:remove:gen5 = " \
