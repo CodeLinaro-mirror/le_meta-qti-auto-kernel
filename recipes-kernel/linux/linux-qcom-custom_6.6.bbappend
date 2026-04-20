@@ -48,9 +48,9 @@ SRC_URI:append = "\
     file://qup/0046-PENDING-spi-geni-msm-Reconfigure-SPI-mode-after-resu.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
-    file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
-    file://0004-PENDING-ufs-ufs-qcom-Remove-reset-GPIO-Dependency-an.patch \
-    file://0005-PENDING-ufs-ufs-qcom-Don-t-skip-link-startup-for-QB-.patch \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch', '', d)} \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0004-PENDING-ufs-ufs-qcom-Remove-reset-GPIO-Dependency-an.patch', '', d)} \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0005-PENDING-ufs-ufs-qcom-Don-t-skip-link-startup-for-QB-.patch', '', d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-Revert-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in.patch', '', d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-QCLINUX-ufs-UFS-bringup-on-Seca-RUMI.patch', '', d)} \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
