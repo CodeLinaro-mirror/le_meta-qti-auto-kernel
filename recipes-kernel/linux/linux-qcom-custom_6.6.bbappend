@@ -40,7 +40,6 @@ SRC_URI:append = "\
     file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
-    file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
     file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
     file://usb/0003-PENDING-usb-dwc3-drd-expose-role-switch-control-to-u.patch \
