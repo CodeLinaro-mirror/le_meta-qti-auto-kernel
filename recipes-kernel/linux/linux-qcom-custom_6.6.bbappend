@@ -38,6 +38,7 @@ SRC_URI:append = "\
     file://qup/0016-PENDING-serial-Ensure-DMA-buffer-is-synced-before-CP.patch \
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
     file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
+    file://qup/0019-i2c-qcom-geni-avoid-double-free-on-READ-followed-by-.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
