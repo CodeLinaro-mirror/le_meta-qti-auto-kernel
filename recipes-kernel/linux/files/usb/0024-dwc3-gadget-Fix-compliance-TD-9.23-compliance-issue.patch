@@ -20,8 +20,8 @@ index 5c396188f8ce..6302a15f081a 100644
  	speed = reg & DWC3_DSTS_CONNECTSPD;
  	dwc->speed = speed;
  
-+	if (dwc->eusb2_phy_bitmap & BIT(0) && (speed >= DWC3_DSTS_SUPERSPEED))
-+		phy_calibrate(dwc->usb2_generic_phy);
++	// if (dwc->eusb2_phy_bitmap & BIT(0) && (speed >= DWC3_DSTS_SUPERSPEED))
++	//	phy_calibrate(dwc->usb2_generic_phy);
 +
  	if (DWC3_IP_IS(DWC32))
  		lanes = DWC3_DSTS_CONNLANES(reg) + 1;
