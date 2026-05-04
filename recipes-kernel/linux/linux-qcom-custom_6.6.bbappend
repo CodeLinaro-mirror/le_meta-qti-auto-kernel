@@ -89,6 +89,7 @@ SRC_URI:append = "\
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
     file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
     file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://0001-clk-Introduce-get-clock-by-unique-name-API-clk_get_b.patch', '', d)} \
 "
 
 SRC_URI:append:gen5 = " \
