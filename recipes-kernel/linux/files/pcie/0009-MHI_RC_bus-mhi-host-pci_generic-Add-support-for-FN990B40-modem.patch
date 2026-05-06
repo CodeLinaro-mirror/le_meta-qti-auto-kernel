@@ -1,0 +1,86 @@
+From 20ae30e9f3f23179bc37fb2b7471c4f06311ba2a Mon Sep 17 00:00:00 2001
+From: shuaihua <shuaihua@qti.qualcomm.com>
+Date: Fri, 3 Apr 2026 13:55:14 +0800
+Subject: [PATCH] 1. Add SDX35 based modem Telit FN920C04. 2.Add SDX72 based
+ modem Telit FN990B40, reusing FN920C04 configuration.
+
+Signed-off-by: shuaihua <shuaihua@qti.qualcomm.com>
+---
+ host/pci_generic.c | 50 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)
+
+diff --git a/drivers/bus/mhi/host/pci_generic.c b/drivers/bus/mhi/host/pci_generic.c
+index e6ac202..3c305be 100644
+--- a/drivers/bus/mhi/host/pci_generic.c
++++ b/drivers/bus/mhi/host/pci_generic.c
+@@ -650,10 +650,57 @@ static const struct mhi_pci_dev_info mhi_telit_fe990a_info = {
+ 	.mru_default = 32768,
+ };
+ 
++static const struct mhi_channel_config mhi_telit_fn920c04_channels[] = {
++       MHI_CHANNEL_CONFIG_UL_SBL(2, "SAHARA", 32, 0),
++       MHI_CHANNEL_CONFIG_DL_SBL(3, "SAHARA", 32, 0),
++       MHI_CHANNEL_CONFIG_UL(4, "DIAG", 64, 1),
++       MHI_CHANNEL_CONFIG_DL(5, "DIAG", 64, 1),
++       MHI_CHANNEL_CONFIG_UL(14, "QMI", 32, 0),
++       MHI_CHANNEL_CONFIG_DL(15, "QMI", 32, 0),
++       MHI_CHANNEL_CONFIG_UL(32, "DUN", 32, 0),
++       MHI_CHANNEL_CONFIG_DL(33, "DUN", 32, 0),
++       MHI_CHANNEL_CONFIG_UL_FP(34, "FIREHOSE", 32, 0),
++       MHI_CHANNEL_CONFIG_DL_FP(35, "FIREHOSE", 32, 0),
++       MHI_CHANNEL_CONFIG_UL(92, "DUN2", 32, 1),
++       MHI_CHANNEL_CONFIG_DL(93, "DUN2", 32, 1),
++       MHI_CHANNEL_CONFIG_HW_UL(100, "IP_HW0", 128, 2),
++       MHI_CHANNEL_CONFIG_HW_DL(101, "IP_HW0", 128, 3),
++};
++
++static const struct mhi_controller_config modem_telit_fn920c04_config = {
++       .max_channels = 128,
++       .timeout_ms = 50000,
++       .num_channels = ARRAY_SIZE(mhi_telit_fn920c04_channels),
++       .ch_cfg = mhi_telit_fn920c04_channels,
++       .num_events = ARRAY_SIZE(mhi_telit_fn990_events),
++       .event_cfg = mhi_telit_fn990_events,
++};
++
++static const struct mhi_pci_dev_info mhi_telit_fn920c04_info = {
++       .name = "telit-fn920c04",
++       .config = &modem_telit_fn920c04_config,
++       .bar_num = MHI_PCI_DEFAULT_BAR_NUM,
++       .dma_data_width = 32,
++       .sideband_wake = false,
++       .mru_default = 32768,
++};
++
++static const struct mhi_pci_dev_info mhi_telit_fn990b40_info = {
++	.name = "telit-fn990b40",
++	.config = &modem_telit_fn920c04_config,
++	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
++	.dma_data_width = 32,
++	.sideband_wake = false,
++	.mru_default = 32768,
++};
++
+ /* Keep the list sorted based on the PID. New VID should be added as the last entry */
+ static const struct pci_device_id mhi_pci_id_table[] = {
+ 	{PCI_DEVICE(PCI_VENDOR_ID_QCOM, 0x0116),
+ 		.driver_data = (kernel_ulong_t) &mhi_qcom_sa8775p_info },
++	/* Telit FN920C04 (sdx35) */
++	{PCI_DEVICE_SUB(PCI_VENDOR_ID_QCOM, 0x011a, 0x1c5d, 0x2020),
++		.driver_data = (kernel_ulong_t) &mhi_telit_fn920c04_info },
+ 	 { PCI_DEVICE(PCI_VENDOR_ID_QCOM, 0x011a),
+ 		.driver_data = (kernel_ulong_t) &mhi_qcom_sdx35_info },
+ 	{PCI_DEVICE(PCI_VENDOR_ID_QCOM, 0x0120),
+@@ -676,6 +723,9 @@ static const struct pci_device_id mhi_pci_id_table[] = {
+ 	/* Telit FE990A */
+ 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_QCOM, 0x0308, 0x1c5d, 0x2015),
+ 		.driver_data = (kernel_ulong_t) &mhi_telit_fe990a_info },
++	/* Telit FN990B40 (sdx72) */
++	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_QCOM, 0x0309, 0x1c5d, 0x201a),
++		.driver_data = (kernel_ulong_t) &mhi_telit_fn990b40_info },
+ 	{ PCI_DEVICE(PCI_VENDOR_ID_QCOM, 0x0308),
+ 		.driver_data = (kernel_ulong_t) &mhi_qcom_sdx65_info },
+ 	{ PCI_DEVICE(PCI_VENDOR_ID_QUECTEL, 0x1001), /* EM120R-GL (sdx24) */
+-- 
+2.34.1
+
