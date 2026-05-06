@@ -40,8 +40,11 @@ SRC_URI:append = "\
     file://qup/0017-PENDING-dmaengine-qcom-gpi-Handle-GPII-channel-recon.patch \
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
     file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
+    file://qup/0019-tty-qcom-geni-Prevent-startup-when-device-is-runtime.patch \
     file://qup/0043-spi-spi-geni-qcom-Add-target-mode-abort-support.patch \
     file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
+    file://qup/0044-spi-qcom-geni-Abort-active-transfer-during-system-su.patch \
+    file://qup/0045-spi-spi-geni-qcom-Check-DMA-interrupts-early-in-ISR.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
@@ -82,7 +85,8 @@ SRC_URI:append = "\
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
-    file://0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
 "
 
 SRC_URI:append:gen5 = " \
@@ -101,8 +105,6 @@ SRC_URI:append:gen5 = " \
     file://usb/0026-PENDING-phy-ptn3222-Add-support-to-parse-the-param-f.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
-    file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
-    file://0017-QCLINUX-MPAM-Snapshot-of-QCOM-SLC-MPAM-Driver.patch \
     file://0018-QCLINUX-MPAM-Add-CPU-map-partid-for-CPU-MPAM-Driver.patch \
     file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
@@ -143,6 +145,8 @@ SRC_URI:append:gen5 = " \
     file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
     file://qup/0043-i2c-Update-the-I2C-clock-counter-values-for-37.5MHz-.patch \
     file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
+    file://qup/0045-ccu-Add-FUSA-error-handling-and-recovery-support-for.patch \
+    file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
 "
 
