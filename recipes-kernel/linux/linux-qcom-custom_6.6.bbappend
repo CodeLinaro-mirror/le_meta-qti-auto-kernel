@@ -52,6 +52,7 @@ SRC_URI:append = "\
     file://0004-PENDING-ufs-ufs-qcom-Remove-reset-GPIO-Dependency-an.patch \
     file://0005-PENDING-ufs-ufs-qcom-Don-t-skip-link-startup-for-QB-.patch \
     file://0001-PENDING-ufs-ufs-qcom-Enable-UFS-Temperature-Monitori.patch \
+    file://0001-ufs-ufs-qcom-Re-enable-ESI-after-host-is-reset.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-Revert-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in.patch', '', d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-QCLINUX-ufs-UFS-bringup-on-Seca-RUMI.patch', '', d)} \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
