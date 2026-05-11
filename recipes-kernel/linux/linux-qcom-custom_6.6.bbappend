@@ -45,6 +45,7 @@ SRC_URI:append = "\
     file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
     file://qup/0044-spi-qcom-geni-Abort-active-transfer-during-system-su.patch \
     file://qup/0045-spi-spi-geni-qcom-Check-DMA-interrupts-early-in-ISR.patch \
+    file://qup/0046-PENDING-spi-geni-msm-Reconfigure-SPI-mode-after-resu.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
@@ -82,6 +83,7 @@ SRC_URI:append = "\
     file://scm_adci/0005-PENDING-firmware-qcom-scm-Add-support-for-WAITQ_WAKE.patch \
     file://scm_adci/0006-PENDING-firmware-qcom-scm-Add-new-lock-and-selective.patch \
     file://scm_adci/0007-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
+    file://scm_adci/0008-PENDING-firmware-qcom-scm-Fix-race-in-qcom_scm_get_c.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
@@ -99,13 +101,12 @@ SRC_URI:append:gen5 = " \
     file://usb/0020-PENDING-phy-core-Introduce-PHY-type-and-helper-API.patch \
     file://usb/0021-PENDING-phy-snps-eusb2-Set-PHY-type-for-Synopsys-eUS.patch \
     file://usb/0022-PENDING-usb-dwc3-Program-eUSB2-UTMI-opmode-in-host-m.patch \
-    file://usb/0023-phy-phy-qcom-snps-eusb2-Add-register-sequence-to-fix.patch \
+    file://usb/0023-meta-qti-auto-kernel-Fix-compliance-issue.patch \
     file://usb/0024-dwc3-gadget-Fix-compliance-TD-9.23-compliance-issue.patch \
     file://usb/0025-PENDING-usb-phy-qmp-combo-Update-PHY-init-sequence.patch \
     file://usb/0026-PENDING-phy-ptn3222-Add-support-to-parse-the-param-f.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
-    file://0018-QCLINUX-MPAM-Add-CPU-map-partid-for-CPU-MPAM-Driver.patch \
     file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
     file://qup/0008-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
@@ -168,5 +169,6 @@ KERNEL_CONFIG_FRAGMENTS:append:sa7255 = " ${WORKDIR}/earlyboot.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains('DISTRO_FEATURES', 'selinux', '${WORKDIR}/selinux.cfg', '', d)}"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '', '${WORKDIR}/devmem.cfg', d)}"
 KERNEL_CONFIG_FRAGMENTS:append:auto-fts = " ${WORKDIR}/auto-fts.cfg"
-KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', '${WORKDIR}/rumi.cfg', '', d)}"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '${WORKDIR}/perf.cfg', '', d)}"
+# ensure rumi.cfg is positioned last as it serves as the final overwrite configurarion
+KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', '${WORKDIR}/rumi.cfg', '', d)}"
