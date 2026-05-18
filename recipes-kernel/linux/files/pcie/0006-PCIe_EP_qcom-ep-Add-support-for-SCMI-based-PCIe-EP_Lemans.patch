@@ -1,22 +1,22 @@
-From 529e947ec96f795eafd371f05f30401f6d18a09a Mon Sep 17 00:00:00 2001
-From: Mrinmay Sarkar <quic_msarkar@quicinc.com>
-Date: Fri, 26 Jul 2024 15:09:31 +0530
+From 028e23e1ba7fd77a2b963cae8f525a42e9086bbc Mon Sep 17 00:00:00 2001
+From: Mrinmay Sarkar <msarkar@qti.qualcomm.com>
+Date: Wed, 4 Mar 2026 16:07:41 +0530
 Subject: [PATCH] PCI: qcom-ep: Add support for SCMI based PCIe EP
 
 This change will add SCMI based PCIe EP driver support
 where resources initialization part has been moved to GearVM.
 
-Change-Id: Ibea3698d37f7a3e1ab84338833f7040a878f2b29
-Signed-off-by: Mrinmay Sarkar <quic_msarkar@quicinc.com>
+Change-Id: I8fdc2c26ec493136b2641e12f379b15fbfe0bd18
+Signed-off-by: Mrinmay Sarkar <msarkar@qti.qualcomm.com>
 ---
  drivers/pci/controller/dwc/pcie-qcom-ep.c | 83 +++++++++++++++++------
  1 file changed, 63 insertions(+), 20 deletions(-)
 
 diff --git a/drivers/pci/controller/dwc/pcie-qcom-ep.c b/drivers/pci/controller/dwc/pcie-qcom-ep.c
-index 2ed957e6656a..639274374308 100644
+index 6887529be768..d9382802dac5 100644
 --- a/drivers/pci/controller/dwc/pcie-qcom-ep.c
 +++ b/drivers/pci/controller/dwc/pcie-qcom-ep.c
-@@ -22,6 +22,7 @@
+@@ -24,6 +24,7 @@
  #include <linux/regmap.h>
  #include <linux/reset.h>
  #include <linux/module.h>
@@ -24,7 +24,7 @@ index 2ed957e6656a..639274374308 100644
  
  #include "../../pci.h"
  #include "pcie-designware.h"
-@@ -152,6 +153,13 @@
+@@ -154,6 +155,13 @@
  
  #define to_pcie_ep(x)				dev_get_drvdata((x)->dev)
  
@@ -38,15 +38,15 @@ index 2ed957e6656a..639274374308 100644
  enum qcom_pcie_ep_link_status {
  	QCOM_PCIE_EP_LINK_DISABLED,
  	QCOM_PCIE_EP_LINK_ENABLED,
-@@ -169,6 +177,7 @@ struct qcom_pcie_ep_cfg {
- 	bool hdma_support;
- 	bool override_no_snoop;
- 	bool disable_mhi_ram_parity_check;
+@@ -173,6 +181,7 @@ struct qcom_pcie_ep_cfg {
+ 	u32	hdma_wr_channels;
+ 	bool	override_no_snoop;
+ 	bool	disable_mhi_ram_parity_check;
 +	bool scmi_support;
  };
  
  /**
-@@ -377,6 +386,8 @@ static int qcom_pcie_enable_resources(struct qcom_pcie_ep *pcie_ep)
+@@ -381,6 +390,8 @@ static int qcom_pcie_enable_resources(struct qcom_pcie_ep *pcie_ep)
  
  static void qcom_pcie_disable_resources(struct qcom_pcie_ep *pcie_ep)
  {
@@ -55,7 +55,7 @@ index 2ed957e6656a..639274374308 100644
  	icc_set_bw(pcie_ep->icc_mem, 0, 0);
  	phy_power_off(pcie_ep->phy);
  	phy_exit(pcie_ep->phy);
-@@ -387,13 +398,38 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
+@@ -391,13 +402,38 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
  {
  	struct qcom_pcie_ep *pcie_ep = to_pcie_ep(pci);
  	struct device *dev = pci->dev;
@@ -98,7 +98,7 @@ index 2ed957e6656a..639274374308 100644
  	}
  
  	/* Assert WAKE# to RC to indicate device is ready */
-@@ -530,6 +566,10 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
+@@ -534,6 +570,10 @@ static int qcom_pcie_perst_deassert(struct dw_pcie *pci)
  
  	return 0;
  
@@ -109,7 +109,7 @@ index 2ed957e6656a..639274374308 100644
  err_disable_resources:
  	qcom_pcie_disable_resources(pcie_ep);
  
-@@ -633,16 +673,6 @@ static int qcom_pcie_ep_get_resources(struct platform_device *pdev,
+@@ -632,16 +672,6 @@ static int qcom_pcie_ep_get_resources(struct platform_device *pdev,
  		return ret;
  	}
  
@@ -126,7 +126,7 @@ index 2ed957e6656a..639274374308 100644
  	pcie_ep->reset = devm_gpiod_get(dev, "reset", GPIOD_IN);
  	if (IS_ERR(pcie_ep->reset))
  		return PTR_ERR(pcie_ep->reset);
-@@ -651,13 +681,25 @@ static int qcom_pcie_ep_get_resources(struct platform_device *pdev,
+@@ -650,13 +680,25 @@ static int qcom_pcie_ep_get_resources(struct platform_device *pdev,
  	if (IS_ERR(pcie_ep->wake))
  		return PTR_ERR(pcie_ep->wake);
  
@@ -158,8 +158,8 @@ index 2ed957e6656a..639274374308 100644
  
  	return ret;
  }
-@@ -919,6 +961,7 @@ static const struct qcom_pcie_ep_cfg cfg_1_34_0 = {
- 	.hdma_support = true,
+@@ -927,6 +969,7 @@ static const struct qcom_pcie_ep_cfg cfg_1_34_0 = {
+ 	.hdma_wr_channels = 1,
  	.override_no_snoop = true,
  	.disable_mhi_ram_parity_check = true,
 +	.scmi_support = true,

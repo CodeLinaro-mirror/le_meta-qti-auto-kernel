@@ -40,13 +40,17 @@ SRC_URI:append = "\
     file://qup/0017-PENDING-dmaengine-qcom-gpi-Handle-GPII-channel-recon.patch \
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
     file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
+    file://qup/0019-tty-qcom-geni-Prevent-startup-when-device-is-runtime.patch \
     file://qup/0043-spi-spi-geni-qcom-Add-target-mode-abort-support.patch \
     file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
+    file://qup/0044-spi-qcom-geni-Abort-active-transfer-during-system-su.patch \
+    file://qup/0045-spi-spi-geni-qcom-Check-DMA-interrupts-early-in-ISR.patch \
+    file://qup/0046-PENDING-spi-geni-msm-Reconfigure-SPI-mode-after-resu.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
-    file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
-    file://0004-PENDING-ufs-ufs-qcom-Remove-reset-GPIO-Dependency-an.patch \
-    file://0005-PENDING-ufs-ufs-qcom-Don-t-skip-link-startup-for-QB-.patch \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch', '', d)} \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0004-PENDING-ufs-ufs-qcom-Remove-reset-GPIO-Dependency-an.patch', '', d)} \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0005-PENDING-ufs-ufs-qcom-Don-t-skip-link-startup-for-QB-.patch', '', d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-Revert-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in.patch', '', d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-QCLINUX-ufs-UFS-bringup-on-Seca-RUMI.patch', '', d)} \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
@@ -79,10 +83,13 @@ SRC_URI:append = "\
     file://scm_adci/0005-PENDING-firmware-qcom-scm-Add-support-for-WAITQ_WAKE.patch \
     file://scm_adci/0006-PENDING-firmware-qcom-scm-Add-new-lock-and-selective.patch \
     file://scm_adci/0007-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
+    file://scm_adci/0008-PENDING-firmware-qcom-scm-Fix-race-in-qcom_scm_get_c.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
-    file://0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://0001-clk-Introduce-get-clock-by-unique-name-API-clk_get_b.patch', '', d)} \
 "
 
 SRC_URI:append:gen5 = " \
@@ -95,15 +102,12 @@ SRC_URI:append:gen5 = " \
     file://usb/0020-PENDING-phy-core-Introduce-PHY-type-and-helper-API.patch \
     file://usb/0021-PENDING-phy-snps-eusb2-Set-PHY-type-for-Synopsys-eUS.patch \
     file://usb/0022-PENDING-usb-dwc3-Program-eUSB2-UTMI-opmode-in-host-m.patch \
-    file://usb/0023-phy-phy-qcom-snps-eusb2-Add-register-sequence-to-fix.patch \
+    file://usb/0023-meta-qti-auto-kernel-Fix-compliance-issue.patch \
     file://usb/0024-dwc3-gadget-Fix-compliance-TD-9.23-compliance-issue.patch \
     file://usb/0025-PENDING-usb-phy-qmp-combo-Update-PHY-init-sequence.patch \
     file://usb/0026-PENDING-phy-ptn3222-Add-support-to-parse-the-param-f.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
-    file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
-    file://0017-QCLINUX-MPAM-Snapshot-of-QCOM-SLC-MPAM-Driver.patch \
-    file://0018-QCLINUX-MPAM-Add-CPU-map-partid-for-CPU-MPAM-Driver.patch \
     file://qup/0006-PENDING-soc-qcom-geni-se-Add-compatible-field-for-SA.patch \
     file://qup/0007-PENDING-i2c-i2c-qcom-geni-Add-compatible-field-for-S.patch \
     file://qup/0008-PENDING-spi-spi-geni-qcom-Add-compatible-field-for-S.patch \
@@ -131,6 +135,7 @@ SRC_URI:append:gen5 = " \
     file://pcie/0005-MHI_RC_bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
     file://pcie/0007-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-Nords.patch \
     file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
+    file://pcie/0009-PCI-qcom-ecam-Add-manual-init-deinit-with-resource-c.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
@@ -143,6 +148,8 @@ SRC_URI:append:gen5 = " \
     file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
     file://qup/0043-i2c-Update-the-I2C-clock-counter-values-for-37.5MHz-.patch \
     file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
+    file://qup/0045-ccu-Add-FUSA-error-handling-and-recovery-support-for.patch \
+    file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
 "
 
@@ -164,5 +171,6 @@ KERNEL_CONFIG_FRAGMENTS:append:sa7255 = " ${WORKDIR}/earlyboot.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains('DISTRO_FEATURES', 'selinux', '${WORKDIR}/selinux.cfg', '', d)}"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '', '${WORKDIR}/devmem.cfg', d)}"
 KERNEL_CONFIG_FRAGMENTS:append:auto-fts = " ${WORKDIR}/auto-fts.cfg"
-KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', '${WORKDIR}/rumi.cfg', '', d)}"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '${WORKDIR}/perf.cfg', '', d)}"
+# ensure rumi.cfg is positioned last as it serves as the final overwrite configurarion
+KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', '${WORKDIR}/rumi.cfg', '', d)}"
