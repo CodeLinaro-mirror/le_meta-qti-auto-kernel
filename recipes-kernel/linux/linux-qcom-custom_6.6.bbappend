@@ -88,7 +88,9 @@ SRC_URI:append = "\
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
     file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://0001-PENDING-firmware-qcom-scm-Export-dump-mode-caps-API.patch \
     file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://0001-clk-Introduce-get-clock-by-unique-name-API-clk_get_b.patch', '', d)} \
 "
 
 SRC_URI:append:gen5 = " \
@@ -134,6 +136,8 @@ SRC_URI:append:gen5 = " \
     file://pcie/0005-MHI_RC_bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
     file://pcie/0007-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-Nords.patch \
     file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
+    file://pcie/0009-PCI-qcom-ecam-Add-manual-init-deinit-with-resource-c.patch \
+    file://pcie/00010-meta-qti-auto-kernel-Add-controller-reset-functional.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
@@ -148,6 +152,7 @@ SRC_URI:append:gen5 = " \
     file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
     file://qup/0045-ccu-Add-FUSA-error-handling-and-recovery-support-for.patch \
     file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
+    file://0001-PENDING-iommu-arm-smmu-v3-Support-inter-device-SID-s.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
 "
 
