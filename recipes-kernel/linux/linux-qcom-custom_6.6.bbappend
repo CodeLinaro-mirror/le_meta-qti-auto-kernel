@@ -51,6 +51,7 @@ SRC_URI:append = "\
     file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
     file://0004-PENDING-ufs-ufs-qcom-Remove-reset-GPIO-Dependency-an.patch \
     file://0005-PENDING-ufs-ufs-qcom-Don-t-skip-link-startup-for-QB-.patch \
+    file://0001-PENDING-ufs-ufs-qcom-Enable-UFS-Temperature-Monitori.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-Revert-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in.patch', '', d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-QCLINUX-ufs-UFS-bringup-on-Seca-RUMI.patch', '', d)} \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
@@ -138,6 +139,8 @@ SRC_URI:append:gen5 = " \
     file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
     file://pcie/0009-PCI-qcom-ecam-Add-manual-init-deinit-with-resource-c.patch \
     file://pcie/00010-meta-qti-auto-kernel-Add-controller-reset-functional.patch \
+    file://pcie/00011-PCIe-Convert-spinlocks-to-raw_spinlock_t.patch \
+    file://pcie/00012-PCIe-Add-LTSSM-state-monitoring-via-debugf.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
