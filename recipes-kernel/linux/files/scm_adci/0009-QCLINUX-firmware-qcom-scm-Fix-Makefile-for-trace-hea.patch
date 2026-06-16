@@ -1,0 +1,30 @@
+From 5f2c9d1a7e4b8c0d3f6a1e9b2c7d4f8a0e1b2c3d Mon Sep 17 00:00:00 2001
+From: Lei Wang <leiwan@qti.qualcomm.com>
+Date: Mon, 16 Jun 2026 00:00:00 +0000
+Subject: [PATCH] QCLINUX: firmware: qcom-scm: Fix Makefile for trace header
+
+Commit aae28bd82108 ("PENDING: drivers: firmware: scm: Enable Trace event")
+added qcom_scm_trace.h with TRACE_INCLUDE_PATH set to '.' but omitted the
+required CFLAGS_qcom_scm-smc.o := -I$(src) in the Makefile.  Without it
+the compiler cannot resolve './qcom_scm_trace.h' when building from the
+kernel root, causing:
+
+  ./include/trace/define_trace.h:95:42: fatal error: ./qcom_scm_trace.h: No such file or directory
+
+Signed-off-by: Lei Wang <leiwan@qti.qualcomm.com>
+---
+ drivers/firmware/Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/firmware/Makefile b/drivers/firmware/Makefile
+index a2f22d45d9f1..a50143d8a3dd 100644
+--- a/drivers/firmware/Makefile
++++ b/drivers/firmware/Makefile
+@@ -20,6 +20,7 @@ obj-$(CONFIG_RASPBERRYPI_FIRMWARE) += raspberrypi.o
+ obj-$(CONFIG_FW_CFG_SYSFS)	+= qemu_fw_cfg.o
+ obj-$(CONFIG_QCOM_SCM)		+= qcom-scm.o
+ qcom-scm-objs += qcom_scm.o qcom_scm-smc.o qcom_scm-legacy.o
++CFLAGS_qcom_scm-smc.o := -I$(src)
+ obj-$(CONFIG_SYSFB)		+= sysfb.o
+ obj-$(CONFIG_SYSFB_SIMPLEFB)	+= sysfb_simplefb.o
+ obj-$(CONFIG_TI_SCI_PROTOCOL)	+= ti_sci.o
