@@ -22,9 +22,9 @@ SRC_URI:append = "\
     file://qup/0016-PENDING-serial-Ensure-DMA-buffer-is-synced-before-CP.patch \
     file://qup/0017-PENDING-dmaengine-qcom-gpi-Handle-GPII-channel-recon.patch \
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
+    file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
-    file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
     file://usb/0001-PENDING-usb-dwc3-qcom-Ensure-VBUS_VALID-is-set-after.patch \
     file://usb/0002-PENDING-usb-dwc3-qcom-Ensure-PIPE_UTMI_CLK_SEL-is-pr.patch \
@@ -54,9 +54,12 @@ SRC_URI:append = "\
     file://scm_adci/0005-PENDING-firmware-qcom-scm-Add-support-for-WAITQ_WAKE.patch \
     file://scm_adci/0006-PENDING-firmware-qcom-scm-Add-new-lock-and-selective.patch \
     file://scm_adci/0007-QCLINUX-arm64-dts-qcom-qcs9100-Modify-correct-dt-nam.patch \
+    file://scm_adci/0008-PENDING-firmware-qcom-scm-Fix-race-in-qcom_scm_get_c.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
+    file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
+    file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
 "
 
 SRC_URI:append:gen5 = " \
@@ -68,6 +71,13 @@ SRC_URI:append:gen5 = " \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
     file://usb/0018-phy-qcom-phy-qcom-snps-eusb2-Add-support-for-SA8797P.patch \
     file://usb/0019-usb-phy-qmp-combo-Add-scmi-related-changes-for-SA879.patch \
+    file://usb/0020-PENDING-phy-core-Introduce-PHY-type-and-helper-API.patch \
+    file://usb/0021-PENDING-phy-snps-eusb2-Set-PHY-type-for-Synopsys-eUS.patch \
+    file://usb/0022-PENDING-usb-dwc3-Program-eUSB2-UTMI-opmode-in-host-m.patch \
+    file://usb/0023-phy-phy-qcom-snps-eusb2-Add-register-sequence-to-fix.patch \
+    file://usb/0024-dwc3-gadget-Fix-compliance-TD-9.23-compliance-issue.patch \
+    file://usb/0025-PENDING-usb-phy-qmp-combo-Update-PHY-init-sequence.patch \
+    file://usb/0026-PENDING-phy-ptn3222-Add-support-to-parse-the-param-f.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
     file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \

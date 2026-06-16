@@ -120,7 +120,7 @@ index c26e82e490fc..bccf417b895c 100644
  int scm_get_wq_ctx(u32 *wq_ctx, u32 *flags, u32 *more_pending)
  {
  	int ret;
-@@ -91,34 +102,43 @@ int scm_get_wq_ctx(u32 *wq_ctx, u32 *flags, u32 *more_pending)
+@@ -91,34 +102,46 @@ int scm_get_wq_ctx(u32 *wq_ctx, u32 *flags, u32 *more_pending)
  	return 0;
  }
  
@@ -161,13 +161,16 @@ index c26e82e490fc..bccf417b895c 100644
 -		}
 -	} while (res->a0 == QCOM_SCM_WAITQ_SLEEP);
 +			if (res->a0 == QCOM_SCM_WAITQ_SLEEP) {
++				trace_scm_waitq_sleep(wq_ctx, smc_call_ctx);
 +				ret = qcom_scm_wait_for_wq_completion(dev_get_drvdata(dev), wq_ctx);
 +				if (ret)
 +					return ret;
 +
++				trace_scm_waitq_resume(smc_call_ctx);
 +				fill_wq_resume_args(&fill, smc_call_ctx);
 +				smc = &fill;
 +			} else if (res->a0 == QCOM_SCM_WAITQ_WAKE) {
++				trace_scm_waitq_wake_ack(wq_ctx, smc_call_ctx);
 +				fill_wq_wake_ack_args(&fill, smc_call_ctx);
 +				smc = &fill;
 +				qcom_scm_waitq_wakeup(dev_get_drvdata(dev), wq_ctx);
