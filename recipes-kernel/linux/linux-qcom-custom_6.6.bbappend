@@ -22,6 +22,7 @@ SRC_URI:append = "\
     file://qup/0016-PENDING-serial-Ensure-DMA-buffer-is-synced-before-CP.patch \
     file://qup/0017-PENDING-dmaengine-qcom-gpi-Handle-GPII-channel-recon.patch \
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
+    file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
     file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
