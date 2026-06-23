@@ -123,6 +123,7 @@ SRC_URI:append:gen5 = " \
     file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
     file://qup/0045-ccu-Add-FUSA-error-handling-and-recovery-support-for.patch \
     file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
+    file://qup/0047-qcom_ccu_qup-Fix-NULL-pointer-dereference-and-add-in.patch \
 "
 
 SRC_URI:remove:gen5 = " \
