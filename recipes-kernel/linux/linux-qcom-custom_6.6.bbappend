@@ -96,6 +96,7 @@ SRC_URI:append = "\
 
 SRC_URI:append:gen5 = " \
     file://sa8797p-generic.cfg \
+    file://0001-PENDING-memblock-enable-memory-hotplug-limit-avaiabl.patch \
     file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
     file://usb/0017-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
@@ -141,6 +142,7 @@ SRC_URI:append:gen5 = " \
     file://pcie/00010-meta-qti-auto-kernel-Add-controller-reset-functional.patch \
     file://pcie/00011-PCIe-Convert-spinlocks-to-raw_spinlock_t.patch \
     file://pcie/00012-PCIe-Add-LTSSM-state-monitoring-via-debugf.patch \
+    file://pcie/00013-PCI-qcom-ecam-Refactor-power-domain-handling-and-fix.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
@@ -155,12 +157,15 @@ SRC_URI:append:gen5 = " \
     file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
     file://qup/0045-ccu-Add-FUSA-error-handling-and-recovery-support-for.patch \
     file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
+    file://qup/0047-qcom_ccu_qup-Fix-NULL-pointer-dereference-and-add-in.patch \
     file://0001-PENDING-iommu-arm-smmu-v3-Support-inter-device-SID-s.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
+    file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \
 "
 
 SRC_URI:remove:gen5 = " \
     file://earlyboot.cfg \
+    file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
 "
