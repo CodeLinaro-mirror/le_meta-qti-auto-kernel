@@ -78,6 +78,7 @@ SRC_URI:append:gen5 = " \
     file://usb/0024-dwc3-gadget-Fix-compliance-TD-9.23-compliance-issue.patch \
     file://usb/0025-PENDING-usb-phy-qmp-combo-Update-PHY-init-sequence.patch \
     file://usb/0026-PENDING-phy-ptn3222-Add-support-to-parse-the-param-f.patch \
+    file://usb/0027-phy-qcom-snps-eusb2-Allow-missing-repeater-for-fw-ma.patch \
     file://0014-mailbox-qcom-cpucp-restructure-the-cpucp-mailbox-dri.patch \
     file://0015-scmi-support-for-scmi-vendor-protocol-and-log-driver.patch \
     file://0016-QCLINUX-MPAM-Snapshot-of-QCOM-MPAM-Driver.patch \
