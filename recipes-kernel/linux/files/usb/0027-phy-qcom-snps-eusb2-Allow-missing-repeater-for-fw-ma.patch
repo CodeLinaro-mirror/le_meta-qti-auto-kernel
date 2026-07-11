@@ -18,25 +18,25 @@ Non-fw-managed PHYs continue to require a repeater and fail hard on
 
 Signed-off-by: Lei Wang <leiwan@qti.qualcomm.com>
 ---
- drivers/phy/qualcomm/phy-qcom-snps-eusb2.c | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ drivers/phy/qualcomm/phy-qcom-snps-eusb2.c | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c b/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
-index 1484691a41d5..ea8c5ea66d2d 100644
 --- a/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
 +++ b/drivers/phy/qualcomm/phy-qcom-snps-eusb2.c
-@@ -202,7 +202,9 @@ static int qcom_snps_eusb2_hsphy_set_mode(struct phy *p, enum phy_mode mode, in
-
+@@ -201,7 +201,9 @@
+ 
  	phy->mode = mode;
-
+ 
 -	return phy_set_mode_ext(phy->repeater, mode, submode);
 +	if (phy->repeater)
 +		return phy_set_mode_ext(phy->repeater, mode, submode);
 +	return 0;
  }
-
+ 
  static void qcom_snps_eusb2_hsphy_write_mask(void __iomem *base, u32 offset,
-@@ -339,10 +341,14 @@ static int qcom_snps_eusb2_hsphy_init(struct phy *p)
+@@ -335,11 +337,13 @@
+ 			goto disable_ref_clk;
+ 		}
  	} else {
 -		ret = phy_init(phy->repeater);
 -		if (ret) {
@@ -52,23 +52,24 @@ index 1484691a41d5..ea8c5ea66d2d 100644
 +			}
  		}
  	}
-
-@@ -456,7 +462,9 @@ static int qcom_snps_eusb2_hsphy_exit(struct phy *p)
+ 	qcom_snps_eusb2_hsphy_write_mask(phy->base, USB_PHY_CFG0,
+@@ -453,7 +457,8 @@
+ 		regulator_bulk_disable(ARRAY_SIZE(phy->vregs), phy->vregs);
+ 
  	}
 -	phy_exit(phy->repeater);
 +	if (phy->repeater)
 +		phy_exit(phy->repeater);
  	return 0;
  }
-
-@@ -577,9 +585,11 @@ static int qcom_snps_eusb2_hsphy_probe(struct platform_device *pdev)
-
+ 
+@@ -571,9 +576,12 @@
+ 
  	phy->repeater = devm_of_phy_get_by_index(dev, np, 0);
--	if (IS_ERR(phy->repeater)) {
+ 	if (IS_ERR(phy->repeater)) {
 -		qcom_snps_domain_detach(phy);
 -		return dev_err_probe(dev, PTR_ERR(phy->repeater),
 -				     "failed to get repeater\n");
-+	if (IS_ERR(phy->repeater)) {
 +		if (PTR_ERR(phy->repeater) != -ENODEV || !phy->fw_managed) {
 +			qcom_snps_domain_detach(phy);
 +			return dev_err_probe(dev, PTR_ERR(phy->repeater),
@@ -76,5 +77,5 @@ index 1484691a41d5..ea8c5ea66d2d 100644
 +		}
 +		phy->repeater = NULL;
  	}
-
+ 
  	generic_phy = devm_phy_create(dev, NULL, &qcom_snps_eusb2_hsphy_ops);
