@@ -22,7 +22,10 @@ SRC_URI:append = "\
     file://qup/0016-PENDING-serial-Ensure-DMA-buffer-is-synced-before-CP.patch \
     file://qup/0017-PENDING-dmaengine-qcom-gpi-Handle-GPII-channel-recon.patch \
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
+    file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
     file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
+    file://qup/0019-tty-qcom-geni-Prevent-startup-when-device-is-runtime.patch \
+    file://qup/0020-serial-qcom_geni-Disable-closing_wait-for-console-to.patch \
     file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
@@ -66,6 +69,7 @@ SRC_URI:append:gen5 = " \
     file://sa8797p-generic.cfg \
     file://iqx.cfg \
     file://0003-scsi-ufs-Disable-auto-hibern8-feature.patch \
+    file://0001-PENDING-memblock-enable-memory-hotplug-limit-avaiabl.patch \
     file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
     file://usb/0017-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
@@ -123,12 +127,21 @@ SRC_URI:append:gen5 = " \
     file://qup/0040-i2c-Prevent-kernel-panic-by-handling-ERR_PTR-from-dm.patch \
     file://qup/0041-i2c-Update-clock-cycle-formula-per-latest-HPG-specif.patch \
     file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
+<<<<<<< TARGET BRANCH (62461b meta-qti-auto-kernel: Rebase usb patches for usb-hostmode fi)
     file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \
     file://pcie/0001-pci-Add-pcie-module-dependency.patch \
+=======
+    file://qup/0043-i2c-Update-the-I2C-clock-counter-values-for-37.5MHz-.patch \
+    file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
+    file://qup/0045-ccu-Add-FUSA-error-handling-and-recovery-support-for.patch \
+    file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
+    file://qup/0047-qcom_ccu_qup-Fix-NULL-pointer-dereference-and-add-in.patch \
+>>>>>>> SOURCE BRANCH (034757 Merge "meta-qti-auto-kernel: serial: qcom_geni: Disable clos)
 "
 
 SRC_URI:remove:gen5 = " \
     file://earlyboot.cfg \
+    file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
 "
