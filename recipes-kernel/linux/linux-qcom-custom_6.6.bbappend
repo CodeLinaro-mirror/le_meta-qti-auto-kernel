@@ -65,6 +65,7 @@ SRC_URI:append = "\
     file://0001-FROMLIST-of-of_reserved_mem-Increase-limit-for-reser.patch \
     file://0013-net-stmmac-dwmac-qcom-ethqos-Enable-SCMI-ETH.patch \
     file://0014-PENDING-qcom-Add-sa7255p-compatibles-for-core-driver.patch \
+    file://usb/0027-PENDING-phy-qcom-snps-femto-v2-Add-Minimal-EUD-suppo.patch \
     file://0016-PENDING-ice-Enable-ICE-on-SA8255p-Qualcomm-platforms.patch \
     file://scm_adci/0001-QCLINUX-arm64-dts-qcom-sa8255p-Modify-correct-dt-nam.patch \
     file://scm_adci/0002-QCLINUX-arm64-dts-qcom-sa8775p-Modify-correct-dt-nam.patch \
