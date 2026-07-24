@@ -1,0 +1,69 @@
+From 2d23e158a6042b9f3f760f3fc6c806f15cd6b006 Mon Sep 17 00:00:00 2001
+From: Ram Kumar Dwivedi <rdwivedi@qti.qualcomm.com>
+Date: Tue, 4 Nov 2025 18:11:55 +0530
+Subject: [PATCH] PENDING: ufs: ufs-qcom: Don't skip link startup for QB/DS and
+ error recovery
+
+Don't skip link startup during quick boot and error recovery paths
+because these are not handled by GearVM and must be performed by HLOS.
+Skip link startup only during cold boot since the bootloader already
+initializes the link in that scenario.
+
+Change-Id: I9220e04b384828c450f1cd3458c0b74f17b5fbd8
+Signed-off-by: Ram Kumar Dwivedi <rdwivedi@qti.qualcomm.com>
+---
+ drivers/ufs/core/ufshcd.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/ufs/core/ufshcd.c b/drivers/ufs/core/ufshcd.c
+index f43433c4759a..c7dcf2aa1718 100644
+--- a/drivers/ufs/core/ufshcd.c
++++ b/drivers/ufs/core/ufshcd.c
+@@ -4849,9 +4849,10 @@ static int ufshcd_hba_execute_hce(struct ufs_hba *hba)
+ {
+ 	int retry_outer = 3;
+ 	int retry_inner;
++	static int is_boot = true;
+ 
+ start:
+-	if (!strncmp(hba->vops->name, "qcom-fmr", 8))
++	if (!strncmp(hba->vops->name, "qcom-fmr", 8) && (is_boot))
+ 		goto fmr_managed;
+ 
+ 	if (ufshcd_is_hba_active(hba))
+@@ -4901,6 +4902,8 @@ static int ufshcd_hba_execute_hce(struct ufs_hba *hba)
+ 
+ 	ufshcd_vops_hce_enable_notify(hba, POST_CHANGE);
+ 
++	is_boot = false;
++
+ 	return 0;
+ }
+ 
+@@ -4999,10 +5002,12 @@ static int ufshcd_link_startup(struct ufs_hba *hba)
+ 	int ret;
+ 	int retries = DME_LINKSTARTUP_RETRIES;
+ 	bool link_startup_again = false;
++	static bool is_boot = true;
+ 
+-	if (!strncmp(hba->vops->name, "qcom-fmr", 8)) {
++	if (!strncmp(hba->vops->name, "qcom-fmr", 8) && (is_boot)) {
+ 		ufshcd_init_pwr_info(hba);
+ 		ret = ufshcd_make_hba_operational(hba);
++		is_boot = false;
+ 		return ret;
+ 	}
+ 
+@@ -7813,8 +7818,7 @@ static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
+ 	 * Stop the host controller and complete the requests
+ 	 * cleared by h/w
+ 	 */
+-	if (strncmp(hba->vops->name, "qcom-fmr", 8))
+-		ufshcd_hba_stop(hba);
++	ufshcd_hba_stop(hba);
+ 	hba->silence_err_logs = true;
+ 	ufshcd_complete_requests(hba, true);
+ 	hba->silence_err_logs = false;
+-- 
+2.34.1
+
