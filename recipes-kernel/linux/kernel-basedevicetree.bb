@@ -20,7 +20,7 @@ do_compile() {
 
 # Install oot-dt-bindings headers to sysroot so that vms-devicetree
 # and other out-of-tree devicetree recipes can include them.
-do_install:append() {
+do_install:append:gen5() {
     if [ -d ${S}/arch/arm64/boot/dts/qcom/oot-dt-bindings ]; then
         install -d ${D}${includedir}/oot-dt-bindings
         install -m 0644 ${S}/arch/arm64/boot/dts/qcom/oot-dt-bindings/*.h \
@@ -28,7 +28,7 @@ do_install:append() {
     fi
 }
 
-FILES:${PN}-dev += "${includedir}/oot-dt-bindings/*"
+FILES:${PN}-dev:append:gen5 = " ${includedir}/oot-dt-bindings/*"
 
 # lock to avoid parallel compiling with techpack
 do_compile[lockfiles] += "${TMPDIR}/qti-techpack.lock"
