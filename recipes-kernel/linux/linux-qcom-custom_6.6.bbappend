@@ -93,7 +93,6 @@ SRC_URI:append = "\
     file://0001-PENDING-firmware-qcom-scm-Export-dump-mode-caps-API.patch \
     file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://0001-clk-Introduce-get-clock-by-unique-name-API-clk_get_b.patch', '', d)} \
-    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://gpio-mockup.cfg', '', d)} \
 "
 
 SRC_URI:append:gen5 = " \
@@ -187,4 +186,3 @@ KERNEL_CONFIG_FRAGMENTS:append:auto-fts = " ${WORKDIR}/auto-fts.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '${WORKDIR}/perf.cfg', '', d)}"
 # ensure rumi.cfg is positioned last as it serves as the final overwrite configurarion
 KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', '${WORKDIR}/rumi.cfg', '', d)}"
-KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', '${WORKDIR}/gpio-mockup.cfg', '', d)}"
