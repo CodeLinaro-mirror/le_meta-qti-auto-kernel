@@ -127,16 +127,9 @@ SRC_URI:append:gen5 = " \
     file://qup/0040-i2c-Prevent-kernel-panic-by-handling-ERR_PTR-from-dm.patch \
     file://qup/0041-i2c-Update-clock-cycle-formula-per-latest-HPG-specif.patch \
     file://qup/0042-ccu-WARN_ON-once-at-CCU_RETRY_CNT-during-GSI-pdev-lo.patch \
-<<<<<<< TARGET BRANCH (62461b meta-qti-auto-kernel: Rebase usb patches for usb-hostmode fi)
     file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \
+    file://bluetooth/0002-Bluetooth-hci_qca-Fix-duplicate-dump-and-add-uevent-.patch \
     file://pcie/0001-pci-Add-pcie-module-dependency.patch \
-=======
-    file://qup/0043-i2c-Update-the-I2C-clock-counter-values-for-37.5MHz-.patch \
-    file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
-    file://qup/0045-ccu-Add-FUSA-error-handling-and-recovery-support-for.patch \
-    file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
-    file://qup/0047-qcom_ccu_qup-Fix-NULL-pointer-dereference-and-add-in.patch \
->>>>>>> SOURCE BRANCH (034757 Merge "meta-qti-auto-kernel: serial: qcom_geni: Disable clos)
 "
 
 SRC_URI:remove:gen5 = " \
