@@ -34,16 +34,10 @@ do_deploy() {
 
     if [ -n "${OOT_DDR_DTBOS}" ]; then
         install -d ${DEPLOYDIR}/build-artifacts/ddrdtbos
-        install -d ${DEPLOYDIR}/build-artifacts/ddrdtbosflex
 
         for dtb in ${OOT_DDR_DTBOS}; do
             if [ -f ${B}/$dtb ]; then
-                # copy flex dtbo in separate directory
-                if [[ "$dtb" == *flex* ]]; then
-                    install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/ddrdtbosflex
-                else
-                    install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/ddrdtbos
-                fi
+                install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/ddrdtbos
             fi
         done
     fi

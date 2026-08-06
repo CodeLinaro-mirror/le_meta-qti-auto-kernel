@@ -41,16 +41,18 @@ SRC_URI:append = "\
     file://qup/0017-serial-qcom_geni-Fix-TX-interrupt-setup-and-spurious.patch \
     file://qup/0018-serial-qcom-geni-set-lowest-OPP-during-console-suspe.patch \
     file://qup/0019-tty-qcom-geni-Prevent-startup-when-device-is-runtime.patch \
+    file://qup/0020-serial-qcom_geni-Disable-closing_wait-for-console-to.patch \
     file://qup/0043-spi-spi-geni-qcom-Add-target-mode-abort-support.patch \
     file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
     file://qup/0044-spi-qcom-geni-Abort-active-transfer-during-system-su.patch \
-    file://qup/0045-spi-spi-geni-qcom-Check-DMA-interrupts-early-in-ISR.patch \
     file://qup/0046-PENDING-spi-geni-msm-Reconfigure-SPI-mode-after-resu.patch \
-    file://0007-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
-    file://0001-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
-    file://0001-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
+    file://0001-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
+    file://0002-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
+    file://0003-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
     file://0004-PENDING-ufs-ufs-qcom-Remove-reset-GPIO-Dependency-an.patch \
     file://0005-PENDING-ufs-ufs-qcom-Don-t-skip-link-startup-for-QB-.patch \
+    file://0006-PENDING-ufs-ufs-qcom-Enable-UFS-Temperature-Monitori.patch \
+    file://0007-ufs-ufs-qcom-Re-enable-ESI-after-host-is-reset.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-Revert-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in.patch', '', d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-QCLINUX-ufs-UFS-bringup-on-Seca-RUMI.patch', '', d)} \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
@@ -91,10 +93,12 @@ SRC_URI:append = "\
     file://0001-PENDING-firmware-qcom-scm-Export-dump-mode-caps-API.patch \
     file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://0001-clk-Introduce-get-clock-by-unique-name-API-clk_get_b.patch', '', d)} \
+    file://wlan/0001-net-wireless-Enable-WEXT-legacy-support-for-kernel-6.patch \
 "
 
 SRC_URI:append:gen5 = " \
     file://sa8797p-generic.cfg \
+    file://0001-PENDING-memblock-enable-memory-hotplug-limit-avaiabl.patch \
     file://usb/0016-usb-dwc3-qcom-Add-support-for-sa8775p-for-qcom-usb.patch \
     file://usb/0017-usb-phy-Add-snapshot-of-USB-PHY-EMU-driver.patch \
     file://0008-Window-Watchdog-support-for-Sa8797.patch \
@@ -138,6 +142,9 @@ SRC_URI:append:gen5 = " \
     file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
     file://pcie/0009-PCI-qcom-ecam-Add-manual-init-deinit-with-resource-c.patch \
     file://pcie/00010-meta-qti-auto-kernel-Add-controller-reset-functional.patch \
+    file://pcie/00011-PCIe-Convert-spinlocks-to-raw_spinlock_t.patch \
+    file://pcie/00012-PCIe-Add-LTSSM-state-monitoring-via-debugf.patch \
+    file://pcie/00013-PCI-qcom-ecam-Refactor-power-domain-handling-and-fix.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
@@ -152,12 +159,15 @@ SRC_URI:append:gen5 = " \
     file://qup/0044-ccu-Add-support-to-configure-trigger-type-in-GSI-ch-.patch \
     file://qup/0045-ccu-Add-FUSA-error-handling-and-recovery-support-for.patch \
     file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
+    file://qup/0047-qcom_ccu_qup-Fix-NULL-pointer-dereference-and-add-in.patch \
     file://0001-PENDING-iommu-arm-smmu-v3-Support-inter-device-SID-s.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
+    file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \
 "
 
 SRC_URI:remove:gen5 = " \
     file://earlyboot.cfg \
+    file://0001-mm-memblock-enable-memory-hotplug.patch \
     file://0019-net-phy-AQR-phy-10M-fix.patch \
     file://pcie/0006-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP_Lemans.patch \
 "
