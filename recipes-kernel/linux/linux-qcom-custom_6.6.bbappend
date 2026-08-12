@@ -77,6 +77,7 @@ SRC_URI:append = "\
     file://0013-net-stmmac-dwmac-qcom-ethqos-Enable-SCMI-ETH.patch \
     file://0014-PENDING-qcom-Add-sa7255p-compatibles-for-core-driver.patch \
     file://usb/0015-PENDING-qcom-Add-sa7255p-compatibles-for-usb-drivers.patch \
+    file://usb/0027-PENDING-phy-qcom-snps-femto-v2-Add-Minimal-EUD-suppo.patch \
     file://0016-PENDING-ice-Enable-ICE-on-SA8255p-Qualcomm-platforms.patch \
     file://scm_adci/0001-QCLINUX-arm64-dts-qcom-sa8255p-Modify-correct-dt-nam.patch \
     file://scm_adci/0002-QCLINUX-arm64-dts-qcom-sa8775p-Modify-correct-dt-nam.patch \
@@ -94,6 +95,8 @@ SRC_URI:append = "\
     file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://0001-clk-Introduce-get-clock-by-unique-name-API-clk_get_b.patch', '', d)} \
     file://wlan/0001-net-wireless-Enable-WEXT-legacy-support-for-kernel-6.patch \
+    file://wlan/0002-wifi-cfg80211-ignore-non-TX-BSSs-in-per-STA-profile.patch \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://gpio-sim.cfg', '', d)} \
 "
 
 SRC_URI:append:gen5 = " \
@@ -145,6 +148,7 @@ SRC_URI:append:gen5 = " \
     file://pcie/00011-PCIe-Convert-spinlocks-to-raw_spinlock_t.patch \
     file://pcie/00012-PCIe-Add-LTSSM-state-monitoring-via-debugf.patch \
     file://pcie/00013-PCI-qcom-ecam-Refactor-power-domain-handling-and-fix.patch \
+    file://pcie/00014-PCIe-qcom-ecam-Fix-power-management-and-debugfs-robus.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
@@ -187,3 +191,4 @@ KERNEL_CONFIG_FRAGMENTS:append:auto-fts = " ${WORKDIR}/auto-fts.cfg"
 KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains_any('VARIANT', 'perf user', '${WORKDIR}/perf.cfg', '', d)}"
 # ensure rumi.cfg is positioned last as it serves as the final overwrite configurarion
 KERNEL_CONFIG_FRAGMENTS:append:gen5 = " ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', '${WORKDIR}/rumi.cfg', '', d)}"
+KERNEL_CONFIG_FRAGMENTS:append = " ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', '${WORKDIR}/gpio-sim.cfg', '', d)}"
