@@ -93,6 +93,7 @@ SRC_URI:append = "\
     file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
     file://0001-PENDING-firmware-qcom-scm-Export-dump-mode-caps-API.patch \
     file://0001-QCLINUX-iommu-arm-smmu-protect-the-dereference-of-ad.patch \
+    file://0001-PENDING-firmware-qcom-scm-Export-disable-sdi-API.patch \
     file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://0001-clk-Introduce-get-clock-by-unique-name-API-clk_get_b.patch', '', d)} \
     file://wlan/0001-net-wireless-Enable-WEXT-legacy-support-for-kernel-6.patch \
