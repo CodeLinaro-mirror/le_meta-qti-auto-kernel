@@ -151,6 +151,7 @@ SRC_URI:append:gen5 = " \
     file://pcie/00012-PCIe-Add-LTSSM-state-monitoring-via-debugf.patch \
     file://pcie/00013-PCI-qcom-ecam-Refactor-power-domain-handling-and-fix.patch \
     file://pcie/00014-PCIe-qcom-ecam-Fix-power-management-and-debugfs-robus.patch \
+    file://pcie/00015-PCIe-qcom-ecam-Update-power-domain-management-and-tr.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
