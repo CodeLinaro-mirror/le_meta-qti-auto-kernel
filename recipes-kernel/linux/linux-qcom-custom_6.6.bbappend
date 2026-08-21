@@ -93,6 +93,7 @@ SRC_URI:append = "\
     file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
     file://0001-PENDING-firmware-qcom-scm-Export-dump-mode-caps-API.patch \
     file://0001-QCLINUX-iommu-arm-smmu-protect-the-dereference-of-ad.patch \
+    file://0001-PENDING-firmware-qcom-scm-Export-disable-sdi-API.patch \
     file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://0001-clk-Introduce-get-clock-by-unique-name-API-clk_get_b.patch', '', d)} \
     file://wlan/0001-net-wireless-Enable-WEXT-legacy-support-for-kernel-6.patch \
@@ -150,6 +151,7 @@ SRC_URI:append:gen5 = " \
     file://pcie/00012-PCIe-Add-LTSSM-state-monitoring-via-debugf.patch \
     file://pcie/00013-PCI-qcom-ecam-Refactor-power-domain-handling-and-fix.patch \
     file://pcie/00014-PCIe-qcom-ecam-Fix-power-management-and-debugfs-robus.patch \
+    file://pcie/00015-PCIe-qcom-ecam-Update-power-domain-management-and-tr.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
