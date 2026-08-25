@@ -145,13 +145,13 @@ SRC_URI:append:gen5 = " \
     file://pcie/0005-MHI_RC_bus-mhi-host-pci_generic-Add-supoprt-for-SA8797P.patch \
     file://pcie/0007-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EP-for-Nords.patch \
     file://pcie/0008-MHI_EP_dmaengine-dw-edma-Add-correct-offsets-for-HDMA-RD-WR.patch \
-    file://pcie/0009-PCI-qcom-ecam-Add-manual-init-deinit-with-resource-c.patch \
-    file://pcie/00010-meta-qti-auto-kernel-Add-controller-reset-functional.patch \
-    file://pcie/00011-PCIe-Convert-spinlocks-to-raw_spinlock_t.patch \
-    file://pcie/00012-PCIe-Add-LTSSM-state-monitoring-via-debugf.patch \
-    file://pcie/00013-PCI-qcom-ecam-Refactor-power-domain-handling-and-fix.patch \
-    file://pcie/00014-PCIe-qcom-ecam-Fix-power-management-and-debugfs-robus.patch \
-    file://pcie/00015-PCIe-qcom-ecam-Update-power-domain-management-and-tr.patch \
+    file://pcie/0009-PCIe_RC_qcom-ecam-Add-manual-init-deinit-with-resource-c.patch \
+    file://pcie/0010-PCIe_RC_meta-qti-auto-kernel-Add-controller-reset-functional.patch \
+    file://pcie/0011-PCIe_RC_Convert-spinlocks-to-raw_spinlock_t.patch \
+    file://pcie/0012-PCIe_RC_Add-LTSSM-state-monitoring-via-debugf.patch \
+    file://pcie/0013-PCIe_RC_qcom-ecam-Refactor-power-domain-handling-and-fix.patch \
+    file://pcie/0014-PCIe_RC_qcom-ecam-Fix-power-management-and-debugfs-robus.patch \
+    file://pcie/0015-PCIe_RC_qcom-ecam-Update-power-domain-management-and-tr.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
