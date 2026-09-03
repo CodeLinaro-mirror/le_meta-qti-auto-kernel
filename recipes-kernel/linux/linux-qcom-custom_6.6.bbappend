@@ -153,6 +153,7 @@ SRC_URI:append:gen5 = " \
     file://pcie/0013-PCIe_RC_qcom-ecam-Refactor-power-domain-handling-and-fix.patch \
     file://pcie/0014-PCIe_RC_qcom-ecam-Fix-power-management-and-debugfs-robus.patch \
     file://pcie/0015-PCIe_RC_qcom-ecam-Update-power-domain-management-and-tr.patch \
+    file://pcie/0016-MHI_RC_bus-mhi-host-pci_generic-Add-support-for-SA8787P.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
