@@ -92,6 +92,7 @@ SRC_URI:append = "\
     file://0001-PENDING-defer-no-map-memory-init-process.patch \
     file://minidump/0001-PENDING-kallsyms-Export-kallsyms_lookup_name.patch \
     file://0001-PENDING-firmware-qcom-scm-Export-dump-mode-caps-API.patch \
+    file://0001-QCLINUX-iommu-arm-smmu-protect-the-dereference-of-ad.patch \
     file://minidump/0002-PENDING-printk-sched-Export-internal-symbols-require.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-qcvirtio', 'file://0001-clk-Introduce-get-clock-by-unique-name-API-clk_get_b.patch', '', d)} \
     file://wlan/0001-net-wireless-Enable-WEXT-legacy-support-for-kernel-6.patch \
@@ -164,9 +165,11 @@ SRC_URI:append:gen5 = " \
     file://qup/0045-ccu-Add-FUSA-error-handling-and-recovery-support-for.patch \
     file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
     file://qup/0047-qcom_ccu_qup-Fix-NULL-pointer-dereference-and-add-in.patch \
+    file://qup/0048-ccu-Fix-NULL-pointer-dereference-caused-by-shared-st.patch \
     file://0001-PENDING-iommu-arm-smmu-v3-Support-inter-device-SID-s.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
     file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \
+    file://bluetooth/0002-Bluetooth-hci_qca-Fix-duplicate-dump-and-add-uevent-.patch \
 "
 
 SRC_URI:remove:gen5 = " \
