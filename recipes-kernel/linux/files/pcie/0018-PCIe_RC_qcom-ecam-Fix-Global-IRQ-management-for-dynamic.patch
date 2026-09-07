@@ -1,0 +1,497 @@
+From 1f72028cef6c56ca513c0cc5e4b40f1efc3478f7 Mon Sep 17 00:00:00 2001
+From: Rama Krishna Phani A <ramkri@qti.qualcomm.com>
+Date: Thu, 3 Sep 2026 20:45:23 +0530
+Subject: [PATCH] PCIe: qcom-ecam: Fix Global IRQ management for dynamic
+ init/deinit
+
+Move Global IRQ request from probe to init and add proper release in
+deinit to support controller reset/re-initialization via sysfs.
+
+Previously, IRQ was requested once during probe and never released,
+causing -EBUSY on subsequent init attempts. Now IRQ is requested after
+successful PCI host probe and released during deinit, enabling multiple
+init/deinit cycles.
+
+Also extract qcom_pcie_clear_safety_interrupts() helper and improve
+IRQ thread pre-init protection to prevent races with concurrent deinit.
+
+Change-Id: If7648966aa7071ef75a810e44f7eb4add0a9a30e
+Signed-off-by: Rama Krishna Phani A <ramkri@qti.qualcomm.com>
+---
+ drivers/pci/controller/pcie-qcom-ecam.c | 366 ++++++++++++++----------
+ 1 file changed, 208 insertions(+), 158 deletions(-)
+
+diff --git a/drivers/pci/controller/pcie-qcom-ecam.c b/drivers/pci/controller/pcie-qcom-ecam.c
+index 65c93fc5652b..c3d2b24c2603 100644
+--- a/drivers/pci/controller/pcie-qcom-ecam.c
++++ b/drivers/pci/controller/pcie-qcom-ecam.c
+@@ -404,6 +404,11 @@ struct qcom_msi_client {
+  *			qcom_pcie_init(); never cleared; used to detect
+  *			re-init cycles that need an endpoint
+  *			post-PERST# settle delay
++ * @global_irq_requested: true while the Global IRQ is requested;
++ *			set by qcom_pcie_init() after
++ *			pci_host_common_probe() succeeds, cleared by
++ *			qcom_pcie_deinit() so a later re-init can
++ *			request it again
+  * @bridge:		PCI host bridge instance
+  */
+ struct qcom_pcie {
+@@ -424,6 +429,7 @@ struct qcom_pcie {
+ 	bool probe_in_progress;
+ 	bool was_initialized;
+ 	bool safety_supported;
++	bool global_irq_requested;
+ 	struct mutex reset_lock;
+ 	struct pci_host_bridge *bridge;
+ 	struct pci_config_window *cfg;
+@@ -819,15 +825,20 @@ static struct qcom_msi *qcom_msi_init(struct qcom_pcie *pcie)
+ 	return msi;
+ }
+ 
+-static void qcom_pcie_enable_error_reporting(struct qcom_pcie *pcie)
++/*
++ * qcom_pcie_clear_safety_interrupts() - Clear the DBI safety/interface-timer
++ * status bits and every PARF GLOBAL_INT-aggregated status register.
++ *
++ * Shared by qcom_pcie_enable_error_reporting() (clear-before-arm on a
++ * successful init) and qcom_pcie_global_irq_thread()'s pre-init bailout
++ * (clear-without-arm, so a premature edge doesn't leave the source
++ * latched and starve every later, genuine fault -- see that call site).
++ */
++static void qcom_pcie_clear_safety_interrupts(struct qcom_pcie *pcie)
+ {
+-	u32 val, mask;
+-
+-	/* Clear all the interrupts before we enable it */
+ 	writel(0, pcie->dbi_base + DBI_SAFETY_STATUS);
+ 	writel(0, pcie->dbi_base + DBI_INTERFACE_TIMER_STATUS);
+ 
+-	/* Clear interrupts which are aggregated using GLOBAL_INT */
+ 	writel(CFGPCIE_INT_ALL_STATUS_MASK, pcie->parf + PARF_INT_ALL_CLEAR);
+ 	writel(CFGPCIE_PARF_INT_STATUS_MASK, pcie->parf + PARF_INT_CLEAR);
+ 	writel(CFGPCIE_INT_ALL_2_STATUS_MASK,
+@@ -838,6 +849,14 @@ static void qcom_pcie_enable_error_reporting(struct qcom_pcie *pcie)
+ 		pcie->parf + PARF_INT_ALL_4_CLEAR);
+ 	writel(CFGPCIE_INT_ALL_5_STATUS_MASK,
+ 		pcie->parf + PARF_INT_ALL_5_CLEAR);
++}
++
++static void qcom_pcie_enable_error_reporting(struct qcom_pcie *pcie)
++{
++	u32 val, mask;
++
++	/* Clear all the interrupts before we enable it */
++	qcom_pcie_clear_safety_interrupts(pcie);
+ 
+ 	/* Enable DBI writes
+ 	 * Enable SERR generation
+@@ -1071,6 +1090,7 @@ static irqreturn_t qcom_pcie_global_irq_thread(int irq, void *data)
+ 	 * finish our register access before deinit's teardown can start.
+ 	 */
+ 	if (!pcie->pci_host_initialized) {
++		bool requested = pcie->global_irq_requested;
+ 		raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
+ 		/*
+ 		 * No PCIE_ECAM_LOG_LVL_WARN tier exists, so this ratelimited
+@@ -1164,7 +1184,7 @@ static int qcom_pcie_init_power_domains(struct qcom_pcie *pcie)
+ 	if (pcie->power_enabled)
+ 		return 0;
+ 
+-	/* No power domain in DT — optional, nothing to manage */
++	/* No power domain in DT - optional, nothing to manage */
+ 	if (!dev->pm_domain)
+ 		return 0;
+ 
+@@ -1195,7 +1215,7 @@ static int qcom_pcie_init_power_domains(struct qcom_pcie *pcie)
+  *
+  * Calls pm_runtime_put_sync() on pdev->dev to balance the
+  * pm_runtime_resume_and_get() from init.  Does NOT call
+- * dev_pm_domain_detach() — platform_drv_probe() owns the attachment
++ * dev_pm_domain_detach() - platform_drv_probe() owns the attachment
+  * and
+  * platform_remove() will detach it on driver removal.
+  *
+@@ -1242,143 +1262,6 @@ static void qcom_pcie_ecam_free_action(void *data)
+ 		pci_ecam_free(cfg);
+ }
+ 
+-/**
+- * qcom_pcie_init - Initialize pcie support
+- * @pcie: PCIe controller instance
+- * @pdev: Platform device pointer
+- *
+- * Returns: 0 on success, negative error code on failure
+- */
+-static int qcom_pcie_init(struct qcom_pcie *pcie,
+-	struct platform_device *pdev)
+-{
+-	struct device *dev = pcie->dev;
+-	struct qcom_msi *msi = NULL;
+-	int ret;
+-
+-	PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
+-		"Initializing PCIe controller\n");
+-
+-	/* Initialize power domain support (optional) */
+-	ret = qcom_pcie_init_power_domains(pcie);
+-	if (ret && ret != -EPROBE_DEFER)
+-		dev_warn(dev, "Power domain init failed: %d (continuing)\n", ret);
+-	else if (ret == -EPROBE_DEFER)
+-		return ret;
+-
+-	/* Enable PCIe safety error reporting only if safety is supported */
+-	if (pcie->safety_supported)
+-		qcom_pcie_enable_error_reporting(pcie);
+-
+-	/* Initialize MSI controller if not using msi-map */
+-	if (!of_find_property(dev->of_node, "msi-map", NULL)) {
+-		PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
+-			"Initializing MSI controller\n");
+-		msi = qcom_msi_init(pcie);
+-		if (IS_ERR(msi)) {
+-			PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, dev,
+-				"MSI initialization failed: %ld\n", PTR_ERR(msi));
+-			ret = PTR_ERR(msi);
+-			goto cleanup_power_domains;
+-		}
+-	}
+-
+-	/* Probe PCI host */
+-	/*
+-	 * After GearVM deasserts PERST# (triggered by
+-	 * pm_runtime_resume_and_get
+-	 * in init_power_domains above), endpoint devices need time to
+-	 * complete
+-	 * their internal reset sequences before responding to config space:
+-	 *
+-	 * On any re-initialisation, GearVM re-asserts PERST# during deinit
+-	 * and
+-	 * deasserts it again when pm_runtime_resume_and_get returns above.
+-	 * The endpoint's perst_irq_thread then runs asynchronously.
+-	 *
+-	 * This assumes a GearVM-controlled PERST# topology; platforms whose
+-	 * genpd does not tie PERST# assertion/deassertion to
+-	 * pm_runtime_resume_and_get()/pm_runtime_put_sync() should confirm
+-	 * whether this settle delay is still the right mechanism before
+-	 * reusing this driver as-is.
+-	 *
+-	 * was_initialized is set permanently after the first successful init
+-	 * and is never cleared, a reliable indicator of a re-init cycle.
+-	 *
+-	 * This delay runs with reset_lock held (every caller of
+-	 * qcom_pcie_init() takes it first), which blocks other
+-	 * init/deinit/reset sysfs triggers and driver remove/resume for its
+-	 * duration. Releasing the lock around the sleep would let a
+-	 * concurrent deinit/reset mutate pcie->bridge/pcie->cfg while this
+-	 * re-init is still in progress, so the lock is kept held.
+-	 */
+-	if (pcie->was_initialized) {
+-		PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
+-			"Re-init detected: waiting %ums for endpoints to complete "
+-			"post-PERST# reset\n", PCIE_ECAM_PERST_SETTLE_DELAY_MS);
+-		msleep(PCIE_ECAM_PERST_SETTLE_DELAY_MS);
+-	}
+-
+-	ret = pci_host_common_probe(pdev);
+-	if (ret) {
+-		PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, dev,
+-			"pci_host_common_probe() failed: %d\n", ret);
+-		if (msi)
+-			qcom_msi_deinit(msi);
+-		pcie->pci_host_initialized = false;
+-		pcie->bridge = NULL;
+-		pcie->cfg = NULL;
+-		goto cleanup_power_domains;
+-	}
+-
+-	pcie->pci_host_initialized = true;
+-	if (!pcie->was_initialized) {
+-		/* permanent: enables settle delay on future re-inits */
+-		pcie->was_initialized = true;
+-		PCIE_ECAM_DBG_LOG(PCIE_ECAM_LOG_LVL_DEBUG, dev,
+-			"First successful init: future re-inits will wait %ums "
+-			"for endpoint post-PERST# reset\n",
+-			PCIE_ECAM_PERST_SETTLE_DELAY_MS);
+-	}
+-	/* Store the bridge created by pci_host_common_probe */
+-	pcie->bridge = platform_get_drvdata(pdev);
+-	/* Store the config window from bridge->sysdata */
+-	pcie->cfg = pcie->bridge->sysdata;
+-	pcie->msi = msi;
+-
+-	/*
+-	 * CRITICAL: Restore platform_data to pcie structure.
+-	 * pci_host_common_probe() sets platform_data to bridge, but we need
+-	 * it to point to pcie for sysfs operations to work correctly.
+-	 * Without this, dev_get_drvdata() in sysfs functions will return
+-	 * bridge instead of pcie, causing crashes when accessing pcie
+-	 * members.
+-	 */
+-	platform_set_drvdata(pdev, pcie);
+-
+-	PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
+-		"PCIe controller initialized successfully\n");
+-
+-	return 0;
+-
+-cleanup_power_domains:
+-	/*
+-	 * Release the runtime PM reference if init_power_domains() acquired
+-	 * it.
+-	 * cleanup_power_domains() is guarded by power_enabled, so this is
+-	 * safe
+-	 * to call even when power domain init was skipped or failed.
+-	 */
+-	qcom_pcie_cleanup_power_domains(pcie);
+-	return ret;
+-}
+-
+-/**
+- * qcom_pcie_deinit - Deinitialize pcie support
+- * @pcie: PCIe controller instance
+- *
+- * Returns: 0 on success, negative error code on failure
+- */
+ /*
+  * qcom_pcie_release_resources() - Unmap I/O windows and free the
+  * ECAM config window left behind by pci_host_common_remove().
+@@ -1428,6 +1311,12 @@ static void qcom_pcie_release_resources(struct qcom_pcie *pcie,
+ 	}
+ }
+ 
++/**
++ * qcom_pcie_deinit - Deinitialize pcie support
++ * @pcie: PCIe controller instance
++ *
++ * Returns: 0 on success, negative error code on failure
++ */
+ static int qcom_pcie_deinit(struct qcom_pcie *pcie)
+ {
+ 	struct device *dev = pcie->dev;
+@@ -1455,6 +1344,22 @@ static int qcom_pcie_deinit(struct qcom_pcie *pcie)
+ 	pcie->pci_host_initialized = false;
+ 	raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
+ 
++	/*
++	 * Release the Global IRQ requested by qcom_pcie_init(), so a
++	 * later re-init (sysfs init/reset trigger) can request it again
++	 * without devm_request_threaded_irq() failing on an
++	 * already-held IRQ. devm_free_irq() waits for any in-flight
++	 * invocation of qcom_pcie_global_irq_thread() to finish before
++	 * returning; pci_host_initialized was just cleared above, so
++	 * that in-flight invocation (if any) is already on its
++	 * pre-init-style bailout path and touching no DBI/PARF register
++	 * this teardown is about to invalidate.
++	 */
++	if (pcie->global_irq_requested) {
++		devm_free_irq(dev, pcie->global_irq, pcie);
++		pcie->global_irq_requested = false;
++	}
++
+ 	/* Remove PCI host common only if it was successfully initialized */
+ 	if (host_was_initialized) {
+ 		/* Use the stored bridge from pcie structure */
+@@ -1523,6 +1428,163 @@ static int qcom_pcie_deinit(struct qcom_pcie *pcie)
+ 	return deinit_ret;
+ }
+ 
++/**
++ * qcom_pcie_init - Initialize pcie support
++ * @pcie: PCIe controller instance
++ * @pdev: Platform device pointer
++ *
++ * Returns: 0 on success, negative error code on failure
++ */
++static int qcom_pcie_init(struct qcom_pcie *pcie,
++	struct platform_device *pdev)
++{
++	struct device *dev = pcie->dev;
++	struct qcom_msi *msi = NULL;
++	int ret;
++
++	PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
++		"Initializing PCIe controller\n");
++
++	/* Initialize power domain support (optional) */
++	ret = qcom_pcie_init_power_domains(pcie);
++	if (ret && ret != -EPROBE_DEFER)
++		dev_warn(dev, "Power domain init failed: %d (continuing)\n", ret);
++	else if (ret == -EPROBE_DEFER)
++		return ret;
++
++	/* Initialize MSI controller if not using msi-map */
++	if (!of_find_property(dev->of_node, "msi-map", NULL)) {
++		PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
++			"Initializing MSI controller\n");
++		msi = qcom_msi_init(pcie);
++		if (IS_ERR(msi)) {
++			PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, dev,
++				"MSI initialization failed: %ld\n", PTR_ERR(msi));
++			ret = PTR_ERR(msi);
++			goto cleanup_power_domains;
++		}
++	}
++
++	/* Probe PCI host */
++	/*
++	 * After GearVM deasserts PERST# (triggered by
++	 * pm_runtime_resume_and_get
++	 * in init_power_domains above), endpoint devices need time to
++	 * complete
++	 * their internal reset sequences before responding to config space:
++	 *
++	 * On any re-initialisation, GearVM re-asserts PERST# during deinit
++	 * and
++	 * deasserts it again when pm_runtime_resume_and_get returns above.
++	 * The endpoint's perst_irq_thread then runs asynchronously.
++	 *
++	 * This assumes a GearVM-controlled PERST# topology; platforms whose
++	 * genpd does not tie PERST# assertion/deassertion to
++	 * pm_runtime_resume_and_get()/pm_runtime_put_sync() should confirm
++	 * whether this settle delay is still the right mechanism before
++	 * reusing this driver as-is.
++	 *
++	 * was_initialized is set permanently after the first successful init
++	 * and is never cleared, a reliable indicator of a re-init cycle.
++	 *
++	 * This delay runs with reset_lock held (every caller of
++	 * qcom_pcie_init() takes it first), which blocks other
++	 * init/deinit/reset sysfs triggers and driver remove/resume for its
++	 * duration. Releasing the lock around the sleep would let a
++	 * concurrent deinit/reset mutate pcie->bridge/pcie->cfg while this
++	 * re-init is still in progress, so the lock is kept held.
++	 */
++	if (pcie->was_initialized) {
++		PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
++			"Re-init detected: waiting %ums for endpoints to complete "
++			"post-PERST# reset\n", PCIE_ECAM_PERST_SETTLE_DELAY_MS);
++		msleep(PCIE_ECAM_PERST_SETTLE_DELAY_MS);
++	}
++
++	ret = pci_host_common_probe(pdev);
++	if (ret) {
++		PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, dev,
++			"pci_host_common_probe() failed: %d\n", ret);
++		if (msi)
++			qcom_msi_deinit(msi);
++		pcie->pci_host_initialized = false;
++		pcie->bridge = NULL;
++		pcie->cfg = NULL;
++		goto cleanup_power_domains;
++	}
++
++	pcie->pci_host_initialized = true;
++	if (!pcie->was_initialized) {
++		/* permanent: enables settle delay on future re-inits */
++		pcie->was_initialized = true;
++		PCIE_ECAM_DBG_LOG(PCIE_ECAM_LOG_LVL_DEBUG, dev,
++			"First successful init: future re-inits will wait %ums "
++			"for endpoint post-PERST# reset\n",
++			PCIE_ECAM_PERST_SETTLE_DELAY_MS);
++	}
++	/* Store the bridge created by pci_host_common_probe */
++	pcie->bridge = platform_get_drvdata(pdev);
++	/* Store the config window from bridge->sysdata */
++	pcie->cfg = pcie->bridge->sysdata;
++	pcie->msi = msi;
++
++	/*
++	 * CRITICAL: Restore platform_data to pcie structure.
++	 * pci_host_common_probe() sets platform_data to bridge, but we need
++	 * it to point to pcie for sysfs operations to work correctly.
++	 * Without this, dev_get_drvdata() in sysfs functions will return
++	 * bridge instead of pcie, causing crashes when accessing pcie
++	 * members.
++	 */
++	platform_set_drvdata(pdev, pcie);
++
++	/*
++	 * Enable PCIe safety error reporting and arm the Global IRQ only
++	 * if safety is supported, and only AFTER pci_host_common_probe()
++	 * has finished bus enumeration.
++
++	 */
++	if (pcie->safety_supported) {
++		qcom_pcie_enable_error_reporting(pcie);
++
++		PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
++			"Requesting Global IRQ %u\n", pcie->global_irq);
++
++		ret = devm_request_threaded_irq(dev, pcie->global_irq,
++						NULL,
++						qcom_pcie_global_irq_thread,
++						IRQF_TRIGGER_RISING |
++						IRQF_ONESHOT,
++						"global_irq", pcie);
++		if (ret) {
++			PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, dev,
++				"Failed to request Global IRQ: %d\n", ret);
++
++			qcom_pcie_deinit(pcie);
++			return ret;
++		}
++		pcie->global_irq_requested = true;
++		PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
++			"Global IRQ %u successfully requested\n",
++			pcie->global_irq);
++	}
++	PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
++		"PCIe controller initialized successfully\n");
++
++	return 0;
++
++cleanup_power_domains:
++	/*
++	 * Release the runtime PM reference if init_power_domains() acquired
++	 * it.
++	 * cleanup_power_domains() is guarded by power_enabled, so this is
++	 * safe
++	 * to call even when power domain init was skipped or failed.
++	 */
++	qcom_pcie_cleanup_power_domains(pcie);
++	return ret;
++}
++
+ static ssize_t qcom_pcie_init_trigger_show(struct device *dev,
+ 		struct device_attribute *attr,
+ 		char *buf)
+@@ -1873,7 +1935,7 @@ static int qcom_pci_ecam_runtime_suspend(struct device *dev)
+ 	 * This callback is invoked by pm_runtime_put_sync() inside
+ 	 * qcom_pcie_cleanup_power_domains(), which is always called while
+ 	 * reset_lock is held by the caller (deinit_trigger_store, shutdown,
+-	 * or remove).  Do NOT acquire reset_lock here — it is already held
++	 * or remove).  Do NOT acquire reset_lock here - it is already held
+ 	 * by the calling context and taking it again would deadlock on RT.
+ 	 *
+ 	 * Hardware is quiesced by genpd; nothing else to do.
+@@ -1889,7 +1951,7 @@ static int qcom_pci_ecam_runtime_resume(struct device *dev)
+ 	 * This callback is invoked by pm_runtime_resume_and_get() inside
+ 	 * qcom_pcie_init_power_domains(), which is always called while
+ 	 * reset_lock is held by the caller (init_trigger_store or probe).
+-	 * Do NOT acquire reset_lock here — it is already held by the calling
++	 * Do NOT acquire reset_lock here - it is already held by the calling
+ 	 * context and taking it again would deadlock on RT.
+ 	 *
+ 	 * pcie->msi is safe to access without an additional lock: any path
+@@ -2131,18 +2193,6 @@ static int qcom_pcie_probe_safety_features(struct qcom_pcie *pcie,
+ 			return ret;
+ 		}
+ 
+-		/* Request Global IRQ for safety features */
+-		ret = devm_request_threaded_irq(dev, pcie->global_irq,
+-						NULL,
+-						qcom_pcie_global_irq_thread,
+-						IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+-						"global_irq", pcie);
+-		if (ret) {
+-			PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, dev,
+-				"Failed to request Global IRQ\n");
+-			return ret;
+-		}
+-
+ 		PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
+ 			"Safety features enabled\n");
+ 	} else {
+--
+
