@@ -1,0 +1,1213 @@
+From 81c0dfd6023615730dada91a2ea30db4d4076bc1 Mon Sep 17 00:00:00 2001
+From: Nitesh Gupta <nitegupt@qti.qualcomm.com>
+Date: Tue, 8 Sep 2026 21:38:30 +0530
+Subject: [PATCH 1/1] PCIe: qcom-ecam: Add PCIe Safety for sa8787p
+
+Adds handling of PCIe Safety Errors including OCCAP
+for paltform sa8787p using dedicated ESPI for corr
+and uncorr errors.
+
+Change-Id: Ie451266ce4eb389988485bb957dd9c7f35e8e02f
+Signed-off-by: Nitesh Gupta <nitegupt@qti.qualcomm.com>
+---
+ drivers/pci/controller/pcie-qcom-ecam.c | 924 +++++++++++++++++++-----
+ 1 file changed, 760 insertions(+), 164 deletions(-)
+
+diff --git a/drivers/pci/controller/pcie-qcom-ecam.c b/drivers/pci/controller/pcie-qcom-ecam.c
+index c3d2b24c2603..2b822200cd23 100644
+--- a/drivers/pci/controller/pcie-qcom-ecam.c
++++ b/drivers/pci/controller/pcie-qcom-ecam.c
+@@ -148,6 +148,8 @@ static DEVICE_ATTR_RW(log_level);
+ 
+ #define	MSI_DB_ADDR	0xa0000000
+ #define MSI_IRQ_PER_GRP (32)
++/* Upper bound when probing for "msiN" entries in the device tree */
++#define MSI_MAX_GRPS	(32)
+ 
+ /*
+  * Endpoint post-PERST# reset settle delay on re-init, see
+@@ -172,10 +174,16 @@ static DEVICE_ATTR_RW(log_level);
+ #define PARF_INT_ALL_2_STATUS			0x500
+ #define PARF_INT_ALL_3_CLEAR			0x2d90
+ #define PARF_INT_ALL_3_STATUS			0x2d88
+-#define PARF_INT_ALL_4_CLEAR			0x2dd8
+-#define PARF_INT_ALL_4_STATUS			0x2dd0
+-#define PARF_INT_ALL_5_CLEAR			0x2ddc
+-#define PARF_INT_ALL_5_STATUS			0x2dd4
++/*
++ * 0x2dd0/0x2dd4 are the dedicated parity banks. Hardware names them
++ * PCIE_INT_ALL_PAR_0_* / PCIE_INT_ALL_PAR_1_*; they were previously
++ * misnamed here as generic INT_ALL_4/INT_ALL_5. The _CLEAR registers
++ * are write-only: write the observed mask, never read-modify-write.
++ */
++#define PARF_INT_ALL_PAR_0_CLEAR		0x2dd8
++#define PARF_INT_ALL_PAR_0_STATUS		0x2dd0
++#define PARF_INT_ALL_PAR_1_CLEAR		0x2ddc
++#define PARF_INT_ALL_PAR_1_STATUS		0x2dd4
+ #define PARF_CFG_SAFETY_INT_MASK_CTRL		0x2c60
+ 
+ /* PARF LTSSM Register */
+@@ -199,8 +207,8 @@ static DEVICE_ATTR_RW(log_level);
+ #define CFGPCIE_INTERFACE_TIMER_STATUS_MASK	0xe7b
+ #define CFGPCIE_INT_ALL_2_STATUS_MASK		GENMASK(24, 0)
+ #define CFGPCIE_INT_ALL_3_STATUS_MASK		GENMASK(31, 0)
+-#define CFGPCIE_INT_ALL_4_STATUS_MASK		GENMASK(31, 0)
+-#define CFGPCIE_INT_ALL_5_STATUS_MASK		GENMASK(31, 0)
++#define CFGPCIE_INT_ALL_PAR_0_STATUS_MASK	GENMASK(31, 0)
++#define CFGPCIE_INT_ALL_PAR_1_STATUS_MASK	GENMASK(31, 0)
+ 
+ /* PCI_INTERRUPT_LINE register field */
+ #define SERR_EN					BIT(17)
+@@ -216,9 +224,17 @@ static DEVICE_ATTR_RW(log_level);
+ #define PCIE_CAP_NON_FATAL_ERR_REPORT_EN	BIT(1)
+ #define PCIE_CAP_CORR_ERR_REPORT_EN		BIT(0)
+ 
+-/* PARF_CFG_SAFETY_INT_MASK_CTRL register fields */
+-#define CFG_SAFETY_UNCORR_INT_MASK		BIT(0)
+-#define CFG_SAFETY_CORR_INT_MASK		BIT(1)
++/*
++ * PARF_CFG_SAFETY_INT_MASK_CTRL register fields
++ *
++ * These are enable bits, not mask bits: setting them enables reporting.
++ * Reset value is 0x0000000c, i.e. the PARITY and PARF_CSR uncorrectable
++ * sources are enabled out of reset while the two below are not.
++ */
++#define CFG_SAFETY_UNCORR_INT_EN		BIT(0)
++#define CFG_SAFETY_CORR_INT_EN			BIT(1)
++#define CFG_SAFETY_UNCORR_PARF_CSR_INT_EN	BIT(2)
++#define CFG_SAFETY_UNCORR_PARITY_INT_EN		BIT(3)
+ 
+ /* DBI_ADV_ERR_CAP_CTRL_OFF register fields */
+ #define ECRC_GEN_EN				BIT(6)
+@@ -229,8 +245,14 @@ static DEVICE_ATTR_RW(log_level);
+ #define NON_FATAL_ERR_REPORTING_EN		BIT(1)
+ #define FATAL_ERR_REPORTING_EN			BIT(2)
+ 
+-/* DBI_SAFETY_MASK_OFF register fields */
+-#define SAFETY_INT_MASK			GENMASK(5, 0)
++/*
++ * DBI_SAFETY_MASK_OFF / DBI_SAFETY_STATUS register fields
++ *
++ * Both registers implement bits 6:0 (SAFETY_INT_{MASK,STATUS}_[0..6]);
++ * bit 31:7 are reserved. Note bit 6 (OCCAP) was previously omitted from
++ * this mask, which left the OCCAP register-check interrupt masked.
++ */
++#define SAFETY_INT_MASK			GENMASK(6, 0)
+ 
+ /* DBI_SAFETY_STATUS register fields */
+ #define PCIE_RASDP_UNCORR_ERR			BIT(0)
+@@ -239,6 +261,21 @@ static DEVICE_ATTR_RW(log_level);
+ #define PCIE_AER_UNCORR_ERR			BIT(3)
+ #define PCIE_AER_CORR_ERR			BIT(4)
+ #define PCIE_RASDP_CORR_ERR			BIT(5)
++#define PCIE_OCCAP_CHK_ERR			BIT(6)
++
++/*
++ * Severity grouping of DBI_SAFETY_STATUS bits, matching the two dedicated
++ * safety interrupt outputs. Each handler consumes only its own group so
++ * that the shared status register can be cleared without clobbering bits
++ * latched for the other severity.
++ */
++#define SAFETY_UNCORR_BITS	(PCIE_RASDP_UNCORR_ERR | PCIE_CDM_CHK_ERR | \
++				 PCIE_IFACE_TMR_ERR | PCIE_AER_UNCORR_ERR | \
++				 PCIE_OCCAP_CHK_ERR)
++#define SAFETY_CORR_BITS	(PCIE_RASDP_CORR_ERR | PCIE_AER_CORR_ERR)
++
++/* PARF_INT_ALL_3_* : PARF CSR parity error */
++#define FALT_PARF_CSR_PARITY_ERROR_INT		BIT(13)
+ 
+ #define PCIE_MISC_CONTROL_1_OFF		0x8BC
+ #define PCIE_DBI_RO_WR_EN		BIT(0)
+@@ -274,19 +311,46 @@ static DEVICE_ATTR_RW(log_level);
+ #define PCIE_PL_CHK_REG_CHK_REG_LOGIC_ERROR	BIT(17)
+ #define PCIE_PL_CHK_REG_CHK_REG_COMPLETE	BIT(18)
+ 
++/*
++ * OCCAP (On-Chip Capability) register checker.
++ *
++ * Gated by the CX_OCCAP_REG_CHK_EN controller build parameter. When
++ * enabled the controller continuously checks register values within the
++ * DMA and AXI Bridge blocks, reporting through SAFETY_INT_STATUS_6
++ * (PCIE_OCCAP_CHK_ERR). Structurally the twin of the CDM register
++ * checker above.
++ */
++#define PCIE_PL_OCCAP_CONTROL_STATUS		0xB14
++#define PCIE_OCCAP_REG_CHK_EN			BIT(0)
++#define PCIE_OCCAP_REG_CHK_EINJ			BIT(1)
++#define PCIE_OCCAP_REG_CHK_ERR			BIT(16)
++#define PCIE_OCCAP_REG_CHK_LOGIC_ERR		BIT(17)
++
+ enum qcom_pcie_fault_code {
+ 	RASDP_UNCORR_ERROR,	/* RASDP uncorrectable error */
+ 	RASDP_CORR_ERROR,	/* RASDP correctable error */
+ 	CDM_REG_CHK_ERROR,	/* CDM register check error */
++	OCCAP_REG_CHK_ERROR,	/* OCCAP register check error */
+ 	INTERFACE_TIMER_ERROR,	/* PCIe local bus interface timer error */
+ 	PCIE_SPURIOUS_INT,	/* Spurious Interrupt received */
+ 	MAX_PCIE_SAFETY_FAULT	/* Maximum PCIe fault source code supported */
+ };
+ 
+-static const char * const pcie_fault_string[] = {
++/*
++ * Indexed by enum qcom_pcie_fault_code. The entry at MAX_PCIE_SAFETY_FAULT
++ * labels the aggregate total row emitted by qcom_pcie_error_report_show(),
++ * so this array has MAX_PCIE_SAFETY_FAULT + 1 entries and must be kept in
++ * lockstep with the enum above.
++ *
++ * Note the PARF wrapper parity sources deliberately have no fault code: they
++ * are acknowledged and cleared (see qcom_pcie_handle_parity()) but are not
++ * part of this driver's reported fault set, matching the QNX safety monitor.
++ */
++static const char * const pcie_fault_string[MAX_PCIE_SAFETY_FAULT + 1] = {
+ 	"RASDP_Uncorr_Error",
+ 	"RASDP_Corr_Error",
+ 	"CDM_Reg_Chk_Error",
++	"OCCAP_Reg_Chk_Error",
+ 	"Interface_Timer_Error",
+ 	"PCIe_Spurious_Interrupt",
+ 	"TOTAL_PCIE_FAULTS",
+@@ -383,12 +447,23 @@ struct qcom_msi_client {
+  * @dbi_base:		dbi address in memory map
+  * @mhi:		mhi address in memory map
+  * @global_irq:		multiplexed irq for error interrupts
++ * @safety_uncorr_irq:	dedicated safety uncorrectable irq (0 if not
++ *			provided)
++ * @safety_corr_irq:	dedicated safety correctable irq (0 if not
++ *			provided)
++ * @safety_split_irqs:	true when dedicated safety irqs are in use
++ * @global_irq_count:	number of global irqs taken
++ * @uncorr_irq_count:	number of dedicated safety uncorrectable irqs
++ *			taken
++ * @corr_irq_count:	number of dedicated safety correctable irqs
++ *			taken
+  * @safety_lock:	raw spinlock for exclusion btw safety errors
+  *			(RT-safe)
+  * @pcie_fault:		count of each error type
+  * @pcie_fault_total:	total count of all errors on this RP
+  * @msi:		pointer to the qcom_msi structure
+  * @debugfs:		dentry to create DebugFS
++ * @rasdp_off:		RASDP extended capability offset read from DT
+  * @power_enabled:	true while runtime PM ref on pdev->dev is held
+  * @pci_host_initialized: true while the PCI host bridge/config
+  *			window are live; read under safety_lock by
+@@ -404,19 +479,30 @@ struct qcom_msi_client {
+  *			qcom_pcie_init(); never cleared; used to detect
+  *			re-init cycles that need an endpoint
+  *			post-PERST# settle delay
++ * @safety_supported:	true when the "safety-supported" DT property is
++ *			present
+  * @global_irq_requested: true while the Global IRQ is requested;
+  *			set by qcom_pcie_init() after
+  *			pci_host_common_probe() succeeds, cleared by
+  *			qcom_pcie_deinit() so a later re-init can
+  *			request it again
++ * @reset_lock:		mutex serialising init/deinit/reset sysfs
++ *			triggers
+  * @bridge:		PCI host bridge instance
++ * @cfg:		config window from bridge->sysdata
+  */
+ struct qcom_pcie {
+ 	struct device *dev;
+ 	void __iomem *parf;
+ 	void __iomem *dbi_base;
+ 	void __iomem *mhi;
+-	unsigned int global_irq;
++	int global_irq;
++	int safety_uncorr_irq;
++	int safety_corr_irq;
++	bool safety_split_irqs;
++	u32 global_irq_count;
++	u32 uncorr_irq_count;
++	u32 corr_irq_count;
+ 	raw_spinlock_t safety_lock;
+ 	u32 pcie_fault[MAX_PCIE_SAFETY_FAULT];
+ 	u32 pcie_fault_total;
+@@ -770,9 +856,7 @@ static void qcom_msi_deinit(struct qcom_msi *msi)
+ static struct qcom_msi *qcom_msi_init(struct qcom_pcie *pcie)
+ {
+ 	struct qcom_msi *msi;
+-	struct of_phandle_args irq;
+ 	struct device *dev = pcie->dev;
+-	u64 addr;
+ 	int ret;
+ 	int nr = 0;
+ 
+@@ -786,9 +870,47 @@ static struct qcom_msi *qcom_msi_init(struct qcom_pcie *pcie)
+ 	INIT_LIST_HEAD(&msi->clients);
+ 
+ 	msi->msi_db_addr = MSI_DB_ADDR;
+-	while (of_irq_parse_one(dev->of_node, nr, &irq) == 0)
++
++	/*
++	 * Count the MSI group interrupts.
++	 *
++	 * Prefer counting "msiN" by name: the interrupts property also carries
++	 * non-MSI entries (global_int and, on some platforms, the dedicated
++	 * safety interrupts), so deriving the count from the total number of
++	 * entries breaks whenever a non-MSI interrupt is added.
++	 *
++	 * Fall back to the historical positional behaviour (all entries but
++	 * the last are MSI groups) only for device trees that predate the
++	 * msiN naming, and only when no extra named interrupt is present.
++	 */
++	while (nr < MSI_MAX_GRPS) {
++		char name[8];
++
++		scnprintf(name, sizeof(name), "msi%d", nr);
++		if (of_irq_get_byname(dev->of_node, name) <= 0)
++			break;
+ 		nr++;
+-	msi->nr_hwirqs = nr - 1;
++	}
++
++	if (!nr) {
++		struct of_phandle_args irq;
++		int total = 0;
++
++		while (of_irq_parse_one(dev->of_node, total, &irq) == 0)
++			total++;
++
++		/* Everything except the trailing global_int */
++		nr = total ? total - 1 : 0;
++
++		if (of_irq_get_byname(dev->of_node, "safety_uncorr_int") > 0 ||
++		    of_irq_get_byname(dev->of_node, "safety_corr_int") > 0) {
++			dev_err(msi->dev,
++				"unnamed MSI interrupts cannot be counted alongside named safety interrupts\n");
++			return ERR_PTR(-EINVAL);
++		}
++	}
++
++	msi->nr_hwirqs = nr;
+ 	if (!msi->nr_hwirqs) {
+ 		PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, msi->dev,
+ 			"no hwirqs found\n");
+@@ -841,14 +963,10 @@ static void qcom_pcie_clear_safety_interrupts(struct qcom_pcie *pcie)
+ 
+ 	writel(CFGPCIE_INT_ALL_STATUS_MASK, pcie->parf + PARF_INT_ALL_CLEAR);
+ 	writel(CFGPCIE_PARF_INT_STATUS_MASK, pcie->parf + PARF_INT_CLEAR);
+-	writel(CFGPCIE_INT_ALL_2_STATUS_MASK,
+-		pcie->parf + PARF_INT_ALL_2_CLEAR);
+-	writel(CFGPCIE_INT_ALL_3_STATUS_MASK,
+-		pcie->parf + PARF_INT_ALL_3_CLEAR);
+-	writel(CFGPCIE_INT_ALL_4_STATUS_MASK,
+-		pcie->parf + PARF_INT_ALL_4_CLEAR);
+-	writel(CFGPCIE_INT_ALL_5_STATUS_MASK,
+-		pcie->parf + PARF_INT_ALL_5_CLEAR);
++	writel(CFGPCIE_INT_ALL_2_STATUS_MASK, pcie->parf + PARF_INT_ALL_2_CLEAR);
++	writel(CFGPCIE_INT_ALL_3_STATUS_MASK, pcie->parf + PARF_INT_ALL_3_CLEAR);
++	writel(CFGPCIE_INT_ALL_PAR_0_STATUS_MASK, pcie->parf + PARF_INT_ALL_PAR_0_CLEAR);
++	writel(CFGPCIE_INT_ALL_PAR_1_STATUS_MASK, pcie->parf + PARF_INT_ALL_PAR_1_CLEAR);
+ }
+ 
+ static void qcom_pcie_enable_error_reporting(struct qcom_pcie *pcie)
+@@ -902,20 +1020,39 @@ static void qcom_pcie_enable_error_reporting(struct qcom_pcie *pcie)
+ 	val |= PCIE_PL_CHK_REG_CHK_REG_CONTINUOUS;
+ 	/* Start the CDM register check */
+ 	val |= PCIE_PL_CHK_REG_CHK_REG_START;
+-	/* Enable comparison CDM register check mode */
++	/*
++	 * Bits 17:16 are write-1-to-clear status, not enables. Writing them
++	 * here clears any error latched before this point; it does not enable
++	 * anything.
++	 */
+ 	val |= PCIE_PL_CHK_REG_CHK_REG_COMPARISON_ERROR;
+-	/* Enable logic CDM register check mode */
+ 	val |= PCIE_PL_CHK_REG_CHK_REG_LOGIC_ERROR;
+ 	writel(val, pcie->dbi_base + PCIE_PL_CHK_REG_CONTROL_STATUS);
+ 
++	/*
++	 * Enable the OCCAP register checker. Only takes effect when the
++	 * controller was built with CX_OCCAP_REG_CHK_EN; on parts without it
++	 * the bit reads back clear and no interrupt is ever raised.
++	 */
++	val = readl(pcie->dbi_base + PCIE_PL_OCCAP_CONTROL_STATUS);
++	val |= PCIE_OCCAP_REG_CHK_EN;
++	writel(val, pcie->dbi_base + PCIE_PL_OCCAP_CONTROL_STATUS);
++
+ 	/* Interface Timer Enable */
+ 	val = readl(pcie->dbi_base + PCIE_INTERFACE_TIMER_CONTROL);
+ 	val |=  (INTERFACE_TIMER_EN | INTERFACE_TIMER_AER_EN);
+ 	writel(val, pcie->dbi_base + PCIE_INTERFACE_TIMER_CONTROL);
+ 
+-	/* Enable safety correctable and uncorrectable error reporting */
++	/*
++	 * Enable safety correctable and uncorrectable error reporting.
++	 *
++	 * These are enable bits (see CFG_SAFETY_*_INT_EN). Only bits 0 and 1
++	 * are programmed, matching the QNX safety monitor: the PARITY and
++	 * PARF_CSR sources (bits 3:2) are left at their reset value. Keep this
++	 * a read-modify-write so those reset-enabled bits stay untouched.
++	 */
+ 	val = readl(pcie->parf + PARF_CFG_SAFETY_INT_MASK_CTRL);
+-	val |= (CFG_SAFETY_UNCORR_INT_MASK | CFG_SAFETY_CORR_INT_MASK);
++	val |= (CFG_SAFETY_UNCORR_INT_EN | CFG_SAFETY_CORR_INT_EN);
+ 	writel(val, pcie->parf + PARF_CFG_SAFETY_INT_MASK_CTRL);
+ 
+ 	/* Enable CRC check and generation */
+@@ -937,160 +1074,435 @@ static void qcom_pcie_enable_error_reporting(struct qcom_pcie *pcie)
+ 	writel(val, pcie->parf + PARF_INT_ALL_MASK);
+ }
+ 
+-static bool qcom_pcie_check_spurious_int(struct qcom_pcie *pcie)
++/*
++ * Record a safety fault. Must be called with pcie->safety_lock held.
++ *
++ * Note this deliberately does NOT call sysfs_notify(): that takes
++ * kernfs_rwsem and can sleep, which is illegal under the raw spinlock
++ * (and a hard BUG on PREEMPT_RT). Callers accumulate faults and notify
++ * once after dropping the lock.
++ */
++static void qcom_pcie_record_fault(struct qcom_pcie *pcie,
++				   enum qcom_pcie_fault_code code)
++{
++	pcie->pcie_fault[code]++;
++	pcie->pcie_fault_total++;
++}
++
++/* Mask safety sources to stop an interrupt storm. Called under safety_lock. */
++static void qcom_pcie_mask_safety(struct qcom_pcie *pcie, u32 bits)
++{
++	u32 val;
++
++	val = readl(pcie->dbi_base + DBI_SAFETY_MASK_OFF);
++	val |= bits;
++	writel(val, pcie->dbi_base + DBI_SAFETY_MASK_OFF);
++}
++
++/*
++ * Handlers for the individual DBI_SAFETY_STATUS sources.
++ *
++ * These are shared by the aggregated global handler and the dedicated
++ * safety handlers so that both delivery modes behave identically. Each
++ * returns the number of faults recorded. All run under safety_lock.
++ */
++static unsigned int qcom_pcie_handle_rasdp_uncorr(struct qcom_pcie *pcie)
++{
++	dev_err_ratelimited(pcie->dev, "RASDP uncorrectable error triggered");
++	qcom_pcie_record_fault(pcie, RASDP_UNCORR_ERROR);
++
++	/*
++	 * Mask this source together with pcie_uncorr: a RAS-DP uncorrectable
++	 * error keeps the level-triggered safety line asserted and also
++	 * triggers a pcie_uncorr error continuously, so leaving either
++	 * unmasked livelocks the handler.
++	 *
++	 * QNX's safety monitor masks only pcie_uncorr here, not this source's
++	 * own bit — but that is unconfirmed in our own environment, and the
++	 * original crash that started this investigation was traced in part
++	 * to this exact bit being left unmasked. Keep both masked until RASDP
++	 * is shown not to self-recur on our targets. Re-enable via
++	 * qcom_pcie_safety_rearm.
++	 */
++	qcom_pcie_mask_safety(pcie, PCIE_RASDP_UNCORR_ERR | PCIE_AER_UNCORR_ERR);
++
++	return 1;
++}
++
++static unsigned int qcom_pcie_handle_cdm_chk(struct qcom_pcie *pcie)
++{
++	u32 val;
++
++	dev_err_ratelimited(pcie->dev, "CDM error triggered");
++	val = readl(pcie->dbi_base + PCIE_PL_CHK_REG_CONTROL_STATUS);
++	if (!(val & PCIE_PL_CHK_REG_CHK_REG_COMPARISON_ERROR))
++		return 0;
++
++	qcom_pcie_record_fault(pcie, CDM_REG_CHK_ERROR);
++
++	/*
++	 * Clear the latched comparison error. These are write-1-to-clear
++	 * status bits sharing a register with the control bits, so write back
++	 * the observed value masked down to the error bits plus the control
++	 * bits that must stay set. Without this the error stays latched
++	 * forever and every re-arm immediately re-reports it, which makes
++	 * qcom_pcie_safety_rearm useless for this source.
++	 */
++	writel(val & (PCIE_PL_CHK_REG_CHK_REG_COMPARISON_ERROR |
++		      PCIE_PL_CHK_REG_CHK_REG_LOGIC_ERROR |
++		      PCIE_PL_CHK_REG_CHK_REG_CONTINUOUS |
++		      PCIE_PL_CHK_REG_CHK_REG_START),
++	       pcie->dbi_base + PCIE_PL_CHK_REG_CONTROL_STATUS);
++
++	/*
++	 * cdm_chk_err injection results in a continuous interrupt storm
++	 * on certain targets, so masking it.
++	 */
++	qcom_pcie_mask_safety(pcie, PCIE_CDM_CHK_ERR | PCIE_AER_UNCORR_ERR);
++
++	return 1;
++}
++
++/*
++ * OCCAP register checker error.
++ *
++ * Bit 16 reports a register comparison mismatch, bit 17 an error in the
++ * checker logic itself. Both are write-1-to-clear in the same register
++ * that carries the enable, so preserve the control bits when clearing.
++ */
++static unsigned int qcom_pcie_handle_occap_chk(struct qcom_pcie *pcie)
++{
++	u32 val;
++
++	val = readl(pcie->dbi_base + PCIE_PL_OCCAP_CONTROL_STATUS);
++	if (!(val & (PCIE_OCCAP_REG_CHK_ERR | PCIE_OCCAP_REG_CHK_LOGIC_ERR)))
++		return 0;
++
++	dev_err_ratelimited(pcie->dev,
++			    "OCCAP register check error, status:0x%08x%s%s", val,
++			    (val & PCIE_OCCAP_REG_CHK_ERR) ? " compare" : "",
++			    (val & PCIE_OCCAP_REG_CHK_LOGIC_ERR) ? " logic" : "");
++
++	/* Write back the observed error bits to clear them */
++	writel(val & (PCIE_OCCAP_REG_CHK_ERR | PCIE_OCCAP_REG_CHK_LOGIC_ERR),
++	       pcie->dbi_base + PCIE_PL_OCCAP_CONTROL_STATUS);
++
++	qcom_pcie_record_fault(pcie, OCCAP_REG_CHK_ERROR);
++
++	/*
++	 * Mask as for the CDM checker: a persistent register-check mismatch
++	 * would otherwise re-assert continuously.
++	 */
++	qcom_pcie_mask_safety(pcie, PCIE_OCCAP_CHK_ERR | PCIE_AER_UNCORR_ERR);
++
++	return 1;
++}
++
++static unsigned int qcom_pcie_handle_iface_tmr(struct qcom_pcie *pcie)
++{
++	dev_err_ratelimited(pcie->dev, "Iface Timeout error triggered");
++	qcom_pcie_record_fault(pcie, INTERFACE_TIMER_ERROR);
++
++	/*
++	 * interface_timer_err injection results in a continuous interrupt
++	 * storm on certain targets, so masking it.
++	 */
++	qcom_pcie_mask_safety(pcie, PCIE_IFACE_TMR_ERR | PCIE_AER_UNCORR_ERR);
++
++	return 1;
++}
++
++static unsigned int qcom_pcie_handle_rasdp_corr(struct qcom_pcie *pcie)
++{
++	dev_err_ratelimited(pcie->dev, "RASDP correctable error triggered");
++	qcom_pcie_record_fault(pcie, RASDP_CORR_ERROR);
++
++	/*
++	 * Mask this source: the safety line is level-triggered, so a
++	 * persistent correctable error would otherwise re-assert as soon as
++	 * the handler returns. Use qcom_pcie_safety_rearm to re-enable.
++	 *
++	 * QNX's safety monitor does not mask this source at all — unconfirmed
++	 * in our own environment; keep the defensive mask until shown safe to
++	 * drop, same reasoning as RASDP_UNCORR above.
++	 */
++	qcom_pcie_mask_safety(pcie, PCIE_RASDP_CORR_ERR);
++
++	return 1;
++}
++
++/*
++ * Handle the uncorrectable DBI_SAFETY_STATUS sources present in
++ * @int_status and clear only those bits, leaving any correctable bit
++ * latched for the correctable handler. Called under safety_lock.
++ */
++static unsigned int qcom_pcie_handle_safety_uncorr(struct qcom_pcie *pcie,
++						   u32 int_status)
++{
++	unsigned int faults = 0;
++
++	if (!(int_status & SAFETY_UNCORR_BITS))
++		return 0;
++
++	if (int_status & PCIE_RASDP_UNCORR_ERR)
++		faults += qcom_pcie_handle_rasdp_uncorr(pcie);
++
++	if (int_status & PCIE_CDM_CHK_ERR)
++		faults += qcom_pcie_handle_cdm_chk(pcie);
++
++	if (int_status & PCIE_OCCAP_CHK_ERR)
++		faults += qcom_pcie_handle_occap_chk(pcie);
++
++	if (int_status & PCIE_IFACE_TMR_ERR)
++		faults += qcom_pcie_handle_iface_tmr(pcie);
++
++	/*
++	 * PCIE_AER_UNCORR_ERR is acknowledged but not counted: the PCIe
++	 * AER framework (CONFIG_PCIEAER) owns AER decode and reporting.
++	 * Clearing it here only keeps the safety line from re-asserting.
++	 */
++	if (int_status & PCIE_AER_UNCORR_ERR)
++		dev_dbg(pcie->dev, "AER uncorrectable error, left to AER core");
++
++	writel(int_status & SAFETY_UNCORR_BITS,
++	       pcie->dbi_base + DBI_SAFETY_STATUS);
++
++	return faults;
++}
++
++/* Correctable counterpart of qcom_pcie_handle_safety_uncorr(). */
++static unsigned int qcom_pcie_handle_safety_corr(struct qcom_pcie *pcie,
++						 u32 int_status)
++{
++	unsigned int faults = 0;
++
++	if (!(int_status & SAFETY_CORR_BITS))
++		return 0;
++
++	if (int_status & PCIE_RASDP_CORR_ERR)
++		faults += qcom_pcie_handle_rasdp_corr(pcie);
++
++	/* Acknowledged only; see the AER note above. */
++	if (int_status & PCIE_AER_CORR_ERR)
++		dev_dbg(pcie->dev, "AER correctable error, left to AER core");
++
++	writel(int_status & SAFETY_CORR_BITS,
++	       pcie->dbi_base + DBI_SAFETY_STATUS);
++
++	return faults;
++}
++
++/*
++ * Acknowledge the PARF wrapper parity sources.
++ *
++ * These can assert the safety uncorrectable output via
++ * CFG_SAFETY_UNCORR_PARITY_INT_EN / CFG_SAFETY_UNCORR_PARF_CSR_INT_EN,
++ * which are enabled out of reset, but they do NOT appear in
++ * DBI_SAFETY_STATUS. The line can therefore be asserted with
++ * DBI_SAFETY_STATUS reading zero, so these sources must be cleared here
++ * or a level-triggered safety interrupt will re-assert forever.
++ *
++ * They are deliberately not counted as driver fault codes: the QNX safety
++ * monitor does not report PCIe wrapper parity, so reporting it here would
++ * add fault sources the PCIe safety analysis does not account for. The
++ * raw status is logged instead, which is enough to identify the source.
++ *
++ * Returns the number of sources acknowledged, so the caller can tell a
++ * parity-only interrupt apart from a genuinely spurious one. This is NOT
++ * a fault count.
++ *
++ * The PAR_*_CLEAR registers are write-only: write the observed mask.
++ * Called under safety_lock.
++ */
++static unsigned int qcom_pcie_handle_parity(struct qcom_pcie *pcie)
++{
++	unsigned int acked = 0;
++	u32 val;
++
++	val = readl(pcie->parf + PARF_INT_ALL_PAR_0_STATUS);
++	if (val) {
++		dev_warn_ratelimited(pcie->dev,
++				     "PARF parity error acknowledged, bank 0 status:0x%08x",
++				     val);
++		writel(val, pcie->parf + PARF_INT_ALL_PAR_0_CLEAR);
++		acked++;
++	}
++
++	val = readl(pcie->parf + PARF_INT_ALL_PAR_1_STATUS);
++	if (val) {
++		dev_warn_ratelimited(pcie->dev,
++				     "PARF parity error acknowledged, bank 1 status:0x%08x",
++				     val);
++		writel(val, pcie->parf + PARF_INT_ALL_PAR_1_CLEAR);
++		acked++;
++	}
++
++	val = readl(pcie->parf + PARF_INT_ALL_3_STATUS);
++	if (val & FALT_PARF_CSR_PARITY_ERROR_INT) {
++		dev_warn_ratelimited(pcie->dev,
++				     "PARF CSR parity error acknowledged");
++		writel(FALT_PARF_CSR_PARITY_ERROR_INT,
++		       pcie->parf + PARF_INT_ALL_3_CLEAR);
++		acked++;
++	}
++
++	return acked;
++}
++
++/*
++ * Returns the number of faults recorded. Called under safety_lock.
++ *
++ * Only reached once every known source has been found clear, so anything
++ * left is genuinely unattributable.
++ */
++static unsigned int qcom_pcie_check_spurious_int(struct qcom_pcie *pcie)
+ {
+-	u32 *pcie_fault = pcie->pcie_fault;
+ 	u32 val;
+ 
+ 	val = readl(pcie->dbi_base + DBI_INTERFACE_TIMER_STATUS);
+ 	if (val & CFGPCIE_INTERFACE_TIMER_STATUS_MASK)
+-		return false;
++		return 0;
+ 
+ 	/* Check PARF registers */
+ 	val = readl(pcie->parf + PARF_INT_ALL_STATUS);
+ 	if (val & CFGPCIE_INT_ALL_STATUS_MASK)
+-		return false;
++		return 0;
+ 
+ 	val = readl(pcie->parf + PARF_INT_STATUS);
+ 	if (val & CFGPCIE_PARF_INT_STATUS_MASK)
+-		return false;
++		return 0;
+ 
+ 	val = readl(pcie->parf + PARF_INT_ALL_2_STATUS);
+ 	if (val & CFGPCIE_INT_ALL_2_STATUS_MASK)
+-		return false;
++		return 0;
+ 
+ 	val = readl(pcie->parf + PARF_INT_ALL_3_STATUS);
+ 	if (val & CFGPCIE_INT_ALL_3_STATUS_MASK)
+-		return false;
++		return 0;
+ 
+-	val = readl(pcie->parf + PARF_INT_ALL_4_STATUS);
+-	if (val & CFGPCIE_INT_ALL_4_STATUS_MASK)
+-		return false;
++	val = readl(pcie->parf + PARF_INT_ALL_PAR_0_STATUS);
++	if (val & CFGPCIE_INT_ALL_PAR_0_STATUS_MASK)
++		return 0;
+ 
+-	val = readl(pcie->parf + PARF_INT_ALL_5_STATUS);
+-	if (val & CFGPCIE_INT_ALL_5_STATUS_MASK)
+-		return false;
++	val = readl(pcie->parf + PARF_INT_ALL_PAR_1_STATUS);
++	if (val & CFGPCIE_INT_ALL_PAR_1_STATUS_MASK)
++		return 0;
+ 
+-	PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, pcie->dev,
+-		"PCIe Spurious Interrupt");
+-	pcie_fault[PCIE_SPURIOUS_INT]++;
+-	pcie->pcie_fault_total++;
++	dev_err_ratelimited(pcie->dev, "PCIe Spurious Interrupt");
++	qcom_pcie_record_fault(pcie, PCIE_SPURIOUS_INT);
+ 
+-	/*
+-	 * sysfs_notify() must be called outside the raw_spinlock
+-	 * section (see qcom_pcie_global_irq_thread()), so signal the
+-	 * caller to defer it instead of calling it here.
+-	 */
+-	return true;
++	return 1;
+ }
+ 
+ /*
+- * qcom_pcie_handle_safety_faults() - Decode and count
+- * DBI_SAFETY_STATUS fault bits, masking storm-prone fault types so
+- * they don't keep re-firing. Must be called with pcie->safety_lock
+- * held.
++ * Guard shared by every safety interrupt handler. Must be called with
++ * pcie->safety_lock already held.
+  *
+- * Returns: true if any fault was recorded (caller should defer a
+- * sysfs_notify() until safety_lock is released).
++ * The interrupt can fire before the controller is initialized (before
++ * qcom_pcie_init() runs via sysfs or during early boot), or concurrently
++ * with qcom_pcie_deinit() tearing it down. qcom_pcie_deinit() clears
++ * pci_host_initialized under this same safety_lock before it begins any
++ * teardown, so checking the flag here under the lock serialises us
++ * against that clear: either we observe it already false and bail out
++ * below, or we finish our register access before deinit's teardown can
++ * start. Checking it outside the lock would reopen that race.
+  */
+-static bool qcom_pcie_handle_safety_faults(struct qcom_pcie *pcie,
+-					u32 int_status, u32 counter)
++static bool qcom_pcie_safety_irq_ready(struct qcom_pcie *pcie)
+ {
+-	u32 *pcie_fault = pcie->pcie_fault;
+-	bool notify = false;
+-	u32 val;
++	return pcie->pci_host_initialized;
++}
+ 
+-	PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, pcie->dev,
+-		"global interrupt fired counter: %u status: %u", counter,
+-		int_status);
++/* Dedicated safety uncorrectable interrupt (split mode only). */
++static irqreturn_t qcom_pcie_safety_uncorr_irq_thread(int irq, void *data)
++{
++	struct qcom_pcie *pcie = data;
++	unsigned long irqsave_flags;
++	unsigned int parity_acked;
++	unsigned int faults;
++	u32 int_status;
+ 
+-	if (int_status & PCIE_RASDP_UNCORR_ERR) {
+-		PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, pcie->dev,
+-			"RASDP uncorrectable error triggered");
+-		pcie_fault[RASDP_UNCORR_ERROR]++;
+-		pcie->pcie_fault_total++;
+-		notify = true;
++	raw_spin_lock_irqsave(&pcie->safety_lock, irqsave_flags);
+ 
+-		/*
+-		 * rasdp_uncorr_err ends up triggering a
+-		 * pcie_uncorr error continuously. So masking
+-		 * pcie_uncorr interrupts .
+-		 */
+-		val = readl(pcie->dbi_base + DBI_SAFETY_MASK_OFF);
+-		val |= PCIE_AER_UNCORR_ERR;
+-		writel(val, pcie->dbi_base + DBI_SAFETY_MASK_OFF);
++	if (!qcom_pcie_safety_irq_ready(pcie)) {
++		raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
++		dev_warn_ratelimited(pcie->dev,
++			"Safety uncorrectable IRQ received before PCIe initialization (not in D0), ignoring\n");
++		return IRQ_HANDLED;
+ 	}
+ 
+-	if (int_status & PCIE_CDM_CHK_ERR) {
+-		PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, pcie->dev,
+-			"CDM error triggered");
+-		val = readl(pcie->dbi_base + PCIE_PL_CHK_REG_CONTROL_STATUS);
++	pcie->uncorr_irq_count++;
++	int_status = readl(pcie->dbi_base + DBI_SAFETY_STATUS);
++	faults = qcom_pcie_handle_safety_uncorr(pcie, int_status);
++
++	/*
++	 * Always sweep the PARF parity sources: they assert this line
++	 * without appearing in DBI_SAFETY_STATUS. These are acknowledged
++	 * only, not counted as faults, so track them separately.
++	 */
++	parity_acked = qcom_pcie_handle_parity(pcie);
++
++	/*
++	 * See the note on spurious detection in qcom_pcie_global_irq_thread().
++	 * A parity acknowledgement counts as having serviced the interrupt
++	 * even though it records no fault.
++	 */
++	if (!faults && !parity_acked && !(int_status & SAFETY_UNCORR_BITS))
++		faults += qcom_pcie_check_spurious_int(pcie);
+ 
+-		if (val & PCIE_PL_CHK_REG_CHK_REG_COMPARISON_ERROR) {
+-			pcie_fault[CDM_REG_CHK_ERROR]++;
+-			pcie->pcie_fault_total++;
+-			notify = true;
++	raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
+ 
+-			/*
+-			 * cdm_chk_err injection results in a continuous
+-			 * interrupt storm on certain targets, so masking it.
+-			 */
+-			val = readl(pcie->dbi_base + DBI_SAFETY_MASK_OFF);
+-			val |= (PCIE_CDM_CHK_ERR | PCIE_AER_UNCORR_ERR);
+-			writel(val, pcie->dbi_base + DBI_SAFETY_MASK_OFF);
+-		}
+-	}
++	if (faults)
++		sysfs_notify(&pcie->dev->kobj, "qcom_pcie",
++			     "qcom_pcie_error_report");
+ 
+-	if (int_status & PCIE_IFACE_TMR_ERR) {
+-		PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, pcie->dev,
+-			"Iface Timeout error triggered");
+-		pcie_fault[INTERFACE_TIMER_ERROR]++;
+-		pcie->pcie_fault_total++;
+-		notify = true;
++	return IRQ_HANDLED;
++}
+ 
+-		/*
+-		 * interface_timer_err injection results in a continuous
+-		 * interrupt storm on certain targets, so masking it.
+-		 */
+-		val = readl(pcie->dbi_base + DBI_SAFETY_MASK_OFF);
+-		val |= (PCIE_IFACE_TMR_ERR | PCIE_AER_UNCORR_ERR);
+-		writel(val, pcie->dbi_base + DBI_SAFETY_MASK_OFF);
+-	}
++/* Dedicated safety correctable interrupt (split mode only). */
++static irqreturn_t qcom_pcie_safety_corr_irq_thread(int irq, void *data)
++{
++	struct qcom_pcie *pcie = data;
++	unsigned long irqsave_flags;
++	unsigned int faults;
++	u32 int_status;
++
++	raw_spin_lock_irqsave(&pcie->safety_lock, irqsave_flags);
+ 
+-	if (int_status & PCIE_RASDP_CORR_ERR) {
+-		PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, pcie->dev,
+-			"RASDP correctable error triggered");
+-		pcie_fault[RASDP_CORR_ERROR]++;
+-		pcie->pcie_fault_total++;
+-		notify = true;
++	if (!qcom_pcie_safety_irq_ready(pcie)) {
++		raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
++		dev_warn_ratelimited(pcie->dev,
++			"Safety correctable IRQ received before PCIe initialization (not in D0), ignoring\n");
++		return IRQ_HANDLED;
+ 	}
+ 
+-	return notify;
++	pcie->corr_irq_count++;
++	int_status = readl(pcie->dbi_base + DBI_SAFETY_STATUS);
++	faults = qcom_pcie_handle_safety_corr(pcie, int_status);
++
++	/* See the note on spurious detection in qcom_pcie_global_irq_thread() */
++	if (!faults && !(int_status & SAFETY_CORR_BITS))
++		faults += qcom_pcie_check_spurious_int(pcie);
++
++	raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
++
++	if (faults)
++		sysfs_notify(&pcie->dev->kobj, "qcom_pcie",
++			     "qcom_pcie_error_report");
++
++	return IRQ_HANDLED;
+ }
+ 
+ static irqreturn_t qcom_pcie_global_irq_thread(int irq, void *data)
+ {
+ 	struct qcom_pcie *pcie = data;
+-	struct device *dev = pcie->dev;
+-	struct kobject *kobj_ref = &dev->kobj;
+ 	unsigned long irqsave_flags;
+-	u32 int_status, counter = 0;
+-	bool notify;
++	unsigned int parity_acked = 0;
++	unsigned int faults;
++	u32 int_status;
+ 
+ 	raw_spin_lock_irqsave(&pcie->safety_lock, irqsave_flags);
+ 
+-	/*
+-	 * Check pci_host_initialized INSIDE the spinlock. On SMP, deinit on
+-	 * another CPU can clear this flag and tear down hardware between an
+-	 * outside read and the lock acquisition, causing MMIO access to
+-	 * unmapped registers. qcom_pcie_deinit() clears pci_host_initialized
+-	 * under this same safety_lock before it begins any teardown, so
+-	 * holding safety_lock here serialises us against that clear: either
+-	 * we observe the flag already false and bail out below, or we
+-	 * finish our register access before deinit's teardown can start.
+-	 */
+-	if (!pcie->pci_host_initialized) {
+-		bool requested = pcie->global_irq_requested;
++	if (!qcom_pcie_safety_irq_ready(pcie)) {
+ 		raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
+ 		/*
+ 		 * No PCIE_ECAM_LOG_LVL_WARN tier exists, so this ratelimited
+@@ -1098,20 +1510,46 @@ static irqreturn_t qcom_pcie_global_irq_thread(int irq, void *data)
+ 		 * trace-vs-dmesg routing used elsewhere in this file and
+ 		 * always goes to dmesg (rate-limited).
+ 		 */
+-		dev_warn_ratelimited(dev,
++		dev_warn_ratelimited(pcie->dev,
+ 			"Global IRQ received before PCIe initialization (not in D0), "
+ 			"ignoring\n");
+ 		return IRQ_HANDLED;
+ 	}
+ 
+-	counter++;
+-	int_status = readl(pcie->dbi_base + DBI_SAFETY_STATUS);
+-	writel(0, pcie->dbi_base + DBI_SAFETY_STATUS);
++	pcie->global_irq_count++;
++
++	/*
++	 * In split mode the DBI_SAFETY_STATUS sources and the PARF parity
++	 * banks belong to the dedicated handlers; this line is left with
++	 * spurious-interrupt detection only. In legacy mode (no dedicated
++	 * interrupts in DT) it keeps servicing everything.
++	 */
++	if (pcie->safety_split_irqs) {
++		faults = qcom_pcie_check_spurious_int(pcie);
++	} else {
++		int_status = readl(pcie->dbi_base + DBI_SAFETY_STATUS);
++		if (int_status)
++			dev_err_ratelimited(pcie->dev,
++					    "global interrupt fired counter: %u status: %u",
++					    pcie->global_irq_count, int_status);
++
++		faults = qcom_pcie_handle_safety_uncorr(pcie, int_status);
++		faults += qcom_pcie_handle_safety_corr(pcie, int_status);
++
++		/* Acknowledged only; see qcom_pcie_handle_parity() */
++		parity_acked = qcom_pcie_handle_parity(pcie);
+ 
+-	if (int_status)
+-		notify = qcom_pcie_handle_safety_faults(pcie, int_status, counter);
+-	else
+-		notify = qcom_pcie_check_spurious_int(pcie);
++		/*
++		 * Only look for a spurious interrupt when no status bit was
++		 * set at all. A bit that was set but recorded no fault (for
++		 * example a CDM interrupt whose comparison-error bit is not
++		 * asserted) has already been acknowledged, so the spurious
++		 * check would find every source clear and miscount it. The
++		 * same applies to a parity source that was acknowledged.
++		 */
++		if (!faults && !parity_acked && !int_status)
++			faults += qcom_pcie_check_spurious_int(pcie);
++	}
+ 
+ 	raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
+ 
+@@ -1119,12 +1557,13 @@ static irqreturn_t qcom_pcie_global_irq_thread(int irq, void *data)
+ 	 * sysfs_notify() must be called outside the raw_spinlock section.
+ 	 * On PREEMPT_RT, kernfs_notify() acquires sleeping locks internally,
+ 	 * which is illegal inside a raw_spinlock / irq-disabled context and
+-	 * causes an RT lockup.  The notify flag captures whether any fault
++	 * causes an RT lockup. The fault count captures whether any fault
+ 	 * was recorded under the lock; the actual notification is deferred
+ 	 * to here where sleeping is permitted.
+ 	 */
+-	if (notify)
+-		sysfs_notify(kobj_ref, NULL, "qcom_pcie_error_report");
++	if (faults)
++		sysfs_notify(&pcie->dev->kobj, "qcom_pcie",
++			     "qcom_pcie_error_report");
+ 
+ 	return IRQ_HANDLED;
+ }
+@@ -1138,16 +1577,14 @@ static ssize_t qcom_pcie_error_report_show(struct device *dev,
+ 	u32 *pcie_fault = pcie->pcie_fault;
+ 	size_t len = 0;
+ 
+-	for (i = 0; i < MAX_PCIE_SAFETY_FAULT; i++) {
+-		if (pcie_fault_string[i])
+-			len += sysfs_emit_at(buf, len, "%s: %lu\n",
+-					pcie_fault_string[i],
+-					pcie_fault[i]);
+-	}
++	for (i = 0; i < MAX_PCIE_SAFETY_FAULT; i++)
++		len += sysfs_emit_at(buf, len, "%s: %u\n",
++				pcie_fault_string[i],
++				pcie_fault[i]);
+ 
+-	len += sysfs_emit_at(buf, len, "%s: %lu\n",
+-					pcie_fault_string[i],
+-					pcie->pcie_fault_total);
++	len += sysfs_emit_at(buf, len, "%s: %u\n",
++				pcie_fault_string[MAX_PCIE_SAFETY_FAULT],
++				pcie->pcie_fault_total);
+ 
+ 	return len;
+ }
+@@ -1345,18 +1782,23 @@ static int qcom_pcie_deinit(struct qcom_pcie *pcie)
+ 	raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
+ 
+ 	/*
+-	 * Release the Global IRQ requested by qcom_pcie_init(), so a
+-	 * later re-init (sysfs init/reset trigger) can request it again
+-	 * without devm_request_threaded_irq() failing on an
+-	 * already-held IRQ. devm_free_irq() waits for any in-flight
+-	 * invocation of qcom_pcie_global_irq_thread() to finish before
+-	 * returning; pci_host_initialized was just cleared above, so
+-	 * that in-flight invocation (if any) is already on its
++	 * Release the Global IRQ (and dedicated safety uncorrectable/
++	 * correctable IRQs, if split mode is in use) requested by
++	 * qcom_pcie_init(), so a later re-init (sysfs init/reset trigger)
++	 * can request them again without devm_request_threaded_irq()
++	 * failing on an already-held IRQ. devm_free_irq() waits for any
++	 * in-flight invocation of the corresponding thread to finish
++	 * before returning; pci_host_initialized was just cleared above,
++	 * so any in-flight invocation (if any) is already on its
+ 	 * pre-init-style bailout path and touching no DBI/PARF register
+ 	 * this teardown is about to invalidate.
+ 	 */
+ 	if (pcie->global_irq_requested) {
+ 		devm_free_irq(dev, pcie->global_irq, pcie);
++		if (pcie->safety_split_irqs) {
++			devm_free_irq(dev, pcie->safety_uncorr_irq, pcie);
++			devm_free_irq(dev, pcie->safety_corr_irq, pcie);
++		}
+ 		pcie->global_irq_requested = false;
+ 	}
+ 
+@@ -1567,6 +2009,44 @@ static int qcom_pcie_init(struct qcom_pcie *pcie,
+ 		PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
+ 			"Global IRQ %u successfully requested\n",
+ 			pcie->global_irq);
++
++		/*
++		 * Dedicated safety uncorrectable/correctable IRQs (split mode
++		 * only). Requested here, alongside global_irq, so all safety
++		 * IRQs share the same per-init/deinit-cycle lifecycle; freed
++		 * together in qcom_pcie_deinit().
++		 *
++		 * Do not force a trigger type here: the interrupt is declared
++		 * level-triggered in DT and overriding it with an edge type
++		 * loses a still-asserted error.
++		 */
++		if (pcie->safety_split_irqs) {
++			ret = devm_request_threaded_irq(dev, pcie->safety_uncorr_irq,
++							NULL,
++							qcom_pcie_safety_uncorr_irq_thread,
++							IRQF_ONESHOT,
++							"safety_uncorr_irq", pcie);
++			if (ret) {
++				PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, dev,
++					"Failed to request safety uncorrectable IRQ: %d\n",
++					ret);
++				qcom_pcie_deinit(pcie);
++				return ret;
++			}
++
++			ret = devm_request_threaded_irq(dev, pcie->safety_corr_irq,
++							NULL,
++							qcom_pcie_safety_corr_irq_thread,
++							IRQF_ONESHOT,
++							"safety_corr_irq", pcie);
++			if (ret) {
++				PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, dev,
++					"Failed to request safety correctable IRQ: %d\n",
++					ret);
++				qcom_pcie_deinit(pcie);
++				return ret;
++			}
++		}
+ 	}
+ 	PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
+ 		"PCIe controller initialized successfully\n");
+@@ -1837,6 +2317,77 @@ static ssize_t qcom_pcie_controller_reset_store(struct device *dev,
+ }
+ static DEVICE_ATTR_RW(qcom_pcie_controller_reset);
+ 
++static ssize_t qcom_pcie_safety_rearm_show(struct device *dev,
++		struct device_attribute *attr,
++		char *buf)
++{
++	return sysfs_emit(buf, "Write '1' to re-arm latched safety interrupts\n");
++}
++
++/*
++ * Re-arm the safety sources that the interrupt handlers mask on the first
++ * occurrence to stop an interrupt storm (RASDP uncorrectable, CDM register
++ * check, interface timer). Without this, those sources stay masked until
++ * the controller is re-initialized, which also blinds the collaterally
++ * masked AER uncorrectable source.
++ */
++static ssize_t qcom_pcie_safety_rearm_store(struct device *dev,
++		struct device_attribute *attr,
++		const char *buf, size_t count)
++{
++	struct qcom_pcie *pcie = (struct qcom_pcie *)dev_get_drvdata(dev);
++	unsigned long irqsave_flags;
++	unsigned long val;
++	int ret;
++	u32 reg;
++
++	ret = kstrtoul(buf, 10, &val);
++	if (ret)
++		return ret;
++
++	if (val != 1) {
++		dev_err(dev, "Invalid value. Write '1' to re-arm safety interrupts\n");
++		return -EINVAL;
++	}
++
++	/* Serialize against init/deinit/reset operations */
++	if (!mutex_trylock(&pcie->reset_lock)) {
++		dev_warn(dev, "Another init/deinit/reset operation in progress, please wait\n");
++		return -EBUSY;
++	}
++
++	if (pcie->probe_in_progress || pcie->reset_in_progress) {
++		dev_warn(dev, "Init/reset in progress, cannot re-arm now\n");
++		mutex_unlock(&pcie->reset_lock);
++		return -EBUSY;
++	}
++
++	/* DBI registers are only accessible once the controller is up */
++	if (!pcie->pci_host_initialized) {
++		dev_warn(dev, "PCIe controller not initialized, cannot re-arm\n");
++		mutex_unlock(&pcie->reset_lock);
++		return -ENODEV;
++	}
++
++	raw_spin_lock_irqsave(&pcie->safety_lock, irqsave_flags);
++
++	/* Drop any latched status before unmasking to avoid an instant re-fire */
++	writel(SAFETY_UNCORR_BITS | SAFETY_CORR_BITS,
++	       pcie->dbi_base + DBI_SAFETY_STATUS);
++
++	reg = readl(pcie->dbi_base + DBI_SAFETY_MASK_OFF);
++	reg &= ~SAFETY_INT_MASK;
++	writel(reg, pcie->dbi_base + DBI_SAFETY_MASK_OFF);
++
++	raw_spin_unlock_irqrestore(&pcie->safety_lock, irqsave_flags);
++
++	mutex_unlock(&pcie->reset_lock);
++
++	dev_info(dev, "Safety interrupts re-armed\n");
++	return count;
++}
++static DEVICE_ATTR_RW(qcom_pcie_safety_rearm);
++
+ /* Attributes - control always created, safety conditionally added */
+ static struct attribute *qcom_pcie_attrs[] = {
+ 	&dev_attr_qcom_pcie_init_trigger.attr,
+@@ -1844,6 +2395,7 @@ static struct attribute *qcom_pcie_attrs[] = {
+ 	&dev_attr_qcom_pcie_controller_reset.attr,
+ 	/* Only visible when safety supported */
+ 	&dev_attr_qcom_pcie_error_report.attr,
++	&dev_attr_qcom_pcie_safety_rearm.attr,
+ 	&dev_attr_log_level.attr,
+ 	NULL,
+ };
+@@ -1854,8 +2406,9 @@ static umode_t qcom_pcie_attr_is_visible(struct kobject *kobj,
+ 	struct device *dev = kobj_to_dev(kobj);
+ 	struct qcom_pcie *pcie = dev_get_drvdata(dev);
+ 
+-	/* error_report attribute only visible when safety is supported */
+-	if (attr == &dev_attr_qcom_pcie_error_report.attr) {
++	/* Safety attributes only visible when safety is supported */
++	if (attr == &dev_attr_qcom_pcie_error_report.attr ||
++	    attr == &dev_attr_qcom_pcie_safety_rearm.attr) {
+ 		if (!pcie || !pcie->safety_supported)
+ 			return 0;  /* Hide attribute */
+ 	}
+@@ -2193,8 +2746,51 @@ static int qcom_pcie_probe_safety_features(struct qcom_pcie *pcie,
+ 			return ret;
+ 		}
+ 
++		/*
++		 * Dedicated safety interrupts are optional. When DT provides
++		 * both, the safety sources are split by severity onto them and
++		 * the global interrupt keeps only spurious detection. When DT
++		 * provides neither, the global interrupt services everything.
++		 *
++		 * Use the _optional() variant so a missing name does not log an
++		 * error on platforms that only wire up the global interrupt.
++		 *
++		 * The actual devm_request_threaded_irq() calls for global_irq,
++		 * safety_uncorr_irq and safety_corr_irq are all made in
++		 * qcom_pcie_init() and freed in qcom_pcie_deinit(), so that all
++		 * three IRQs share the same per-init/deinit-cycle lifecycle
++		 * instead of being requested once here with devm (driver)
++		 * lifetime.
++		 */
++		pcie->safety_uncorr_irq =
++			platform_get_irq_byname_optional(pdev, "safety_uncorr_int");
++		pcie->safety_corr_irq =
++			platform_get_irq_byname_optional(pdev, "safety_corr_int");
++
++		if (pcie->safety_uncorr_irq > 0 && pcie->safety_corr_irq > 0) {
++			pcie->safety_split_irqs = true;
++		} else if (pcie->safety_uncorr_irq > 0 || pcie->safety_corr_irq > 0) {
++			/*
++			 * Only one of the pair present. Degrading to the global
++			 * path would silently drop one severity class, so treat
++			 * this as a malformed device tree.
++			 */
++			PCIE_ECAM_ERR_LOG(PCIE_ECAM_LOG_LVL_ERROR, dev,
++				"safety: only %s provided; both safety_uncorr_int and safety_corr_int are required\n",
++				pcie->safety_uncorr_irq > 0 ? "safety_uncorr_int"
++							    : "safety_corr_int");
++			return -EINVAL;
++		} else {
++			pcie->safety_split_irqs = false;
++			pcie->safety_uncorr_irq = 0;
++			pcie->safety_corr_irq = 0;
++		}
++
+ 		PCIE_ECAM_INFO_LOG(PCIE_ECAM_LOG_LVL_INFO, dev,
+-			"Safety features enabled\n");
++			"Safety features enabled (%s)\n",
++			pcie->safety_split_irqs ?
++			"dedicated corr/uncorr interrupts" :
++			"aggregated global interrupt");
+ 	} else {
+ 		pcie->safety_supported = false;
+ 		/*
+-- 
+
