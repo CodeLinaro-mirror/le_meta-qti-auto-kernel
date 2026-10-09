@@ -156,6 +156,7 @@ SRC_URI:append:gen5 = " \
     file://pcie/0016-MHI_RC_bus-mhi-host-pci_generic-Add-support-for-SA8787P.patch \
     file://pcie/0017-PCIe_EP_Add-support-for-SCMI-based-PCIe-EP-for-s.patch \
     file://pcie/0018-PCIe_RC_qcom-ecam-Fix-Global-IRQ-management-for-dynamic.patch \
+    file://pcie/0019-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EPC-for-.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
