@@ -18,6 +18,18 @@ do_compile() {
     make dtbos KDIR=${STAGING_KERNEL_DIR} O=${STAGING_KERNEL_BUILDDIR} CC="${KERNEL_CC}" LD="${KERNEL_LD}"
 }
 
+# Install oot-dt-bindings headers to sysroot so that vms-devicetree
+# and other out-of-tree devicetree recipes can include them.
+do_install:append:gen5() {
+    if [ -d ${S}/arch/arm64/boot/dts/qcom/oot-dt-bindings ]; then
+        install -d ${D}${includedir}/oot-dt-bindings
+        install -m 0644 ${S}/arch/arm64/boot/dts/qcom/oot-dt-bindings/*.h \
+            ${D}${includedir}/oot-dt-bindings/
+    fi
+}
+
+FILES:${PN}-dev:append:gen5 = " ${includedir}/oot-dt-bindings/*"
+
 # lock to avoid parallel compiling with techpack
 do_compile[lockfiles] += "${TMPDIR}/qti-techpack.lock"
 
@@ -34,16 +46,10 @@ do_deploy() {
 
     if [ -n "${OOT_DDR_DTBOS}" ]; then
         install -d ${DEPLOYDIR}/build-artifacts/ddrdtbos
-        install -d ${DEPLOYDIR}/build-artifacts/ddrdtbosflex
 
         for dtb in ${OOT_DDR_DTBOS}; do
             if [ -f ${B}/$dtb ]; then
-                # copy flex dtbo in separate directory
-                if [[ "$dtb" == *flex* ]]; then
-                    install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/ddrdtbosflex
-                else
-                    install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/ddrdtbos
-                fi
+                install -m 0644 ${B}/$dtb ${DEPLOYDIR}/build-artifacts/ddrdtbos
             fi
         done
     fi
