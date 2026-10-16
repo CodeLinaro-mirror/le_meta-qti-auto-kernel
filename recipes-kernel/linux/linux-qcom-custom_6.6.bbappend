@@ -156,6 +156,8 @@ SRC_URI:append:gen5 = " \
     file://pcie/0016-MHI_RC_bus-mhi-host-pci_generic-Add-support-for-SA8787P.patch \
     file://pcie/0017-PCIe_EP_Add-support-for-SCMI-based-PCIe-EP-for-s.patch \
     file://pcie/0018-PCIe_RC_qcom-ecam-Fix-Global-IRQ-management-for-dynamic.patch \
+    file://pcie/0019-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EPC-for-.patch \
+    file://pcie/0020-PCIe_RC_PCIe-qcom-ecam-Add-PCIe-Safety-for-sa8787p.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
@@ -172,6 +174,7 @@ SRC_URI:append:gen5 = " \
     file://qup/0046-ccu-Fix-multiple-security-and-stability-issues-in-QU.patch \
     file://qup/0047-qcom_ccu_qup-Fix-NULL-pointer-dereference-and-add-in.patch \
     file://qup/0048-ccu-Fix-NULL-pointer-dereference-caused-by-shared-st.patch \
+    file://qup/0049-i2c-qcom-geni-Add-support-to-handle-clocks-from-I2C-.patch \
     file://0001-PENDING-iommu-arm-smmu-v3-Support-inter-device-SID-s.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
     file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \

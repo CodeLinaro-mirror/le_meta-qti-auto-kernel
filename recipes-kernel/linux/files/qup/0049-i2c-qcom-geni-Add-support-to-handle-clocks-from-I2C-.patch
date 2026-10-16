@@ -1,0 +1,404 @@
+From 9bffbc90c9064733177a13b2eeed92671c547b40 Mon Sep 17 00:00:00 2001
+From: Aniket Randive <aniket.randive@oss.qualcomm.com>
+Date: Tue, 28 Jul 2026 12:44:25 +0530
+Subject: [PATCH 2/2] i2c: qcom-geni: Add support to handle clocks from I2C for
+ CCU QUP
+
+Previously, GearVM camera was responsible for managing all clocks for
+CCU QUP. With the new GearVM bus architecture, clocks are now turned
+on/off by the buses gearvm itself via pm_runtime_get_sync()/put_sync()
+APIs.
+
+Due to this change, PM runtime is intentionally disabled in the I2C
+driver for CCU QUP to avoid a race condition where the CCU driver
+attempts to write registers while clocks are being gated, which can
+cause a crash.
+
+Additionally, guard the suspend path against async transfers instead
+of relying on pm usage_count (unreliable when runtime PM is bypassed),
+check the GPII active state directly to block suspend if a transfer is
+genuinely in progress.
+
+Move ccu_qup_load_firmware() call from gpi_probe() into geni_i2c_init()
+so firmware loading is deferred until the I2C driver is ready, returning
+-EPROBE_DEFER on failure.
+
+Also extend suspend_noirq/resume_noirq to handle CCU QUP instead of
+returning early, enabling proper system suspend/resume support.
+
+Change-Id: I225aa7d47d683672f2874d0ef238ba897e551f89
+Signed-off-by: Aniket Randive <aniket.randive@oss.qualcomm.com>
+---
+ drivers/dma/qcom/gpi.c                |   7 --
+ drivers/i2c/busses/i2c-qcom-geni.c    | 141 +++++++++++++++++++++-----
+ drivers/soc/qcom/qcom_ccu_qup.c       |  27 +++--
+ include/linux/soc/qcom/qcom_ccu_qup.h |   8 +-
+ 4 files changed, 143 insertions(+), 40 deletions(-)
+
+diff --git a/drivers/dma/qcom/gpi.c b/drivers/dma/qcom/gpi.c
+index 8baefc50bd75..d44270e2a503 100644
+--- a/drivers/dma/qcom/gpi.c
++++ b/drivers/dma/qcom/gpi.c
+@@ -3086,13 +3086,6 @@ static int gpi_probe(struct platform_device *pdev)
+ 	if (data->is_ccu_qup) {
+ 		gpi_dev->cfg = *data;
+ 		register_gpi_irq(ccu_gpi_handle_isr);
+-		GPI_DBG_LOG(LOG_LVL_INFO, gpi_dev->dev, "Loading CCU QUP FW\n");
+-		ret = ccu_qup_load_firmware();
+-		if (ret) {
+-			GPI_ERR_LOG(LOG_LVL_ERROR, gpi_dev->dev,
+-				"Failed to load CCU QUP FW, ret:%d. Deferring probe.\n", ret);
+-				return -EPROBE_DEFER;
+-		}
+ 	}
+ 
+ 	gpi_dev->ee_base = gpi_dev->ee_base - data->ee_offset;
+diff --git a/drivers/i2c/busses/i2c-qcom-geni.c b/drivers/i2c/busses/i2c-qcom-geni.c
+index c715e37d8c0d..adae1d726551 100644
+--- a/drivers/i2c/busses/i2c-qcom-geni.c
++++ b/drivers/i2c/busses/i2c-qcom-geni.c
+@@ -469,12 +469,20 @@ static int geni_i2c_power_on_off(struct i2c_adapter *adap, bool suspend,
+ 		    "%s: suspend:%d IP_RST:%d\n",
+ 		    __func__, suspend, atomic_read(ip_reset_in_progress));
+ 	if (suspend) {
+-		if (atomic_read(&gi2c->se.dev->power.usage_count) > 0 &&
+-		    !atomic_read(ip_reset_in_progress)) {
+-			I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
+-				    "Please retry, Device in Use or IP reset in progress. Usage_count: %d\n",
+-				    atomic_read(&gi2c->se.dev->power.usage_count));
+-			return -EAGAIN;
++		 /* For CCU QUP: use GPII state to detect active transfers,
++		  * NOT pm usage_count (which is unreliable for CCU QUP
++		  * since runtime PM is intentionally bypassed).
++		  * Only block suspend if a transfer is genuinely active
++		  * AND this is not an IP reset triggered suspend.
++		  */
++		if (!atomic_read(ip_reset_in_progress)) {
++			for (i = 0; i < CCU_MAX_GPII; i++) {
++				if (gi2c->ccu->gpii[i].state == GPII_ACTIVE) {
++					I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
++						    "Please retry, GPII[%d] transfer in progress\n", i);
++					return -EAGAIN;
++				}
++			}
+ 		}
+ 
+ 		for (i = 0; i < CCU_MAX_GPII; i++) {
+@@ -493,8 +501,43 @@ static int geni_i2c_power_on_off(struct i2c_adapter *adap, bool suspend,
+ 			}
+ 		}
+ 
++		/*
++		 * In FUSA IP reset, the I2C driver owns clock off to ensure
++		 * NOC transactions are fully drained before the SE clock is
++		 * gated. In all other paths the caller manages the clocks.
++		 */
++		if (atomic_read(ip_reset_in_progress)) {
++			ret = pm_runtime_force_suspend(gi2c->se.dev);
++			if (ret) {
++				I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
++						    "%s: force suspend failed\n", __func__);
++				return ret;
++			}
++		}
++
+ 	} else {
+ 
++		/*
++		 * In FUSA IP reset, the I2C driver owns clock on before
++		 * re-enabling DMA channels so the SE is fully powered before
++		 * any NOC transactions can be issued.
++		 */
++		if (atomic_read(ip_reset_in_progress)) {
++			ret = pm_runtime_force_resume(gi2c->se.dev);
++			if (ret) {
++				I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
++					    "Force resume failed: %d\n", ret);
++				return ret;
++			}
++		}
++
++		ret = ccu_qup_load_firmware();
++		if (ret) {
++			I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
++				    "CCU QUP FW reload failed: %d\n", ret);
++			return ret;
++		}
++
+ 		for (i = 0; i < CCU_MAX_GPII; i++) {
+ 			if (gi2c->tx_c[i]) {
+ 				gi2c->tx_gchan_ctrl.cmd = QCOM_GPI_CHANNEL_CONFIGURE;
+@@ -1907,14 +1950,17 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
+ 
+ 	gi2c->err = 0;
+ 	reinit_completion(&gi2c->done);
+-	ret = pm_runtime_get_sync(gi2c->se.dev);
+-	if (ret < 0 && gi2c->suspended) {
+-		I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
+-			    "error turning SE resources:%d\n", ret);
+-			pm_runtime_put_noidle(gi2c->se.dev);
+-			/* Set device in suspended since resume failed */
+-			pm_runtime_set_suspended(gi2c->se.dev);
+-			return ret;
++	 // Skip runtime PM for CCU QUP (clocks always ON)
++	if (!gi2c->is_ccu_qup) {
++		ret = pm_runtime_get_sync(gi2c->se.dev);
++		if (ret < 0 && gi2c->suspended) {
++			I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
++				    "error turning SE resources:%d\n", ret);
++				pm_runtime_put_noidle(gi2c->se.dev);
++				/* Set device in suspended since resume failed */
++				pm_runtime_set_suspended(gi2c->se.dev);
++				return ret;
++		}
+ 	}
+ 
+ 	if (gi2c->xfer_mode == GENI_GPI_DMA) {
+@@ -1924,8 +1970,12 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
+ 		ret = geni_i2c_fifo_xfer(gi2c, msgs, num);
+ 	}
+ 
+-	pm_runtime_mark_last_busy(gi2c->se.dev);
+-	pm_runtime_put_autosuspend(gi2c->se.dev);
++	 // Skip runtime PM for CCU QUP (clocks always ON)
++	if (!gi2c->is_ccu_qup) {
++		pm_runtime_mark_last_busy(gi2c->se.dev);
++		pm_runtime_put_autosuspend(gi2c->se.dev);
++	}
++
+ 	gi2c->cur = NULL;
+ 	gi2c->err = 0;
+ 	return ret;
+@@ -2083,6 +2133,17 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
+ 		return ret;
+ 	}
+ 
++	if (gi2c->is_ccu_qup) {
++		dev_err(gi2c->se.dev, "Loading CCU QUP FW\n");
++		ret = ccu_qup_load_firmware();
++		if (ret) {
++			dev_err_probe(gi2c->se.dev, ret,
++				      "Failed to load the CCU QUP FW, Deferring probe.\n");
++			pm_runtime_put_sync(gi2c->se.dev);
++			return -EPROBE_DEFER;
++		}
++	}
++
+ 	proto = geni_se_read_proto(&gi2c->se);
+ 	if (proto == GENI_SE_INVALID_PROTO) {
+ 		ret = geni_load_se_firmware(&gi2c->se, GENI_SE_I2C);
+@@ -2142,10 +2203,15 @@ static int geni_i2c_init(struct geni_i2c_dev *gi2c)
+ 	}
+ 
+ err:
+-	if (pm_runtime_put_sync(gi2c->se.dev) < 0) {
+-		I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev, "error turning off device :%d\n", ret);
+-		if (gi2c->xfer_mode == GENI_GPI_DMA)
+-			release_gpi_dma(gi2c);
++	if (gi2c->is_ccu_qup && ret < 0)
++		ccu_qup_clear_fw_loaded();
++	if (!gi2c->is_ccu_qup || ret < 0) {
++		if (pm_runtime_put_sync(gi2c->se.dev) < 0) {
++			I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
++				    "error turning off device :%d\n", ret);
++			if (gi2c->xfer_mode == GENI_GPI_DMA)
++				release_gpi_dma(gi2c);
++		}
+ 	}
+ 
+ 	return ret;
+@@ -2186,6 +2252,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
+ {
+ 	struct geni_i2c_dev *gi2c;
+ 	int ret;
++	bool fw_init_done = false;
+ 	struct device *dev = &pdev->dev;
+ 	const struct geni_i2c_desc *desc = NULL;
+ 
+@@ -2311,6 +2378,18 @@ static int geni_i2c_probe(struct platform_device *pdev)
+ 		I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev, "geni_i2c_prepare is failed :%d\n", ret);
+ 		goto err;
+ 	}
++	fw_init_done = true;
++
++	if (gi2c->is_ccu_qup) {
++		ret = pm_runtime_get_sync(gi2c->se.dev);
++		if (ret < 0) {
++			I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
++				    "error turning on device :%d\n", ret);
++			pm_runtime_put_sync(gi2c->se.dev);
++			pm_runtime_disable(gi2c->se.dev);
++			goto err;
++		}
++	}
+ 
+ 	ret = i2c_add_adapter(&gi2c->adap);
+ 	if (ret) {
+@@ -2330,6 +2409,8 @@ static int geni_i2c_probe(struct platform_device *pdev)
+ 	I2C_DBG_LOG(LOG_LVL_INFO, dev, "Geni-I2C adaptor successfully added\n");
+ 
+ err:
++	if (gi2c->is_ccu_qup && ret < 0 && fw_init_done)
++		ccu_qup_clear_fw_loaded();
+ 	return ret;
+ }
+ 
+@@ -2395,8 +2476,7 @@ static int __maybe_unused geni_i2c_suspend_noirq(struct device *dev)
+ 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
+ 	int ret = 0;
+ 
+-	if (gi2c->is_ccu_qup)
+-		return 0;
++	I2C_DBG_LOG(LOG_LVL_INFO, dev, "%s: start\n", __func__);
+ 
+ 	pm_runtime_enable(gi2c->se.dev);
+ 	i2c_mark_adapter_suspended(&gi2c->adap);
+@@ -2405,7 +2485,9 @@ static int __maybe_unused geni_i2c_suspend_noirq(struct device *dev)
+ 	if (ret) {
+ 		I2C_ERR_LOG(LOG_LVL_ERROR, dev, "%s: force suspend failed\n", __func__);
+ 		i2c_mark_adapter_resumed(&gi2c->adap);
++		pm_runtime_disable(gi2c->se.dev);
+ 	}
++
+ 	return ret;
+ }
+ 
+@@ -2414,9 +2496,7 @@ static int __maybe_unused geni_i2c_resume_noirq(struct device *dev)
+ 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
+ 	int ret = 0;
+ 
+-	if (gi2c->is_ccu_qup)
+-		return 0;
+-
++	I2C_DBG_LOG(LOG_LVL_INFO, dev, "%s: start\n", __func__);
+ 	ret = pm_runtime_force_resume(dev);
+ 	if (ret)
+ 		return ret;
+@@ -2428,12 +2508,23 @@ static int __maybe_unused geni_i2c_resume_noirq(struct device *dev)
+ 		ret = geni_i2c_init(gi2c);
+ 		if (ret) {
+ 			I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev, "geni_i2c_prepare is failed :%d\n", ret);
++			if (gi2c->is_ccu_qup)
++				ccu_qup_clear_fw_loaded();
++			pm_runtime_force_suspend(dev);
++			return ret;
++		}
++	} else if (gi2c->is_ccu_qup) {
++		ret = ccu_qup_load_firmware();
++		if (ret) {
++			I2C_ERR_LOG(LOG_LVL_ERROR, gi2c->se.dev,
++				    "CCU QUP FW reload failed: %d\n", ret);
+ 			return ret;
+ 		}
+ 	}
+ 
+ 	pm_runtime_disable(gi2c->se.dev);
+ 	i2c_mark_adapter_resumed(&gi2c->adap);
++
+ 	return ret;
+ }
+ 
+diff --git a/drivers/soc/qcom/qcom_ccu_qup.c b/drivers/soc/qcom/qcom_ccu_qup.c
+index a5aa84bde41c..bad384919019 100644
+--- a/drivers/soc/qcom/qcom_ccu_qup.c
++++ b/drivers/soc/qcom/qcom_ccu_qup.c
+@@ -578,7 +578,7 @@ int ccu_power_on_off(struct ccu_qup *ccu, struct i2c_adapter *adap, bool suspend
+ 	}
+ 
+ 	if (suspend)
+-		ccud->fw_loaded = false;
++		atomic_set(&ccud->fw_loaded, 0);
+ 
+ 	if (!suspend && atomic_read(&ccu->ip_reset_in_progress))
+ 		atomic_set(&ccu->ip_reset_in_progress, 0);
+@@ -770,7 +770,7 @@ int ccu_qup_load_firmware(void)
+ 		return -ENODEV;
+ 	}
+ 
+-	if (ccud->fw_loaded) {
++	if (atomic_read(&ccud->fw_loaded)) {
+ 		CCU_ERR_LOG(LOG_LVL_ERROR, ccud->dev, "Fw is already loaded it\n");
+ 		return 0;
+ 	}
+@@ -789,11 +789,12 @@ int ccu_qup_load_firmware(void)
+ 	/* Make SCM call, to load the TZ FW */
+ 	ret = qcom_scm_load_ccu_qup_fw(SCM_LOAD_QUP_TYPE);
+ 	if (ret) {
+-		CCU_ERR_LOG(LOG_LVL_ERROR, ccud->dev, "Unable to load the FW\n");
+-		ccud->fw_loaded = false;
++		CCU_ERR_LOG(LOG_LVL_ERROR, ccud->dev,
++			    "Unable to load the FW:%d\n", ret);
++		atomic_set(&ccud->fw_loaded, 0);
+ 		return ret;
+ 	}
+-	ccud->fw_loaded = true;
++	atomic_set(&ccud->fw_loaded, 1);
+ 
+ 	ret = ccu_fusa_irq_enable(ccud);
+ 	if (ret)
+@@ -805,6 +806,20 @@ int ccu_qup_load_firmware(void)
+ }
+ EXPORT_SYMBOL(ccu_qup_load_firmware);
+ 
++/*
++ * ccu_qup_clear_fw_loaded - atomically clear the fw_loaded flag.
++ *
++ * Called by the I2C driver on probe failure so the next probe attempt
++ * triggers a fresh FW reload.  Also called internally on suspend (SE
++ * clock off) via ccu_power_on_off().
++ */
++void ccu_qup_clear_fw_loaded(void)
++{
++	if (ccud)
++		atomic_set(&ccud->fw_loaded, 0);
++}
++EXPORT_SYMBOL(ccu_qup_clear_fw_loaded);
++
+ /* ccu_gpii_reset - to reset the GPII of that SE.
+  *
+  * @adap: handle for master adapter
+@@ -1399,7 +1414,7 @@ static int ccu_qup_probe(struct platform_device *pdev)
+ 	enable_irq(ccu->ccu_qup1_irq);
+ 
+ 	ccud = ccu;
+-	ccud->fw_loaded = false;
++	atomic_set(&ccud->fw_loaded, 0);
+ 
+ 	/* Queue the delayed work to be executed after 30 milli second */
+ 	queue_delayed_work(ccu->gpi_wq, &ccu->get_child_dev_node,
+diff --git a/include/linux/soc/qcom/qcom_ccu_qup.h b/include/linux/soc/qcom/qcom_ccu_qup.h
+index 1d8c3805775e..9f4bfff9fb6b 100644
+--- a/include/linux/soc/qcom/qcom_ccu_qup.h
++++ b/include/linux/soc/qcom/qcom_ccu_qup.h
+@@ -199,7 +199,9 @@ struct ccu_xfer_result {
+  * @ip_reset_in_progress: indicates if IP reset is in progress
+  * @response_list: list which represent the response.
+  * @data: pointer to the struct ccu_response_data.
+- * fw_loaded: flag to check fw loaded or not.
++ * @fw_loaded: atomic flag; 1 = FW loaded, 0 = not loaded. Must be cleared
++ *             by I2C driver on probe failure and by CCU driver on SE clock
++ *             off (S2R / suspend), so the next load attempt reloads FW.
+  */
+ struct ccu_qup {
+ 	struct device *dev;
+@@ -232,7 +234,7 @@ struct ccu_qup {
+ 	atomic_t ip_reset_in_progress;
+ 	struct list_head response_list;
+ 	struct ccu_response_data data;
+-	bool fw_loaded;
++	atomic_t fw_loaded;
+ };
+ 
+ typedef void (*ccu_qup_notify_client_t)(struct ccu_xfer_result *res);
+@@ -260,6 +262,8 @@ int ccu_configure_mode(struct i2c_adapter *adap, struct ccu_qup_config *cfg);
+ 
+ int ccu_qup_load_firmware(void);
+ 
++void ccu_qup_clear_fw_loaded(void);
++
+ void ccu_configure_inter_trans_delay(struct i2c_adapter *adap, unsigned long delay);
+ 
+ int ccu_check_recover_bus(struct i2c_adapter *adap);
+-- 
+2.34.1
+
