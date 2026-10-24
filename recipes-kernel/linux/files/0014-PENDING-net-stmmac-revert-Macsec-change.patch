@@ -1,0 +1,39 @@
+From 56a8442d5a9c5f53d8fbc229c3c5c12e2c131a7a Mon Sep 17 00:00:00 2001
+From: "Jason Yu (FengQi)" <fyu@qti.qualcomm.com>
+Date: Sat, 24 Oct 2026 22:26:56 +0800
+Subject: [PATCH] PENDING: net: stmmac: revert Macsec change
+
+Change-Id: Ic056c977aafb781efe14b15a837d684361574319
+Signed-off-by: Jason Yu (FengQi) <fyu@qti.qualcomm.com>
+---
+ drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
+index 58d02099df8c..ee2dd1894e11 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
+@@ -118,7 +118,6 @@
+ 
+ /* MACSEC WRAPPER bits */
+ #define MACSEC_BIT_DATA_BYPASS		BIT(2)
+-#define MACSEC_PWR_ON_RESET		BIT(9)
+ 
+ #define SGMII_10M_RX_CLK_DVDR			0x31
+ 
+@@ -765,11 +764,9 @@ static void ethqos_force_macsec_bypass(struct qcom_ethqos *ethqos)
+ 		return;
+ 
+ 	val = readl_relaxed(macsec_base + MACSEC_CTRL0_OFFSET);
+-	val |= MACSEC_PWR_ON_RESET;
+-	writel_relaxed(val, macsec_base + MACSEC_CTRL0_OFFSET);
+ 
+-	val = readl_relaxed(macsec_base + MACSEC_CTRL0_OFFSET);
+ 	val |= MACSEC_BIT_DATA_BYPASS;
++
+ 	writel_relaxed(val, macsec_base + MACSEC_CTRL0_OFFSET);
+ }
+ 
+-- 
+2.43.0
+
