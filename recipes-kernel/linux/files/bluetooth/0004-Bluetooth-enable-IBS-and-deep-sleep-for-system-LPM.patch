@@ -1,0 +1,72 @@
+From dbfec8ada7c94c44d46c210d912e1d84a787e6b0 Mon Sep 17 00:00:00 2001
+From: Junlin Zhang <junlzhan@qti.qualcomm.com>
+Date: Mon, 2 Nov 2026 12:23:17 +0800
+Subject: [PATCH] Bluetooth: Enable IBS and deep sleep to support system LPM feature
+
+SW IBS (In-Band Sleep) and deep sleep were explicitly disabled
+for the QCA_AUTO_CONVERGED SoC type during NVM download, and
+the QCA_IBS_DISABLED flag was not cleared after firmware setup.
+This prevented the BT controller from entering low power states,
+blocking system LPM (Low Power Mode).
+
+Remove the QCA_AUTO_CONVERGED exception to enable IBS and deep sleep
+unconditionally, enabling proper system LPM support.
+
+Change-Id: Ie7e1d6a8405bcb99cb7635fab84190efadd4f5ea
+Signed-off-by: Junlin Zhang <junlzhan@qti.qualcomm.com>
+---
+ drivers/bluetooth/btqca.c   | 15 ++-------------
+ drivers/bluetooth/hci_qca.c |  4 +---
+ 2 files changed, 3 insertions(+), 16 deletions(-)
+
+diff --git a/drivers/bluetooth/btqca.c b/drivers/bluetooth/btqca.c
+index 64a8c7ac559a..859e310f817d 100644
+--- a/drivers/bluetooth/btqca.c
++++ b/drivers/bluetooth/btqca.c
+@@ -442,12 +442,7 @@ static int qca_tlv_check_data(struct hci_dev *hdev,
+ 				 * enabling software inband sleep
+ 				 * onto controller side.
+ 				 */
+-				if (soc_type == QCA_AUTO_CONVERGED) {
+-					BT_ERR("Disable SW IBS");
+-					tlv_nvm->data[0] &= ~0x80;
+-				} else {
+-					tlv_nvm->data[0] |= 0x80;
+-				}
++				tlv_nvm->data[0] |= 0x80;
+ 
+ 				/* UART Baud Rate */
+ 				if (soc_type >= QCA_WCN3991)
+@@ -464,13 +459,7 @@ static int qca_tlv_check_data(struct hci_dev *hdev,
+ 				/* Sleep enable mask
+ 				 * enabling deep sleep feature on controller.
+ 				 */
+-				if (soc_type == QCA_AUTO_CONVERGED) {
+-					BT_ERR("Disable deep sleep");
+-					tlv_nvm->data[0] = 0;
+-					tlv_nvm->data[1] = 0;
+-				} else {
+-					tlv_nvm->data[0] |= 0x01;
+-				}
++				tlv_nvm->data[0] |= 0x01;
+ 
+ 				break;
+ 			}
+diff --git a/drivers/bluetooth/hci_qca.c b/drivers/bluetooth/hci_qca.c
+index 96960e29236e..9a9788fdc1b6 100644
+--- a/drivers/bluetooth/hci_qca.c
++++ b/drivers/bluetooth/hci_qca.c
+@@ -2071,9 +2071,7 @@ static int qca_setup(struct hci_uart *hu)
+ 	ret = qca_uart_setup(hdev, qca_baudrate, soc_type, ver,
+ 			firmware_name, rampatch_name);
+ 	if (!ret) {
+-		if (soc_type != QCA_AUTO_CONVERGED)
+-			clear_bit(QCA_IBS_DISABLED, &qca->flags);
+-
++		clear_bit(QCA_IBS_DISABLED, &qca->flags);
+ 		qca_debugfs_init(hdev);
+ 		hu->hdev->hw_error = qca_hw_error;
+ 		hu->hdev->cmd_timeout = qca_cmd_timeout;
+-- 
+2.43.0
+
