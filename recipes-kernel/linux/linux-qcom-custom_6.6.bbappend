@@ -181,6 +181,7 @@ SRC_URI:append:gen5 = " \
     file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \
     file://bluetooth/0002-Bluetooth-hci_qca-Fix-duplicate-dump-and-add-uevent-.patch \
     file://bluetooth/0003-Bluetooth-fix-BLE-HID-SMP-pairing-failure-on-board-boot-up.patch \
+    file://bluetooth/0004-Bluetooth-enable-IBS-and-deep-sleep-for-system-LPM.patch \
 "
 
 SRC_URI:remove:gen5 = " \
