@@ -1,0 +1,86 @@
+From e0d31d17a4e9df1c6d77ba59e2517a6f61aa9901 Mon Sep 17 00:00:00 2001
+From: Rama Krishna Phani A <ramkri@qti.qualcomm.com>
+Date: Thu, 8 Oct 2026 20:42:39 +0530
+Subject: [PATCH] PCI: pciehp: Quirk broken Command Completed support on NordAU
+ (SA8797P)
+
+  Both root ports (0000:00:00.0, 0001:00:00.0) log a hotplug command
+  timeout at boot and on every suspend/resume (s2idle) cycle:
+
+    pcieport 0000:00:00.0: pciehp: Timeout on hotplug command 0x13f8 (issued 57216 msec ago)
+    pcieport 0001:00:00.0: pciehp: Timeout on hotplug command 0x13f8 (issued 57244 msec ago)
+    pcieport 0000:00:00.0: pciehp: Timeout on hotplug command 0x03d8 (issued 2020 msec ago)
+    pcieport 0001:00:00.0: pciehp: Timeout on hotplug command 0x03d8 (issued 2020 msec ago)
+
+  0x13f8 has HPIE+CCIE set, so the first command waits on the interrupt
+  path (wait_event_timeout). 0x03d8 has HPIE clear, so the next command
+  falls back to directly polling PCI_EXP_SLTSTA for Command Completed
+  (pcie_poll_cmd()) -- and still times out. Since even direct polling of
+  the status register never observes the CC bit, the root port's own
+  Slot Status truly never reports Command Completed; this isn't an
+  interrupt-routing problem. Both ports hit it identically, consistent
+  with a controller-wide (silicon) trait rather than a per-slot anomaly.
+  On resume this erratum alone accounts for ~2.8s of the ~3.4s spent
+  getting Endpoint back online.
+
+  This is the same class of erratum quirk_cmd_compl() already exists to
+  work around for other Qualcomm root ports (0x010e, 0x0110, 0x0400,
+  0x0401): the port advertises SLTCAP.HPC=1 but doesn't actually honor
+  Command Completed. NordAU's (SA8797P) root port Device ID (0x011f) was
+  missing from that fixup list, so pdev->broken_cmd_compl was never set
+  and pciehp assumed real CC support, blocking on every command.
+
+  Adding the fixup entry alone is not sufficient. broken_cmd_compl is
+  only consulted by the CC_ERRATUM_MASK fast path in
+  pcie_do_write_cmd(), which skips the wait only for commands that leave
+  the Control bits (PCC/PIC/AIC/EIC) unchanged -- i.e. only Enable-bit-
+  only writes (0x13f8-style). The fast path that fully disables waiting
+  (NO_CMD_CMPL(), via SLTCAP.NCCS) was gated solely on
+  pdev->is_thunderbolt, so writes that do touch Control bits (0x03d8-
+  style) still fell through to the full wait/timeout regardless of
+  broken_cmd_compl.
+
+  Force NCCS for broken_cmd_compl controllers too, so NO_CMD_CMPL()
+  skips the wait for every command on these controllers, not just
+  Enable-bit-only ones. Verified against boot-KPI logs: with both
+  changes, pciehp timeouts drop from 2 chained events per port to zero,
+  and wake-to-Endpoint-ready time on resume drops from 3.350s to 0.541s.
+
+Change-Id: I43dfea7aefc4d3b8265bf1208c12c8d0592b9663
+Signed-off-by: Rama Krishna Phani A <ramkri@qti.qualcomm.com>
+---
+ drivers/pci/hotplug/pciehp_hpc.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/drivers/pci/hotplug/pciehp_hpc.c b/drivers/pci/hotplug/pciehp_hpc.c
+index b0bccc4d0da2..34d2b9418f8b 100644
+--- a/drivers/pci/hotplug/pciehp_hpc.c
++++ b/drivers/pci/hotplug/pciehp_hpc.c
+@@ -1000,6 +1000,18 @@ struct controller *pcie_init(struct pcie_device *dev)
+ 	if (pdev->is_thunderbolt)
+ 		slot_cap |= PCI_EXP_SLTCAP_NCCS;
+ 
++	/*
++	 * quirk_cmd_compl() sets broken_cmd_compl for controllers that
++	 * claim Command Completed support but never actually raise it,
++	 * regardless of which Slot Control bits are written. The
++	 * CC_ERRATUM_MASK fast path in pcie_do_write_cmd() only covers
++	 * writes that leave the Control bits (PCC/PIC/AIC/EIC) unchanged;
++	 * force NCCS here too so NO_CMD_CMPL() skips the wait entirely for
++	 * every command on these controllers, not just Enable-bit-only ones.
++	 */
++	if (pdev->broken_cmd_compl)
++		slot_cap |= PCI_EXP_SLTCAP_NCCS;
++
+ 	ctrl->slot_cap = slot_cap;
+ 	mutex_init(&ctrl->ctrl_lock);
+ 	mutex_init(&ctrl->state_lock);
+@@ -1088,3 +1100,6 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_QCOM, 0x0401,
+ 			      PCI_CLASS_BRIDGE_PCI, 8, quirk_cmd_compl);
+ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_HXT, 0x0401,
+ 			      PCI_CLASS_BRIDGE_PCI, 8, quirk_cmd_compl);
++/* QCOM NordAU (SA8797P) root port */
++DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_QCOM, 0x011f,
++			      PCI_CLASS_BRIDGE_PCI, 8, quirk_cmd_compl);
+-- 
+

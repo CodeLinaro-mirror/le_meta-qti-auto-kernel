@@ -46,6 +46,7 @@ SRC_URI:append = "\
     file://qup/0018-i2c-qcom-geni-Remove-redundant-runtime_resume-fallba.patch \
     file://qup/0044-spi-qcom-geni-Abort-active-transfer-during-system-su.patch \
     file://qup/0046-PENDING-spi-geni-msm-Reconfigure-SPI-mode-after-resu.patch \
+    file://qup/0049-PENDING-serial-qcom-geni-Clear-pending-IRQs-while-su.patch \
     file://0001-PENDING-scsi-ufs-qcom-Enable-sa8255p-platform.patch \
     file://0002-PENDING-ufs-ufs-qcom-Skip-hibern8-FSM-state-check-fo.patch \
     file://0003-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in-HLOS.patch \
@@ -158,6 +159,7 @@ SRC_URI:append:gen5 = " \
     file://pcie/0018-PCIe_RC_qcom-ecam-Fix-Global-IRQ-management-for-dynamic.patch \
     file://pcie/0019-PCIe_EP_qcom-ep-Add-support-for-SCMI-based-PCIe-EPC-for-.patch \
     file://pcie/0020-PCIe_RC_PCIe-qcom-ecam-Add-PCIe-Safety-for-sa8787p.patch \
+    file://pcie/0023-PCI-pciehp-Quirk-broken-Command-Completed-support-on.patch \
     file://qup/0033-meta-qti-auto-kernel-ccu-Add-Ftrace-support-for-CCU.patch \
     file://qup/0034-i2c-qcom-geni-Skip-TX-DMA-TRE-for-I2C-read-operation.patch \
     file://qup/0035-i2c-qcom-geni-Add-asynchronous-read-support-for-CCU-.patch \
