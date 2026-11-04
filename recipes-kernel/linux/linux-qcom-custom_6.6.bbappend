@@ -181,6 +181,7 @@ SRC_URI:append:gen5 = " \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://rumi.cfg', '', d)} \
     file://bluetooth/0001-Bluetooth-qca-add-support-for-QCA-automotive-BT-chip.patch \
     file://bluetooth/0002-Bluetooth-hci_qca-Fix-duplicate-dump-and-add-uevent-.patch \
+    file://bluetooth/0003-Bluetooth-fix-BLE-HID-SMP-pairing-failure-on-board-boot-up.patch \
 "
 
 SRC_URI:remove:gen5 = " \
