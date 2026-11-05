@@ -54,6 +54,7 @@ SRC_URI:append = "\
     file://0006-PENDING-ufs-ufs-qcom-Enable-UFS-Temperature-Monitori.patch \
     file://0007-ufs-ufs-qcom-Re-enable-ESI-after-host-is-reset.patch \
     file://0008-ufs-core-Add-support-for-Fault-injection-functionali.patch \
+    file://0009-ufs-core-Implement-Fault-Injection-support-for-MCQ-p.patch \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-Revert-PENDING-ufs-ufs-qcom-Skip-UFS-link-startup-in.patch', '', d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'qti-rumi', 'file://0001-QCLINUX-ufs-UFS-bringup-on-Seca-RUMI.patch', '', d)} \
     file://0001-PENDING-firmware-extend-vmid-support-to-128.patch \
