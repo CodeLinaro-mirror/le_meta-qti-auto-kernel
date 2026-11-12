@@ -1,0 +1,197 @@
+From 50f4fd91368b1b1ad0bd71db0f5de0bafa4d88d2 Mon Sep 17 00:00:00 2001
+From: Ram Kumar Dwivedi <ram.dwivedi@oss.qualcomm.com>
+Date: Thu, 5 Nov 2026 16:22:08 +0530
+Subject: [PATCH 9/9] ufs: core: Implement Fault Injection support for MCQ path
+
+Gen5 automotive platforms operating in MCQ mode require UFS safety
+diagnostics to be validated against controller-level faults for
+Functional safety(FUSA) compliance.
+
+Add fault injection support for the MCQ path so that SCSI timeout,
+fatal interrupt and host/device reset and restore faults can be
+exercised in MCQ mode.
+
+For SCSI timeout injection, consume the affected CQE without completing
+the command. This prevents a subsequent ESI interrupt from processing
+the pending CQE and allows the SCSI timeout and abort handling to be
+triggered as intended.
+
+For fatal interrupt injection, check for injected fatal errors from the
+MCQ ESI handler, since MCQ read/write completions are handled through
+the per-queue interrupt path.
+
+This enables reliable validation of UFS error handling and safety
+monitoring when the controller is operating in MCQ mode.
+
+Change-Id: Ibb60c2eedbf8afe56081aa354a374f43bcfef4f9
+Signed-off-by: Ram Kumar Dwivedi <ram.dwivedi@oss.qualcomm.com>
+---
+ arch/arm64/configs/qcom_gen5auto.config |  2 ++
+ drivers/ufs/core/ufs-fault-injection.c  |  3 +++
+ drivers/ufs/core/ufs-mcq.c              | 24 ++++++++++++++++++++++++
+ drivers/ufs/core/ufshcd.c               | 14 ++++++++++++++
+ drivers/ufs/host/ufs-qcom.c             | 11 +++++++++++
+ include/ufs/ufshcd.h                    |  3 +++
+ 6 files changed, 57 insertions(+)
+
+diff --git a/arch/arm64/configs/qcom_gen5auto.config b/arch/arm64/configs/qcom_gen5auto.config
+index a43fc469402d..1ebe73a50269 100644
+--- a/arch/arm64/configs/qcom_gen5auto.config
++++ b/arch/arm64/configs/qcom_gen5auto.config
+@@ -157,6 +157,8 @@ CONFIG_REGULATOR_PROXY_CONSUMER=y
+ # CONFIG_SERIAL_8250 is not set
+ # CONFIG_SERIAL_MSM is not set
+ CONFIG_SCSI_UFS_QCOM=y
++CONFIG_FAULT_INJECTION=y
++CONFIG_SCSI_UFS_FAULT_INJECTION=y
+ CONFIG_SERIAL_QCOM_GENI_CONSOLE=y
+ CONFIG_SND_SOC_MSM_STUB=y
+ CONFIG_SPI_SLAVE=y
+diff --git a/drivers/ufs/core/ufs-fault-injection.c b/drivers/ufs/core/ufs-fault-injection.c
+index 0e0bf3341fe0..12942fa07bc1 100644
+--- a/drivers/ufs/core/ufs-fault-injection.c
++++ b/drivers/ufs/core/ufs-fault-injection.c
+@@ -73,13 +73,16 @@ bool ufs_trigger_eh(void)
+ {
+ 	return should_fail(&ufs_trigger_eh_attr, 1);
+ }
++EXPORT_SYMBOL_GPL(ufs_trigger_eh);
+ 
+ bool ufs_fail_completion(void)
+ {
+ 	return should_fail(&ufs_timeout_attr, 1);
+ }
++EXPORT_SYMBOL_GPL(ufs_fail_completion);
+ 
+ bool ufs_fatal_intr(void)
+ {
+ 	return should_fail(&ufs_fatal_intr_attr, 1);
+ }
++EXPORT_SYMBOL_GPL(ufs_fatal_intr);
+diff --git a/drivers/ufs/core/ufs-mcq.c b/drivers/ufs/core/ufs-mcq.c
+index cb8f0652a4be..bc5f67390e09 100644
+--- a/drivers/ufs/core/ufs-mcq.c
++++ b/drivers/ufs/core/ufs-mcq.c
+@@ -309,7 +309,9 @@ unsigned long ufshcd_mcq_poll_cqe_lock(struct ufs_hba *hba,
+ 	unsigned long flags;
+ 
+ 	spin_lock_irqsave(&hwq->cq_lock, flags);
++
+ 	ufshcd_mcq_update_cq_tail_slot(hwq);
++
+ 	while (!ufshcd_mcq_is_cq_empty(hwq)) {
+ 		ufshcd_mcq_process_cqe(hba, hwq);
+ 		ufshcd_mcq_inc_cq_head_slot(hwq);
+@@ -324,6 +326,28 @@ unsigned long ufshcd_mcq_poll_cqe_lock(struct ufs_hba *hba,
+ }
+ EXPORT_SYMBOL_GPL(ufshcd_mcq_poll_cqe_lock);
+ 
++void ufshcd_mcq_drop_all_cqe_lock(struct ufs_hba *hba, struct ufs_hw_queue *hwq)
++{
++	unsigned long completed_reqs = 0;
++	unsigned long flags;
++
++	spin_lock_irqsave(&hwq->cq_lock, flags);
++	ufshcd_mcq_update_cq_tail_slot(hwq);
++
++	while (!ufshcd_mcq_is_cq_empty(hwq)) {
++		struct cq_entry *cqe = ufshcd_mcq_cur_cqe(hwq);
++
++		cqe->command_desc_base_addr = 0; /* consume it, but skip scsi_done */
++		ufshcd_mcq_inc_cq_head_slot(hwq);
++		completed_reqs++;
++	}
++
++	if (completed_reqs)
++		ufshcd_mcq_update_cq_head(hwq);
++	spin_unlock_irqrestore(&hwq->cq_lock, flags);
++}
++EXPORT_SYMBOL_GPL(ufshcd_mcq_drop_all_cqe_lock);
++
+ void ufshcd_mcq_make_queues_operational(struct ufs_hba *hba)
+ {
+ 	struct ufs_hw_queue *hwq;
+diff --git a/drivers/ufs/core/ufshcd.c b/drivers/ufs/core/ufshcd.c
+index eb9d52d087ad..50d4856e764d 100644
+--- a/drivers/ufs/core/ufshcd.c
++++ b/drivers/ufs/core/ufshcd.c
+@@ -5793,6 +5793,14 @@ static irqreturn_t ufshcd_transfer_req_compl(struct ufs_hba *hba)
+ 		ufshcd_reset_intr_aggr(hba);
+ 
+ 	if (unlikely(ufs_fail_completion())) {
++		unsigned long flags;
++		u32 tr_doorbell;
++
++		spin_lock_irqsave(&hba->outstanding_lock, flags);
++		tr_doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
++		hba->outstanding_reqs &= tr_doorbell;
++		spin_unlock_irqrestore(&hba->outstanding_lock, flags);
++
+ 		dev_info(hba->dev, "Injected error: SCSI I/O request timeout");
+ 		return IRQ_HANDLED;
+ 	}
+@@ -6997,6 +7005,12 @@ static irqreturn_t ufshcd_check_errors(struct ufs_hba *hba, u32 intr_status)
+ 	return retval;
+ }
+ 
++void ufshcd_mcq_check_errors(struct ufs_hba *hba)
++{
++	ufshcd_check_errors(hba, 0);
++}
++EXPORT_SYMBOL_GPL(ufshcd_mcq_check_errors);
++
+ /**
+  * ufshcd_tmc_handler - handle task management function completion
+  * @hba: per adapter instance
+diff --git a/drivers/ufs/host/ufs-qcom.c b/drivers/ufs/host/ufs-qcom.c
+index 1e99e9776601..e495d80c6036 100644
+--- a/drivers/ufs/host/ufs-qcom.c
++++ b/drivers/ufs/host/ufs-qcom.c
+@@ -25,6 +25,7 @@
+ #include "ufs-qcom.h"
+ #include <ufs/ufshci.h>
+ #include <ufs/ufs_quirks.h>
++#include "../core/ufs-fault-injection.h"
+ 
+ #define MCQ_QCFGPTR_MASK	GENMASK(7, 0)
+ #define MCQ_QCFGPTR_UNIT	0x200
+@@ -2247,6 +2248,16 @@ static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *data)
+ 	struct ufs_hw_queue *hwq = &hba->uhq[id];
+ 
+ 	ufshcd_mcq_write_cqis(hba, 0x1, id);
++
++	if (unlikely(ufs_fail_completion())) {
++		dev_info(hba->dev, "Injected error: SCSI I/O request timeout");
++		ufshcd_mcq_drop_all_cqe_lock(hba,hwq);
++		return IRQ_HANDLED;
++	}
++
++	if (unlikely(hba->errors))
++		ufshcd_mcq_check_errors(hba);
++
+ 	ufshcd_mcq_poll_cqe_lock(hba, hwq);
+ 
+ 	return IRQ_HANDLED;
+diff --git a/include/ufs/ufshcd.h b/include/ufs/ufshcd.h
+index 9c7becb89697..3f20ffc46475 100644
+--- a/include/ufs/ufshcd.h
++++ b/include/ufs/ufshcd.h
+@@ -1328,6 +1328,8 @@ u32 ufshcd_mcq_read_cqis(struct ufs_hba *hba, int i);
+ void ufshcd_mcq_write_cqis(struct ufs_hba *hba, u32 val, int i);
+ unsigned long ufshcd_mcq_poll_cqe_lock(struct ufs_hba *hba,
+ 					 struct ufs_hw_queue *hwq);
++void ufshcd_mcq_drop_all_cqe_lock(struct ufs_hba *hba,
++					 struct ufs_hw_queue *hwq);
+ void ufshcd_mcq_make_queues_operational(struct ufs_hba *hba);
+ void ufshcd_mcq_enable_esi(struct ufs_hba *hba);
+ void ufshcd_mcq_config_esi(struct ufs_hba *hba, struct msi_msg *msg);
+@@ -1494,5 +1496,6 @@ int ufshcd_write_ee_control(struct ufs_hba *hba);
+ int ufshcd_update_ee_control(struct ufs_hba *hba, u16 *mask,
+ 			     const u16 *other_mask, u16 set, u16 clr);
+ void ufshcd_force_error_recovery(struct ufs_hba *hba);
++void ufshcd_mcq_check_errors(struct ufs_hba *hba);
+ 
+ #endif /* End of Header */
+-- 
+2.34.1
+
